@@ -5,6 +5,7 @@
 - 관련 문서: [제품 개요](../product/project-overview.md), [아키텍처](../architecture/architecture.md)
 - 관련 결정: [ADR-007 백엔드 모듈 경계](../decisions/ADR-007-backend-modules.md)
 - 관련 결정: [ADR-009 아이디·비밀번호 로그인과 JWT](../decisions/ADR-009-username-password-jwt.md)
+- 권한 설계 제안: [역할 기반 API 권한과 판정 일관성](../proposals/authorization-design-proposal.md) (검토 중)
 
 ## 목표
 
