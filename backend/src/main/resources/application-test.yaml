@@ -1,0 +1,3 @@
+spring:
+  config:
+    import: classpath:config/datasource/jdbc-test.yaml

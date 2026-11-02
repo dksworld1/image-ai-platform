@@ -1,0 +1,10 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+
+[*.ps1]
+# Windows PowerShell 5.1에서 한글 UTF-8 스크립트를 올바르게 읽도록 BOM을 사용합니다.
+charset = utf-8-bom

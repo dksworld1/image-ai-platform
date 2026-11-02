@@ -1,0 +1,5 @@
+spring:
+  config:
+    import: classpath:config/datasource/jdbc-local.yaml
+logging:
+  config: classpath:config/logger/logback-local.xml

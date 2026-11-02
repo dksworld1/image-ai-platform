@@ -1,0 +1,26 @@
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+npm-debug.log*
+
+# Backend
+backend/target/
+backend/data/*
+!backend/data/.gitkeep
+backend/.idea/
+*.class
+*.log
+
+# Local environment
+.env
+.env.*
+!.env.example

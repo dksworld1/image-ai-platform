@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: image-ai-platform-api
+  profiles:
+    default: local
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+
+mybatis:
+  config-location: classpath:config/mybatis-config.xml
+  mapper-locations: classpath*:mapper/**/*.xml
+

@@ -1,0 +1,6 @@
+spring:
+  config:
+    import: file:${APP_CONFIG_FILE}
+
+logging:
+  config: classpath:config/logger/logback-dev.xml
