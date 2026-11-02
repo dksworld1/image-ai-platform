@@ -1,5 +1,9 @@
 spring:
   config:
     import: classpath:config/datasource/jdbc-local.yaml
+app:
+  auth:
+    jwt:
+      secret: local-only-jwt-signing-key-not-for-production-2026
 logging:
   config: classpath:config/logger/logback-local.xml

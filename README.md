@@ -20,16 +20,7 @@ React + TypeScript 프런트엔드와 Spring Boot REST API로 구성된 모노�
 
 프런트엔드 스크립트는 최초 실행 시 의존성을 설치하고 정적 파일을 빌드한 뒤 `http://localhost:4173`에서 제공합니다. 백엔드는 `http://localhost:8080`에서 실행됩니다. 정적 서버는 `/api` 요청을 백엔드로 프록시하므로 로컬 상태 표시도 동작합니다. 서버를 각각 실행하려면 `./bin/start-frontend.ps1`, `./bin/start-backend.ps1`을 사용합니다. 개별 실행 시에도 스크립트가 끝나면 Enter 입력을 기다려 창이 바로 닫히지 않습니다.
 
-로컬 백엔드를 시작하기 전에 현재 PowerShell 세션에 JWT 서명 키를 설정합니다. 시작 스크립트가 여는 백엔드 창은 이 값을 상속합니다. 키는 저장소 파일에 기록하지 않습니다. `dev` 및 `prod`에서도 `JWT_SECRET` 환경 변수로 UTF-8 기준 32바이트 이상의 비밀 키를 주입해야 합니다.
-
-```powershell
-$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-$keyBytes = New-Object byte[] 32
-$rng.GetBytes($keyBytes)
-$env:JWT_SECRET = [Convert]::ToBase64String($keyBytes)
-$rng.Dispose()
-./bin/start-local.ps1
-```
+`local` 및 `test` 프로파일은 개발·검증 편의를 위해 YAML에 고정 JWT 서명 키를 둡니다. 이 키는 로컬 테스트 전용 예외이며 외부 환경이나 운영에서 사용하지 않습니다. `dev` 및 `prod`에서는 `JWT_SECRET` 환경 변수로 UTF-8 기준 32바이트 이상의 별도 비밀 키를 주입해야 합니다.
 
 Flyway는 local/test에서 앱 시작 시 `app` 데이터소스에 미적용 migration을 실행합니다. dev/prod의 일반 앱 실행은 migration을 건너뜁니다. 배포 전 migration 전용 실행은 대상 DB 설정을 담은 `APP_CONFIG_FILE`과 함께 수행합니다.
 
