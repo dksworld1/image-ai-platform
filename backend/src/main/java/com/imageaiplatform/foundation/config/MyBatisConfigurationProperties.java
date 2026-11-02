@@ -1,4 +1,4 @@
-package com.imageaiplatform.config;
+package com.imageaiplatform.foundation.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -24,3 +24,4 @@ public class MyBatisConfigurationProperties {
     }
 
 }
+

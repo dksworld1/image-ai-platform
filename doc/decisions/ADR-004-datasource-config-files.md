@@ -21,6 +21,7 @@ JDBC 연결 주소, 사용자, 암호, 연결 풀 설정을 각각 환경변수�
 - JDBC 파일은 `config/datasource/` 아래에 둡니다. 로컬 H2 설정은 classpath의 `config/datasource/jdbc-local.yaml`을 사용합니다.
 - 자동화 테스트의 파일 기반 H2 설정은 classpath의 `config/datasource/jdbc-test.yaml`을 테스트 프로파일에서 가져옵니다.
 - 각 JDBC 파일은 `app.datasources.catalog`과 `app.datasources.archive`에 DB별 연결 및 HikariCP 설정을 둡니다.
+- 위 항목은 기존 foundation 데이터소스 설정입니다. 신규 업무용 `app.datasource`는 [ADR-010](ADR-010-app-datasource.md)에서 추가했습니다.
 - `dev`와 `prod`는 `APP_CONFIG_FILE` 환경변수에 외부 YAML 파일 경로를 전달하고 `spring.config.import=file:${APP_CONFIG_FILE}` 방식으로 읽습니다. 필수 파일이 없으면 해당 프로파일은 시작에 실패해야 합니다.
 - 서버 관리 외부 파일과 비밀 값은 저장소 또는 실행 JAR에 넣지 않습니다. 환경변수는 파일 경로만 전달합니다.
 

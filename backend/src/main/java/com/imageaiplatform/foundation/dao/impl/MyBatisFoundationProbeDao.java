@@ -1,6 +1,6 @@
-package com.imageaiplatform.dao.impl;
+package com.imageaiplatform.foundation.dao.impl;
 
-import com.imageaiplatform.dao.FoundationProbeDao;
+import com.imageaiplatform.foundation.dao.FoundationProbeDao;
 import java.util.Map;
 import org.mybatis.spring.SqlSessionTemplate;
 
@@ -23,3 +23,4 @@ public class MyBatisFoundationProbeDao implements FoundationProbeDao {
         return count == null ? 0 : count;
     }
 }
+

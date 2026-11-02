@@ -1,6 +1,8 @@
 spring:
   config:
     import: file:${APP_CONFIG_FILE}
+  flyway:
+    enabled: false
 
 logging:
   config: classpath:config/logger/logback-dev.xml

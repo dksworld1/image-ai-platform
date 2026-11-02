@@ -5,8 +5,10 @@
 ## 문서 분류
 
 - [제품 개요](product/project-overview.md): 제품 목적과 주요 기능
+- [지원 포트폴리오 기록](portfolio/README.md): 채용공고 적합도 분석과 프로젝트 어필 근거
 - [아키텍처](architecture/architecture.md): 현재 시스템 구성과 기술 경계
 - [API 계약](api/api.md): 현재 제공하는 HTTP API와 변경 원칙
+- [DB 테이블 정의서](db-schema/tables/README.md): 기능별 DB 테이블 구조 및 제약
 - [개발 계획](plans/roadmap.md): 현재 상태와 다음 설계 항목
 - [구현 단계](stages/README.md): 단계별 목표, 핵심 개념, 결정과 완료 조건
 - [결정 기록](decisions/): 채택한 주요 기술·구조 결정 (ADR)

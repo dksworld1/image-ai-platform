@@ -1,4 +1,4 @@
-package com.imageaiplatform.config;
+package com.imageaiplatform.foundation.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -21,3 +21,4 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedHeaders("*");
     }
 }
+

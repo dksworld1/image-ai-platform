@@ -1,13 +1,15 @@
-package com.imageaiplatform.config;
+package com.imageaiplatform.foundation.config;
 
-import com.imageaiplatform.dao.FoundationProbeDao;
-import com.imageaiplatform.dao.impl.MyBatisFoundationProbeDao;
+import com.imageaiplatform.foundation.dao.FoundationProbeDao;
+import com.imageaiplatform.foundation.dao.impl.MyBatisFoundationProbeDao;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(name = "app.database-migration-only", havingValue = "false", matchIfMissing = true)
 public class FoundationProbeDaoConfiguration {
     @Bean("catalogFoundationProbeDao")
     FoundationProbeDao catalogFoundationProbeDao(
@@ -21,3 +23,4 @@ public class FoundationProbeDaoConfiguration {
         return new MyBatisFoundationProbeDao(sqlSessionTemplate);
     }
 }
+

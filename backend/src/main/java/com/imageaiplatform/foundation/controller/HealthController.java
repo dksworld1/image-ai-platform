@@ -1,4 +1,4 @@
-package com.imageaiplatform.controller;
+package com.imageaiplatform.foundation.controller;
 
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,3 +13,4 @@ public class HealthController {
         return Map.of("status", "UP");
     }
 }
+

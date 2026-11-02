@@ -1,6 +1,6 @@
 # ADR-005: 라우팅 없는 다중 데이터소스와 공통 DAO 구현
 
-- 상태: 채택
+- 상태: 채택 (legacy foundation DAO에 한정)
 - 날짜: 2026-11-01
 - 관련 단계: [1단계 백엔드 프레임워크와 데이터 기반](../stages/stage-01-backend-foundation.md)
 
@@ -14,7 +14,9 @@
 - 데이터소스마다 DAO 구현과 SQL을 따로 작성합니다.
 - 데이터소스마다 MyBatis 세션 구성 및 DAO 빈을 두고 동일 DAO 인터페이스·구현과 호환되는 XML statement를 공유합니다.
 
-## 결정
+## 당시 결정
+
+이 결정은 기존 foundation의 `catalog`·`archive` DAO 구성에 계속 적용합니다. 신규 업무 기능의 기본 데이터소스 선택은 [ADR-010](ADR-010-app-datasource.md)을 따릅니다.
 
 - `AbstractRoutingDataSource`를 사용하지 않습니다.
 - 각 데이터소스에 고유한 `SqlSessionFactory`, `SqlSessionTemplate`, Spring 트랜잭션 매니저를 구성합니다.
