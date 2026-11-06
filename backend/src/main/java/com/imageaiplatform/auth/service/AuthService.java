@@ -22,11 +22,11 @@ public class AuthService {
 
     public IssuedToken login(String username, String password) {
         AuthUser user = authUserDao.findByUsername(username);
-        if (user == null || !user.enabled() || !passwordEncoder.matches(password, user.passwordHash())) {
+        if (user == null || !Boolean.TRUE.equals(user.enabled()) || !passwordEncoder.matches(password, user.passwordHash())) {
             throw new BadCredentialsException("Invalid username or password.");
         }
         return jwtTokenService.issue(user.username());
     }
 
-    public record IssuedToken(String value, long expiresIn) {}
+    public record IssuedToken(String value, Long expiresIn) {}
 }

@@ -20,12 +20,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             try {
                 String subject = jwtTokenService.parseSubject(header.substring(7));
+                if (subject == null || subject.isBlank() || subject.length() > 100) {
+                    throw new IllegalArgumentException("Invalid token subject.");
+                }
                 var authentication = new UsernamePasswordAuthenticationToken(
                         subject, null, AuthorityUtils.NO_AUTHORITIES);
                 SecurityContextHolder.getContext().setAuthentication(authentication);

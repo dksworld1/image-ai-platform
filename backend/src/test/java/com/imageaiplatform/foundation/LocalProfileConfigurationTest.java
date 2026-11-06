@@ -1,6 +1,9 @@
 package com.imageaiplatform.foundation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.imageaiplatform.foundation.config.MyBatisConfigurationProperties;
 import com.imageaiplatform.foundation.dao.FoundationProbeDao;
@@ -12,6 +15,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.apache.ibatis.session.SqlSessionFactory;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.servlet.Filter;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest(properties = {
         "app.auth.jwt.secret=local-profile-test-only-signing-key-32-bytes",
@@ -21,6 +27,36 @@ import org.springframework.jdbc.core.JdbcTemplate;
 })
 @ActiveProfiles("local")
 class LocalProfileConfigurationTest {
+    @Autowired
+    private WebApplicationContext webContext;
+
+    @Autowired
+    @Qualifier("springSecurityFilterChain")
+    private Filter securityFilter;
+
+    @Test
+    void allowsLocalFrontendPreflightWithoutAuthentication() throws Exception {
+        var mvc = MockMvcBuilders.webAppContextSetup(webContext).addFilters(securityFilter).build();
+        for (String origin : new String[] {"http://localhost:5173", "http://localhost:4173"}) {
+            mvc.perform(options("/api/auth/token")
+                            .header("Origin", origin)
+                            .header("Access-Control-Request-Method", "POST")
+                            .header("Access-Control-Request-Headers", "authorization,content-type"))
+                    .andExpect(status().is2xxSuccessful())
+                    .andExpect(header().string("Access-Control-Allow-Origin", origin));
+        }
+    }
+
+    @Test
+    void rejectsPreflightFromUnlistedOrigin() throws Exception {
+        var mvc = MockMvcBuilders.webAppContextSetup(webContext).addFilters(securityFilter).build();
+        mvc.perform(options("/api/auth/token")
+                        .header("Origin", "https://unlisted.example")
+                        .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
     @Autowired
     private MyBatisConfigurationProperties myBatisProperties;
 

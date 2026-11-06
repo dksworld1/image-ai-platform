@@ -47,6 +47,10 @@
 - 첫 스키마 migration은 [V1__create_auth_user.sql](../../backend/src/main/resources/db/migration/V1__create_auth_user.sql)입니다.
 - 테이블 구조는 [인증 테이블 정의서](../db-schema/tables/auth/auth-user.md)에 기록했습니다.
 - access token 발급 및 검증은 구현했습니다. 가입·역할·refresh token·폐기 및 감사 기능은 미구현입니다.
+- 권한 판정 서비스와 도메인·DAO를 추가했습니다. 2026-11-06 권한 테이블의 Flyway V2와 실제 MyBatis 조회 DAO를 구현하고 서비스를 Spring 빈으로 연결했습니다. API 인가는 전역 MVC 인터셉터에 연결했고 기본 역할·권한 데이터는 생성하지 않습니다. 설계와 상세 진행 내용은 [권한 설계 제안](../proposals/authorization-design-proposal.md)에서 관리합니다.
+- 2026-11-04 검증: JDK 21·Maven 3.9.11에서 `mvn test` 성공. 신규 권한 판정 단위 테스트 7개와 기존 기반 테스트 4개, 총 11개가 모두 통과했습니다. 아래 이전 기록의 실행 실패와 구분합니다.
+- 2026-11-06 검증: 신규 RBAC DB 통합 테스트 7개를 포함해 `mvn test` 전체 18개 통과. H2에서 V1→V2 업그레이드와 제약·실제 권한 조회를 확인했습니다. API 인가·운영 DB 검증은 아직 수행하지 않았습니다.
+- 2026-11-06 후속 API 인가 적용: `@PublicApi`·`@RequirePermission`과 전역 MVC 인터셉터를 연결했습니다. 신규 요청 테스트 9개 포함 전체 30개 통과. 위 18개 검증 시점과 달리 현재 API 인가 경로도 검증했으며, 운영 DB와 서비스 Method Security·작업 내부 비동기 전달은 다음 범위입니다.
 - 검증: `git diff --check` — 성공. Flyway 추가분의 빌드 및 자동 테스트는 아직 실행하지 않았습니다. 이전 Maven 컴파일은 사용자 Maven 캐시의 `.m2/repository/.locks` 접근 거부로 의존성 해석 전에 중단됐습니다.
 
 ## 보안 준수 TODO
