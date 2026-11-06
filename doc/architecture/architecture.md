@@ -1,7 +1,7 @@
 # 아키텍처
 
 상태: 초안 기준선  
-갱신일: 2026-11-02
+갱신일: 2026-11-06
 
 ## 개요
 
@@ -26,7 +26,7 @@
 - API 기본 주소: `http://localhost:8080`
 - 개발 프록시 대상: `API_PROXY_TARGET` 환경 변수 또는 `http://localhost:8080`
 - 정적 미리보기에서도 `/api` 요청을 같은 백엔드로 전달합니다.
-- 브라우저에서 직접 API를 호출할 때 허용할 출처: `CORS_ALLOWED_ORIGIN` 또는 `http://localhost:5173`
+- 브라우저에서 직접 API를 호출할 때 허용할 출처: 쉼표로 구분한 `CORS_ALLOWED_ORIGIN`. local 기본값은 `http://localhost:5173`, `http://localhost:4173`이며 그 외 프로필의 공통 기본값은 `http://localhost:5173`입니다.
 
 백엔드는 `application.yaml` 및 프로파일별 YAML에서 데이터소스 설정을 가져오며 HikariCP와 MyBatis XML을 사용합니다. 신규 업무 기본 데이터소스는 `app`이며 `app.datasource` 아래에서 설정합니다. 기존 `catalog`·`archive` 데이터소스와 foundation DAO는 호환성을 위해 유지합니다. MyBatis 설정은 `MyBatisConfigurationProperties`를 통해 세션 팩토리에 전달합니다. DB 변경은 Flyway 버전 SQL과 그룹별 [DB 정의서](../db-schema/tables/README.md)로 관리합니다. local/test는 시작 시 마이그레이션하고 dev/prod는 배포 단계에서 전용 실행 모드로 적용합니다. 테스트 데이터는 `db/seed/`에서 관리하고 test 프로파일에만 적용합니다. `catalog`·`archive`는 Flyway 범위 밖입니다. 기본 프로파일은 `local`이고 dev/prod는 `APP_CONFIG_FILE`에서 DB 설정을 읽습니다. 프로파일별 Logback 설정은 `backend/src/main/resources/config/logger/`에 둡니다. 상세 사항은 [ADR-012](../decisions/ADR-012-flyway-app-migrations.md)을 참고합니다.
 
@@ -54,7 +54,8 @@
 
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 `JWT_SECRET` 환경 변수에서 읽습니다. 기본 유효기간은 15분입니다.
-- 로그인 및 헬스체크 외 API는 인증을 요구합니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
+- JWT 필터가 인증을 등록하고 전역 MVC 인가 인터셉터가 메서드의 `@PublicApi`·`@RequirePermission`을 읽어 공개·인증 전용·세부 권한 필요 요청을 판정합니다. 필터 체인의 URL별 인가 목록은 제거하고 MVC 인터셉터에서 기본 거부합니다. 어노테이션 없는 핸들러와 정적 리소스 핸들러도 거부합니다. 비-MVC 서블릿을 추가할 때는 별도의 보안 적용이 필요합니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
+- 권한 테이블 4개는 app 데이터소스의 Flyway V2로 관리합니다. `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. API 인터셉터에 연결되어 비공개 API마다 활성 계정과 필요한 세부 권한을 확인합니다. 역할·권한 기본 데이터는 제공하지 않습니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
 
 ## DB 테이블 정의
 

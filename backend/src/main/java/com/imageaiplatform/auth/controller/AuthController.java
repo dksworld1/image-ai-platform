@@ -22,6 +22,7 @@ public class AuthController {
     }
 
     @PostMapping("/token")
+    @PublicApi
     public TokenResponse issueToken(@Valid @RequestBody LoginRequest request) {
         try {
             AuthService.IssuedToken token = authService.login(request.username(), request.password());
