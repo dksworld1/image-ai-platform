@@ -74,4 +74,4 @@
 - 2026-11-07: Java 21.0.13·Maven 3.10.0을 확인한 동일 PowerShell 세션에서 `mvn test` 실행, 전체 38개 통과(실패·오류·건너뜀 0).
 - 신규 테스트 8개: 여러 파일 UTF-8 통합, 하위 디렉터리·다른 확장자 제외, 디렉터리 엔트리가 없는 일반 JAR 로딩, 파일 내·파일 간 중복 키, 클래스패스 간 중복 리소스, 잘못된 properties 값의 오류 처리, 빈 설정 허용, 격리 클래스 로더의 동시 최초 접근 및 초기화 실패 후 재접근을 확인했습니다.
 - 최초 실행은 Maven 캐시 잠금 파일 접근 제한으로 중단됐으며 권한을 허용한 재실행에서 검증했습니다. 중간 실행에서 발견한 일반 JAR 탐색 누락과 Windows JAR 파일 핸들 캐시 문제를 수정한 뒤 위 전체 테스트가 통과했습니다.
-- 실제 설정 항목의 타입 변환·필수값 검증 및 Spring Boot 실행 JAR의 중첩 리소스 로딩은 아직 검증하지 않았습니다.
+- 2026-11-07: Java 21에서 `mvn -o -DskipTests package`로 만든 fat JAR을 Spring Boot `PropertiesLauncher`로 열고 임시 테스트 진입점에서 `RuntimeConfig.settings()`를 두 번 호출했습니다. `LaunchedClassLoader`에서 첫 호출 시 INFO 로그에 `BOOT-INF/classes/!/config/runtime/runtime.properties`가 한 번 기록됐고 두 호출은 동일한 객체를 반환했습니다. 실제 설정 필드의 타입 변환·필수값 검증은 항목 추가 시 수행합니다.
