@@ -7,6 +7,7 @@
 - 대응 모델: `com.imageaiplatform.auth.domain.AuthUserRole`
 - 조회 계약: `com.imageaiplatform.auth.dao.EffectivePermissionDao`
 - 조회 구현: `com.imageaiplatform.auth.dao.impl.MyBatisEffectivePermissionDao`
+- 변경 구현: `UserRoleService`, `MyBatisUserRoleDao`. 실제 변경은 auth_audit_log와 같은 트랜잭션으로 저장합니다.
 
 ## 목적
 
@@ -32,4 +33,4 @@
 - 역할 회수는 연결 행 삭제로 표현합니다. 사용자·역할 삭제 전에 연결 행을 명시적으로 정리합니다.
 - `username`은 현행 V1 스키마와 일치시키기 위한 참조 키입니다. 불변 사용자 ID 도입 시 이 FK·복합 PK·인덱스를 함께 전환하는 후속 migration이 필요하며 V1은 수정하지 않습니다.
 - 계정 비활성화는 연결을 삭제하지 않습니다. 계정 상태 검증에서 접근을 거부합니다.
-- 부여자·회수자와 변경 시각은 이후 감사 기록에 남깁니다. 이 테이블은 현재 할당 상태만 보관하며 감사 이력을 대신하지 않습니다.
+- 부여자·회수자와 변경 시각은 [auth_audit_log](auth-audit-log.md)에 남깁니다. 이 테이블은 현재 할당 상태만 보관하며 감사 이력을 대신하지 않습니다.

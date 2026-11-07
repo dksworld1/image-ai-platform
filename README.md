@@ -32,7 +32,7 @@ Linux 및 macOS에서는 Java 21 이상과 Maven 3.6.3 이상을 준비한 뒤 �
 
 Flyway는 local/test에서 앱 시작 시 `app` 데이터소스에 미적용 migration을 실행합니다. dev/prod의 일반 앱 실행은 migration을 건너뜁니다. 배포 전 migration 전용 실행은 대상 DB 설정을 담은 `APP_CONFIG_FILE`과 함께 수행합니다.
 
-V2는 역할·권한 및 사용자 역할·역할 권한 연결 테이블을 생성합니다. 기본 역할이나 권한 할당은 자동 생성하지 않습니다. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
+V2는 역할·권한 및 사용자 역할·역할 권한 연결 테이블을 생성합니다. V3는 초기 `ADMIN`·`MEMBER` 역할과 `auth_audit_log`를 추가합니다. V4는 ADMIN에 사용자 관리 권한을 연결합니다. 계정과 사용자 역할 할당은 일반 서버 시작 시 자동 생성하지 않습니다. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
 
 테스트 전용 데이터는 `backend/src/main/resources/db/seed/`의 Flyway 반복 SQL 파일(`R__...sql`)로 관리하며 `test` 프로파일에서만 적용합니다. 현재 `test-user` 샘플 계정은 테스트 용도입니다.
 
@@ -70,6 +70,22 @@ mvn test
 프런트엔드 API 기본 경로는 `/api`이며 `VITE_API_BASE_URL`로 변경할 수 있습니다. 백엔드 포트와 허용할 프런트엔드 출처는 `SERVER_PORT`, `CORS_ALLOWED_ORIGIN` 환경 변수로 설정합니다.
 
 `local` 프로필의 CORS 기본 허용 출처는 `http://localhost:5173`(Vite 개발)과 `http://localhost:4173`(미리보기)입니다. `application-local.yaml`에서 관리하며 `CORS_ALLOWED_ORIGIN`으로 쉼표로 구분한 출처 목록을 지정해 덮어쓸 수 있습니다. `.env.example`은 환경 변수 예시이며 백엔드가 `.env` 파일을 자동으로 읽지는 않습니다.
+
+## 최초 관리자 생성
+
+최초 관리자 생성은 일반 서버 시작과 분리한 일회성 명령입니다. 대상 DB를 사용하는 서버를 중지하고 패키징한 뒤 실행합니다. 아래 명령은 저장소 루트 기준이며 비밀번호는 콘솔에서 입력합니다.
+
+```bash
+export INITIAL_ADMIN_USERNAME=admin
+read -rsp 'Initial administrator password: ' INITIAL_ADMIN_PASSWORD
+export INITIAL_ADMIN_PASSWORD
+java -jar backend/target/backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=local --app.admin-bootstrap-only=true
+unset INITIAL_ADMIN_PASSWORD
+```
+
+이 모드는 웹 서버·legacy DB를 시작하지 않고 app DB 마이그레이션 후 최초 계정·ADMIN 역할 할당·감사 기록을 함께 저장하고 종료합니다. dev/prod는 대상 프로필과 기존 `APP_CONFIG_FILE`을 지정합니다. ADMIN은 V4에서 `auth:user:manage` 권한을 부여받으며 MEMBER에는 자동 권한을 부여하지 않습니다. 비밀번호는 비어 있으면 안 되고 BCrypt 제한인 UTF-8 72바이트 이하여야 합니다. 고정 기본 비밀번호는 없습니다.
+
+이미 ADMIN 할당이 있거나 같은 사용자명이 존재하면 계정 생성·비밀번호 변경 없이 실패합니다. 모든 관리자가 비활성이어도 재생성·복구 용도로 사용하지 않습니다. 정상 서비스 경로에서는 마지막 활성 관리자의 ADMIN 회수와 비활성화를 거부합니다. 관리자 변경은 같은 DB 행 잠금과 READ_COMMITTED 트랜잭션을 사용하며, 호환되지 않는 외부 트랜잭션에 참여하면 변경을 거부합니다. 직접 SQL 변경은 이 서비스 보호 범위 밖입니다.
 
 ## 프로젝트 문서
 

@@ -10,7 +10,7 @@
 
 ## 목적
 
-사용자에게 부여하는 역할을 정의합니다. `ADMIN`, `MEMBER`는 후보이며 역할 데이터와 부여 정책은 아직 확정하지 않았습니다.
+사용자에게 부여하는 역할을 정의합니다. V3에서 초기 `ADMIN`·`MEMBER` 두 역할을 system_role=TRUE로 추가하며, 같은 코드의 기존 행은 덮어쓰지 않습니다. V4는 ADMIN에 `auth:user:manage`만 연결합니다. 최초 계정과 사용자 역할 할당은 일반 서버 시작 시 생성하지 않고 별도 bootstrap 명령으로 생성합니다.
 
 ## 컬럼
 
@@ -32,4 +32,4 @@
 
 - `auth_user_role.role_code`, `auth_role_permission.role_code`가 참조합니다.
 - 참조가 남아 있으면 삭제를 거부합니다. 연결 해제 후 역할 삭제는 서비스 트랜잭션에서 수행하며 자동 연쇄 삭제하지 않습니다.
-- 시스템 역할 변경 제한과 마지막 관리자 보호는 서비스에서 구현합니다. FK만으로 보장하지 않습니다.
+- UserRoleService의 ADMIN 부여·회수, UserAccountService의 활성 상태 변경, 최초 관리자 생성은 ADMIN 행을 FOR UPDATE로 잠급니다. 현재 활성 ADMIN이 한 명이면 해당 역할 회수·비활성화를 거부합니다. UserRoleDao는 트랜잭션과 READ_COMMITTED 격리 수준을 확인합니다. 시스템 역할 자체의 수정·삭제 API는 없으며, 직접 SQL을 차단하는 DB 트리거는 추가하지 않습니다.

@@ -55,7 +55,13 @@
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 `JWT_SECRET` 환경 변수에서 읽습니다. 기본 유효기간은 15분입니다.
 - JWT 필터가 인증을 등록하고 전역 MVC 인가 인터셉터가 메서드의 `@PublicApi`·`@RequirePermission`을 읽어 공개·인증 전용·세부 권한 필요 요청을 판정합니다. 필터 체인의 URL별 인가 목록은 제거하고 MVC 인터셉터에서 기본 거부합니다. 어노테이션 없는 핸들러와 정적 리소스 핸들러도 거부합니다. 비-MVC 서블릿을 추가할 때는 별도의 보안 적용이 필요합니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
-- 권한 테이블 4개는 app 데이터소스의 Flyway V2로 관리합니다. `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. API 인터셉터에 연결되어 비공개 API마다 활성 계정과 필요한 세부 권한을 확인합니다. 역할·권한 기본 데이터는 제공하지 않습니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
+- 권한 테이블 4개는 app 데이터소스의 Flyway V2로 관리합니다. `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. API 인터셉터에 연결되어 비공개 API마다 활성 계정과 필요한 세부 권한을 확인합니다. V3는 ADMIN·MEMBER 두 역할을, V4는 ADMIN의 auth:user:manage 연결을 추가합니다. 최초 관리자 계정은 별도 bootstrap 모드에서만 생성합니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
+- `auth.sample`은 서비스 Method Security와 중첩 비동기 인증 전달의 목업 예시입니다. 일반 서버 실행에 자동 등록하지 않으며 별도 샘플 테스트에서만 컨텍스트를 구성합니다. 실제 업무 서비스·큐에는 아직 적용하지 않았습니다.
+- 같은 패키지의 `SampleRevocationService`는 권한 회수와 삭제가 공통 DB 행 잠금을 사용하는 예시입니다. 별도 H2 테스트에서만 sample 테이블을 생성하며 운영 RBAC·Flyway에는 적용하지 않습니다.
+
+UserRoleService는 auth:user:manage 권한을 확인한 뒤 사용자 역할 부여·회수를 수행하고, 실제 변경의 감사 이력을 같은 app 트랜잭션의 auth_audit_log에 저장합니다. UserAccountService는 계정 활성 상태를 변경합니다. ADMIN 관련 변경과 최초 생성은 공통 ADMIN 행 잠금·READ_COMMITTED 트랜잭션을 사용하며 마지막 활성 관리자의 역할 회수·비활성화를 막습니다. 관리 HTTP API와 감사 조회 API는 아직 제공하지 않습니다.
+
+최초 관리자 생성은 --app.admin-bootstrap-only=true 모드에서만 제공하며 웹 서버·legacy DB를 시작하지 않고 migration 후 계정·ADMIN 할당·감사를 저장하고 종료합니다. 사용자명·비밀번호는 INITIAL_ADMIN_USERNAME·INITIAL_ADMIN_PASSWORD에서 읽고 기존 계정이나 관리자 할당을 덮어쓰지 않습니다.
 
 ## DB 테이블 정의
 

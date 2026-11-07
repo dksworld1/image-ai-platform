@@ -131,7 +131,7 @@ class AuthorizationDatabaseTest {
     }
 
     @Test
-    void upgradesExistingV1DatabaseWithoutChangingAccountsOrSeedingRoles() {
+    void upgradesExistingV1DatabaseWithoutChangingAccountsOrAssigningRoles() {
         String url = "jdbc:h2:mem:auth-rbac-upgrade;DB_CLOSE_DELAY=-1";
         Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration")
                 .target("1").load().migrate();
@@ -139,12 +139,15 @@ class AuthorizationDatabaseTest {
         upgradeJdbc.update("INSERT INTO auth_user (username, password_hash, enabled) VALUES ('existing-user', 'existing-hash', FALSE)");
 
         Flyway flyway = Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration").load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(upgradeJdbc.queryForObject("SELECT password_hash FROM auth_user WHERE username = 'existing-user'", String.class))
                 .isEqualTo("existing-hash");
         assertThat(upgradeJdbc.queryForObject("SELECT enabled FROM auth_user WHERE username = 'existing-user'", Boolean.class)).isFalse();
-        assertThat(upgradeJdbc.queryForObject("SELECT COUNT(*) FROM auth_role", Integer.class)).isZero();
-        assertThat(upgradeJdbc.queryForObject("SELECT COUNT(*) FROM auth_permission", Integer.class)).isZero();
+        assertThat(upgradeJdbc.queryForList("SELECT role_code FROM auth_role", String.class)).containsExactlyInAnyOrder("ADMIN", "MEMBER");
+        assertThat(upgradeJdbc.queryForList("SELECT permission_code FROM auth_permission", String.class))
+                .containsExactly("auth:user:manage");
+        assertThat(upgradeJdbc.queryForObject("SELECT COUNT(*) FROM auth_user_role", Integer.class)).isZero();
+        assertThat(upgradeJdbc.queryForObject("SELECT COUNT(*) FROM auth_audit_log", Integer.class)).isZero();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 }

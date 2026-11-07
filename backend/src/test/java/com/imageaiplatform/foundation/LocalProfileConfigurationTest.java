@@ -74,6 +74,7 @@ class LocalProfileConfigurationTest {
 
     @Test
     void importsLocalDatasourceAndLogConfiguration() {
+        assertThat(webContext.getBeanNamesForType(com.imageaiplatform.auth.sample.SampleProtectedService.class)).isEmpty();
         assertThat(myBatisProperties.getConfigLocation()).isEqualTo("classpath:config/mybatis-config.xml");
         assertThat(myBatisProperties.getMapperLocations()).isEqualTo("classpath*:mapper/**/*.xml");
         assertThat(catalogSqlSessionFactory.getConfiguration().isMapUnderscoreToCamelCase()).isTrue();

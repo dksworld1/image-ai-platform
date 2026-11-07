@@ -1,6 +1,6 @@
 # 인증·권한 테이블
 
-스키마 정의는 각 테이블 문서를 기준으로 관리합니다. 신규 권한 테이블은 V2 migration과 실제 MyBatis 조회 DAO를 구현했습니다. 환경별 적용은 기존 Flyway 정책을 따릅니다. 초기 역할·권한 데이터는 아직 제공하지 않으며 통합 테스트에서만 생성합니다. 정책과 구현 순서는 [권한 설계 제안](../../../proposals/authorization-design-proposal.md)에서 관리합니다.
+스키마 정의는 각 테이블 문서를 기준으로 관리합니다. 권한 테이블은 V2, 초기 역할과 감사 테이블은 V3, ADMIN의 사용자 관리 권한 연결은 V4로 관리합니다. 환경별 적용은 기존 Flyway 정책을 따릅니다. 초기 역할은 ADMIN·MEMBER이며 최초 관리자 계정은 별도 bootstrap 명령으로만 생성합니다. 정책과 구현 순서는 [권한 설계 제안](../../../proposals/authorization-design-proposal.md)에서 관리합니다.
 
 | 테이블 | 상태 | 책임 |
 |---|---|---|
@@ -9,6 +9,7 @@
 | [auth_permission](auth-permission.md) | 구현됨, V2 | 부여 가능한 권한 정의 |
 | [auth_user_role](auth-user-role.md) | 구현됨, V2 | 사용자 역할 할당 |
 | [auth_role_permission](auth-role-permission.md) | 구현됨, V2 | 역할 권한 할당 |
+| [auth_audit_log](auth-audit-log.md) | 구현됨, V3 | 사용자 역할 변경 감사 이력 |
 
 ## 관계
 
@@ -27,8 +28,8 @@ erDiagram
 - 기존 사용자 키는 `username VARCHAR(100)`입니다. 이번 정의에서 존재하지 않는 `user_id`를 참조하거나 기존 V1을 변경하지 않습니다. 불변 사용자 ID 전환은 auth_user 및 연결 테이블을 함께 바꾸는 별도 설계·migration으로 관리합니다.
 - 부모 삭제·키 변경의 FK 동작은 `NO ACTION`이며 연쇄 삭제하지 않습니다. 연결 해제·삭제는 서비스 트랜잭션으로 처리합니다.
 - 생성 순서는 기존 `auth_user` 확인 → `auth_role`·`auth_permission` → 두 연결 테이블입니다. 제거 순서는 역순입니다.
-- 스키마 정의와 기본 역할·권한 데이터 확정은 구분합니다. `ADMIN`·`MEMBER` 및 실제 부여 권한은 정책 질의 결과를 반영한 뒤 별도로 관리합니다.
-- 소유권·공유 범위, 권한 회수 동시성, 관리자 보호, 감사 이력은 이 네 테이블만으로 해결되지 않습니다. 관련 단계에서 별도로 설계합니다.
+- V3는 `ADMIN`·`MEMBER`를 시스템 역할로 추가합니다. 같은 코드가 이미 있으면 기존 행을 유지합니다. ADMIN의 이름이나 시스템 역할 여부만으로 권한을 허용하지 않습니다.
+- 소유권·공유 범위, 권한 회수 동시성, 관리자 보호는 역할 연결 테이블만으로 해결되지 않습니다. 감사 이력은 별도 auth_audit_log에 저장합니다.
 
 ## DB 검증 항목
 

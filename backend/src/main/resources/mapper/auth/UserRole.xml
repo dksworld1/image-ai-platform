@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userRole">
+  <insert id="grant" parameterType="map">
+    INSERT INTO auth_user_role (username, role_code)
+    SELECT #{username}, #{roleCode}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM auth_user_role WHERE username = #{username} AND role_code = #{roleCode}
+    )
+  </insert>
+  <delete id="revoke" parameterType="map">
+    DELETE FROM auth_user_role WHERE username = #{username} AND role_code = #{roleCode}
+  </delete>
+  <select id="lockAdminRole" resultType="string" flushCache="true" useCache="false">
+    SELECT role_code FROM auth_role WHERE role_code = 'ADMIN' FOR UPDATE
+  </select>
+  <select id="countActiveAdmins" resultType="int" flushCache="true" useCache="false">
+    SELECT COUNT(*) FROM auth_user_role ur JOIN auth_user u ON u.username = ur.username
+    WHERE ur.role_code = 'ADMIN' AND u.enabled = TRUE
+  </select>
+  <select id="countAdminAssignments" resultType="int" flushCache="true" useCache="false">
+    SELECT COUNT(*) FROM auth_user_role WHERE role_code = 'ADMIN'
+  </select>
+  <select id="countActiveAdminByUsername" parameterType="string" resultType="int" flushCache="true" useCache="false">
+    SELECT COUNT(*) FROM auth_user_role ur JOIN auth_user u ON u.username = ur.username
+    WHERE ur.role_code = 'ADMIN' AND u.enabled = TRUE AND u.username = #{username}
+  </select>
+</mapper>
