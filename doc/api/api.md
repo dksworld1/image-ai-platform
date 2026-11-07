@@ -38,7 +38,7 @@ API 프로세스가 요청을 처리할 수 있는지 확인합니다.
 
 존재하지 않거나 비활성화된 계정, 잘못된 비밀번호는 동일한 `401 Unauthorized` 응답을 반환합니다. 보호된 API에는 `Authorization: Bearer <JWT>` 헤더를 전달합니다. 토큰은 기본 15분 후 만료되며 refresh token은 발급하지 않습니다. 현재 사용자 생성·비밀번호 변경 API는 제공하지 않습니다.
 
-`local`과 `test` 프로파일은 각 YAML의 비운영 전용 JWT 서명 키를 사용합니다. `dev`와 `prod`는 `JWT_SECRET` 환경 변수로 UTF-8 기준 32바이트 이상의 키를 주입해야 합니다. `app.auth_user` 테이블은 Flyway로 생성하며, 계정 행은 자동 생성하지 않습니다. 테이블 정의는 [인증 테이블 정의서](../db-schema/tables/auth/auth-user.md)에 있습니다.
+`local`과 `test` 프로파일은 각 YAML의 비운영 전용 JWT 서명 키를 사용합니다. `dev`와 `prod`는 외부 YAML의 `app.auth.jwt.secret`로 UTF-8 기준 32바이트 이상의 키를 주입해야 합니다. `app.auth_user` 테이블은 Flyway로 생성하며, 계정 행은 자동 생성하지 않습니다. 테이블 정의는 [인증 테이블 정의서](../db-schema/tables/auth/auth-user.md)에 있습니다.
 
 ## API 접근 정책
 

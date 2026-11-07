@@ -11,11 +11,8 @@ if [[ ! "$port" =~ ^[0-9]+$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
     exit 1
 fi
 
-if [[ -n "${JAVA_HOME:-}" ]]; then
-    export PATH="$JAVA_HOME/bin:$PATH"
-fi
 if ! command -v java >/dev/null 2>&1; then
-    echo 'Java 21 이상을 설치하거나 JAVA_HOME을 설정하세요.' >&2
+    echo 'Java 21 이상을 설치하세요.' >&2
     exit 1
 fi
 java_version="$(java -version 2>&1)"
@@ -24,16 +21,12 @@ if [[ ! "$java_version" =~ version[[:space:]]+\"([0-9]+) ]] || (( BASH_REMATCH[1
     exit 1
 fi
 
-maven_command="${MAVEN_HOME:+$MAVEN_HOME/bin/mvn}"
-if [[ -z "$maven_command" ]]; then
-    maven_command="$(command -v mvn || true)"
-fi
+maven_command="$(command -v mvn || true)"
 if [[ ! -x "$maven_command" ]]; then
-    echo 'Maven 3.6.3 이상을 설치하거나 MAVEN_HOME을 설정하세요.' >&2
+    echo 'Maven 3.6.3 이상을 설치하세요.' >&2
     exit 1
 fi
 
 cd -- "$repo_root/backend"
-export SERVER_PORT="$port"
 echo "백엔드 서버: http://localhost:$port (프로필: local, 중지: Ctrl+C)"
-exec "$maven_command" spring-boot:run -Dspring-boot.run.profiles=local
+exec "$maven_command" spring-boot:run -Dspring-boot.run.profiles=local "-Dspring-boot.run.arguments=--server.port=$port"

@@ -9,16 +9,16 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: 8080
 
 app:
   database-migration-only: false
   cors:
-    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+    allowed-origin: http://localhost:5173
   auth:
     jwt:
-      secret: ${JWT_SECRET:}
-      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+      secret: ""
+      access-token-ttl: PT15M
 
 mybatis:
   config-location: classpath:config/mybatis-config.xml

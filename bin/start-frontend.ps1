@@ -31,30 +31,8 @@ try {
         }
 
         Write-Host "프런트엔드 서버: http://localhost:$Port (중지하려면 Ctrl+C)"
-        $previousPreviewHost = $env:VITE_PREVIEW_HOST
-        $previousPreviewPort = $env:VITE_PREVIEW_PORT
-        try {
-            $env:VITE_PREVIEW_HOST = '127.0.0.1'
-            $env:VITE_PREVIEW_PORT = [string] $Port
-            & npm run preview
-            if ($LASTEXITCODE -ne 0) {
-                throw "프런트엔드 서버 실행 실패 (종료 코드: $LASTEXITCODE). 포트가 사용 중이면 -Port 값으로 다른 포트를 지정하세요."
-            }
-        }
-        finally {
-            if ($null -eq $previousPreviewHost) {
-                Remove-Item Env:VITE_PREVIEW_HOST -ErrorAction SilentlyContinue
-            }
-            else {
-                $env:VITE_PREVIEW_HOST = $previousPreviewHost
-            }
-            if ($null -eq $previousPreviewPort) {
-                Remove-Item Env:VITE_PREVIEW_PORT -ErrorAction SilentlyContinue
-            }
-            else {
-                $env:VITE_PREVIEW_PORT = $previousPreviewPort
-            }
-        }
+        & npm run preview -- --port $Port
+        if ($LASTEXITCODE -ne 0) { throw "프런트엔드 서버 종료 코드: $LASTEXITCODE." }
     }
     finally {
         Pop-Location

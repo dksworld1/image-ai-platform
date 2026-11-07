@@ -10,6 +10,7 @@
 - [API 계약](api/api.md): 현재 제공하는 HTTP API와 변경 원칙
 - [DB 테이블 정의서](db-schema/tables/README.md): 기능별 DB 테이블 구조 및 제약
 - [개발 계획](plans/roadmap.md): 현재 상태와 다음 설계 항목
+- [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](proposals/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의
 - [구현 단계](stages/README.md): 단계별 목표, 핵심 개념, 결정과 완료 조건

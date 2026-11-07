@@ -1,6 +1,4 @@
 spring:
-  config:
-    import: file:${APP_CONFIG_FILE}
   flyway:
     enabled: false
 

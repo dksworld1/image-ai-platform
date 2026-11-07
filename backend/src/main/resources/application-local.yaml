@@ -3,7 +3,7 @@ spring:
     import: classpath:config/datasource/jdbc-local.yaml
 app:
   cors:
-    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173,http://localhost:4173}
+    allowed-origin: http://localhost:5173,http://localhost:4173
   auth:
     jwt:
       secret: local-only-jwt-signing-key-not-for-production-2026

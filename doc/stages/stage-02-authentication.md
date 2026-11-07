@@ -28,7 +28,7 @@
 
 - 채택: Spring Security 기반 무상태 인증과 아이디·비밀번호 로그인
 - 채택: 아이디·비밀번호 검증 후 HS256 JWT access token 발급, 기본 수명 15분
-- 채택: 사용자 비밀번호는 BCrypt 해시로 저장하며 local/test JWT 서명 키는 YAML에, dev/prod 키는 `JWT_SECRET` 환경 변수로 설정
+- 채택: 사용자 비밀번호는 BCrypt 해시로 저장하며 local/test JWT 서명 키는 YAML에, dev/prod 키는 외부 YAML의 `app.auth.jwt.secret`로 설정
 - 미결정: 계정 가입·초대·복구와 계정 프로비저닝 절차
 - 미결정: 역할 체계와 권한 모델
 - 미결정: refresh token, 로그아웃·토큰 폐기와 키 회전 정책

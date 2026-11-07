@@ -13,7 +13,8 @@
 - 모든 소스 코드, 스크립트, 설정, Markdown 문서는 UTF-8로 저장합니다. PowerShell 스크립트는 Windows PowerShell 5.1에서도 한글이 깨지지 않도록 UTF-8 BOM을 사용하고 콘솔 입출력 인코딩도 UTF-8로 설정합니다.
 - 로컬 서버 포트와 프런트엔드 빌드 동작은 `bin/local.settings.ps1`에서 관리합니다. 시작 스크립트 실행 인자로 중복 설정하지 않습니다.
 - 프런트엔드와 백엔드는 각각 독립 실행할 수 있게 유지하고, 공통 실행 환경이 추가되면 문서에 기록합니다.
-- 비밀 정보는 저장소에 커밋하지 않습니다. 환경 변수를 사용하고 설정이 바뀌면 `.env.example`도 갱신합니다.
+- 백엔드 애플리케이션 설정은 Spring YAML 파일로 관리합니다. 프로젝트 코드와 실행 스크립트에서 환경 변수를 읽거나 설정하는 방식을 금지합니다. 외부 YAML은 Spring 표준 `spring.config.additional-location`으로 지정합니다. YAML은 가능한 한 주제별로 묶어 분리하고 `spring.config.import`로 조합합니다.
+- 비밀 정보는 저장소에 커밋하지 않습니다. 비밀값이 필요한 YAML은 저장소 밖에서 관리합니다.
 - Spring 초기화 전 필요한 런타임 설정은 별도 주제별 UTF-8 `.properties`로 관리합니다. 중앙 로더가 불변 설정 객체를 만들고 클래스 초기화 기반 정적 접근점으로 제공합니다. `main()`의 명시적 초기화는 사용하지 않습니다. 상세 설계는 `doc/decisions/ADR-014-static-runtime-settings.md`를 따르며 비밀값이 포함된 파일은 저장소 밖에서 관리합니다.
 - API를 변경하면 필요한 경우 백엔드 구현과 대응하는 프런트엔드 호출 코드 및 타입을 함께 갱신합니다.
 - 아키텍처, API 계약, 의존성, 배포 또는 중요한 결정이 바뀌면 같은 변경에서 관련 `doc/` 문서를 갱신합니다.
@@ -31,6 +32,7 @@
 - 세션별 실행 예시는 루트 `README.md`의 검증 명령을 따릅니다. 머신 전역 환경 변수는 변경하지 않습니다.
 
 ## 문서 작성 및 갱신
+- 서버 외부 설정·비밀정보 주입 및 관리·프로파일·JAR 실행 옵션·migration·배포 절차와 관련된 작업을 수행하면 같은 변경에서 `doc/operations/deployment.md`도 갱신합니다. 실행 예시와 현재 구현 제약을 일치시키고 실제로 실행한 검증만 기록합니다.
 - 현재 설계 문서의 위치는 `doc/README.md`에서 확인합니다.
 - `doc/architecture/architecture.md`와 `doc/api/api.md`는 현재 상태를 설명하는 기준 문서입니다.
 - 결정은 `doc/templates/decision-record.md`, 제안 설계는 `doc/templates/design-proposal.md` 서식을 사용합니다.

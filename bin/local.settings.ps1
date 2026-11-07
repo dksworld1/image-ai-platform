@@ -2,4 +2,3 @@
 [int] $FrontendPort = 4173
 [int] $BackendPort = 8080
 [bool] $SkipFrontendBuild = $false
-$ProjectJavaHome = 'C:\Program Files\Java\jdk-21'

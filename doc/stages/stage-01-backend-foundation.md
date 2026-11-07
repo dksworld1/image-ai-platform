@@ -30,8 +30,8 @@
 | 프로파일 | 용도 | 데이터소스 설정 원칙 |
 |---|---|---|
 | `local` | 개발자 로컬 실행 | classpath의 `config/datasource/jdbc-local.yaml`에서 app과 catalog/archive H2 파일 DB를 가져옵니다. |
-| `dev` | 공유 개발 환경 | 외부 설정 파일을 `APP_CONFIG_FILE` 경로로 읽습니다. DB 제품과 값은 환경별 파일로 관리합니다. |
-| `prod` | 운영 배포 환경 | 서버에서만 관리하는 외부 설정 파일을 `APP_CONFIG_FILE` 경로로 읽습니다. 파일 자체와 비밀 값은 저장소에 두지 않습니다. |
+| `dev` | 공유 개발 환경 | 외부 설정 파일을 `spring.config.additional-location` 경로로 읽습니다. DB 제품과 값은 환경별 파일로 관리합니다. |
+| `prod` | 운영 배포 환경 | 서버에서만 관리하는 외부 설정 파일을 `spring.config.additional-location` 경로로 읽습니다. 파일 자체와 비밀 값은 저장소에 두지 않습니다. |
 | 테스트 프로파일 | 자동화 테스트 | classpath의 `config/datasource/jdbc-test.yaml`에서 app과 catalog/archive H2 파일 DB를 읽습니다. app migration은 시작 시 적용하고 legacy probe 테이블은 테스트 fixture에서 준비합니다. |
 
 프로파일별 설정은 환경 차이만 담고 공통 설정은 기본 설정으로 유지합니다. 기본 활성 프로파일은 `local`이며, Spring이 활성 프로파일에 해당하는 설정을 함께 적용합니다.
@@ -43,9 +43,9 @@
 - `application.yaml`은 `mybatis.config-location`으로 `classpath:config/mybatis-config.xml`, `mybatis.mapper-locations`로 매퍼 XML 패턴을 지정합니다. `mybatis-config.xml`은 설정만 포함하고 `<mappers>`는 비워 두며, 매퍼는 `setMapperLocations`로 로드합니다.
 - JDBC 설정 파일은 `config/datasource/` 아래에 둡니다. 로컬 H2 설정은 `classpath:config/datasource/jdbc-local.yaml`을 사용합니다.
 - 자동화 테스트의 H2 파일 DB 설정은 `classpath:config/datasource/jdbc-test.yaml`에 두고 테스트 프로파일에서 가져옵니다.
-- `dev`와 `prod`에서는 `APP_CONFIG_FILE` 환경변수에 외부 YAML 파일의 경로를 지정하고 `file:${APP_CONFIG_FILE}`로 가져옵니다. 운영 파일은 배포 서버가 관리하며 JAR 및 저장소에 포함하지 않습니다.
+- dev/prod는 `--spring.config.additional-location`으로 외부 JDBC YAML을 읽습니다.
 - `dev`와 `prod` 외부 YAML은 신규 업무 DB의 `app.datasource`와 legacy DB의 `app.datasources.catalog`, `app.datasources.archive`에 연결 설정을 둡니다. app은 신규 업무에서 필수입니다.
-- `APP_CONFIG_FILE`이 없거나 지정한 파일을 읽을 수 없으면 `dev`와 `prod`는 시작에 실패하도록 필수 import를 사용합니다. 운영에서 classpath/local 기본값으로 조용히 대체하지 않습니다.
+- 필수 외부 파일은 `optional:` 없이 지정합니다.
 - 실제 연결값을 저장소에 두지 않습니다. 예시 파일을 둘 경우 값은 자리표시자로만 작성합니다.
 
 ## 신규 업무 app 및 legacy 기반 DAO 구성
@@ -102,7 +102,7 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - `prod`, `dev`, `local` Spring 설정 프로파일과 테스트 프로파일의 경계
 - 데이터 소스 및 연결 풀 설정, 프로파일별 외부 설정 주입
 - `application.yaml` 및 프로파일별 YAML의 `spring.config.import` 규칙
-- `config/datasource/` JDBC 설정 파일과 운영 `APP_CONFIG_FILE` 경로 전달
+- `config/datasource/` JDBC 설정 파일과 운영 `spring.config.additional-location` 경로 전달
 - 라우팅 없는 DB별 DAO 빈, 공통 MyBatis 쿼리 재사용 및 명시적 빈 선택
 - DB별 MyBatis 팩토리·세션 템플릿·트랜잭션 매니저의 대응 관계
 - `config/` 내 프로파일별 로그 설정 파일과 classpath 참조
@@ -117,7 +117,7 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - 채택: SQL 매퍼 사용, 프레임워크는 MyBatis
 - 채택: 로컬 테스트 DB로 H2 파일 저장 모드 사용
 - 채택: 실행 프로파일로 `prod`, `dev`, `local` 사용, 자동화 테스트에는 별도 테스트 프로파일 사용
-- 채택: JDBC 연결값은 YAML 설정 파일에서 읽고 운영에서는 `APP_CONFIG_FILE`로 외부 파일 경로를 지정
+- 채택: JDBC 연결값은 YAML 설정 파일에서 읽고 운영에서는 `spring.config.additional-location`로 외부 파일 경로를 지정
 - 채택: 라우팅 데이터소스 없이 데이터소스별 DAO 빈을 만들고 공통 DAO 구현·쿼리를 공유
 - 채택: 프로파일별 로그 설정을 `config/`에 두고 `logging.config`의 classpath 경로로 참조
 - 채택: 트랜잭션 경계를 업무 서비스 단위로 관리
@@ -129,13 +129,13 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 
 ## 완료 조건과 검증 결과
 
-- 완료: JDBC 연결 정보와 HikariCP 풀 설정은 YAML 설정 파일에서 읽습니다. 운영·개발 환경은 `APP_CONFIG_FILE`로 외부 파일을 지정합니다.
+- 완료: JDBC 연결 정보와 HikariCP 풀 설정은 YAML 설정 파일에서 읽습니다. 운영·개발 환경은 `spring.config.additional-location`로 외부 파일을 지정합니다.
 - 완료: MyBatis 설정 경로는 `application.yaml`에서 `MyBatisConfigurationProperties`로 바인딩해 app 및 legacy 세션 팩토리에 적용합니다. `mybatis-config.xml`의 옵션 설정과 mapper-locations 경로를 별도로 전달합니다. Mapper XML은 SQL 실행과 결과 매핑을 담당하고 DAO는 `SqlSessionTemplate`으로 statement를 직접 호출합니다. 업무 규칙은 서비스 계층이 담당합니다.
 - 완료: Spring 트랜잭션 매니저와 예외 시 롤백을 확인하는 자동 테스트를 추가했습니다.
 - 완료: `SchemaInitializationConfiguration` 클래스와 `schema-*.sql` 초기화 파일은 제거했습니다. app은 Flyway `V1__create_auth_user.sql`을 사용하며, legacy probe 테이블은 테스트 fixture에서 준비합니다.
 - 완료: 신규 업무용 `appDataSource`와 전용 MyBatis 및 트랜잭션 빈을 추가했습니다. 기존 `catalogFoundationProbeDao`, `archiveFoundationProbeDao` 기반 구성은 그대로 보존했습니다.
 - 완료: 기존 catalog/archive DAO와 트랜잭션 매니저를 유지해 데이터 격리 및 롤백 검증 경계를 보존하고, 신규 업무에는 `appTransactionManager`를 사용합니다.
-- 완료: 기본 프로파일은 `local`이며 `dev`, `prod`, `test` 프로파일별 설정에서 JDBC YAML을 가져옵니다. `dev`와 `prod`는 `APP_CONFIG_FILE` 외부 파일이 없으면 시작에 실패합니다.
+- 완료: 기본 프로파일은 `local`이며 `dev`, `prod`, `test` 프로파일별 설정에서 JDBC YAML을 가져옵니다. dev/prod 외부 JDBC YAML은 실행 옵션으로 지정합니다.
 - 완료: 각 local/dev/prod 프로파일은 전용 `config/logger/` Logback XML을 classpath로 지정합니다. 패키징 결과에서 YAML, JDBC, Logback 파일을 확인했습니다.
 - 운영 DB 제품별 SQL 호환성과 legacy catalog/archive 스키마 관리는 별도 설계합니다.
 - 검증: Java 21 세션(`JAVA_HOME=C:\Program Files\Java\jdk-21`)에서 `mvn test` — 성공. catalog/archive 파일 DB 격리, DAO 구현 공유, 각 트랜잭션 매니저의 롤백을 확인했습니다.
