@@ -34,6 +34,10 @@
 
 신규 기능은 `appDataSource`, `appSqlSessionFactory`, `appSqlSessionTemplate`, `appTransactionManager`를 사용합니다. legacy foundation probe는 기존 `catalog`·`archive` 전용 DAO와 세션 구성으로 남아 있습니다. 데이터소스별로 `@Qualifier`를 명시하고, 여러 DB에 걸친 트랜잭션은 구성하지 않습니다. 상세 설계는 [ADR-010](../decisions/ADR-010-app-datasource.md)을 따릅니다.
 
+## 설정 관리 원칙
+
+Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runtime/` 바로 아래의 주제별 UTF-8 `.properties` 파일과 중앙 로더로 관리합니다. `foundation.config`의 `RuntimeSettingsLoader`가 파일을 읽고 불변 `RuntimeSettings`를 `RuntimeConfig`의 정적 필드 초기화 시 생성해 정적 `settings()`로 제공합니다. `main()`의 초기화 호출은 사용하지 않습니다. 실제 설정 항목은 아직 없어 현재 설정 객체는 필드 없는 record입니다. 새 항목은 명시적 필드와 중앙 로더 매핑을 함께 추가합니다. 상세 설계는 [ADR-014](../decisions/ADR-014-static-runtime-settings.md)를 따릅니다.
+
 ## 확장 규칙
 
 - 컨트롤러는 HTTP 요청/응답에 집중하고, 업무 규칙은 서비스 계층으로 둡니다.

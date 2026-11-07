@@ -67,6 +67,10 @@ mvn test
 
 ## 설정
 
+런타임 설정 로더는 INFO로 탐색할 클래스패스 폴더와 로딩을 완료한 각 파일의 전체 리소스 URL을 출력합니다. 대상 폴더나 `.properties` 파일이 없으면 `config/runtime/` 폴더와 UTF-8 설정 파일을 생성하라는 WARN을 출력합니다. 설정값은 로그에 출력하지 않습니다.
+
+Spring 초기화 전 런타임 설정은 `backend/src/main/resources/config/runtime/` 바로 아래의 UTF-8 `*.properties`에서 읽습니다. 하위 디렉터리는 제외하고 중복 키·동일 경로 리소스는 오류 처리합니다. `RuntimeConfig.settings()` 최초 접근 시 클래스 초기화로 한 번 로딩하며 `main()` 초기화 호출은 필요하지 않습니다. 현재 실제 설정 항목은 없고, 새 항목은 `foundation.config.RuntimeSettings`의 명시적 필드와 `RuntimeSettingsLoader`의 변환·검증·매핑을 함께 추가합니다. 비밀값을 클래스패스 파일에 넣어 패키징하지 않습니다. 일반 Spring 설정은 YAML로 관리하며 기존 환경 변수 전환은 아직 수행하지 않았습니다.
+
 프런트엔드 API 기본 경로는 `/api`이며 `VITE_API_BASE_URL`로 변경할 수 있습니다. 백엔드 포트와 허용할 프런트엔드 출처는 `SERVER_PORT`, `CORS_ALLOWED_ORIGIN` 환경 변수로 설정합니다.
 
 `local` 프로필의 CORS 기본 허용 출처는 `http://localhost:5173`(Vite 개발)과 `http://localhost:4173`(미리보기)입니다. `application-local.yaml`에서 관리하며 `CORS_ALLOWED_ORIGIN`으로 쉼표로 구분한 출처 목록을 지정해 덮어쓸 수 있습니다. `.env.example`은 환경 변수 예시이며 백엔드가 `.env` 파일을 자동으로 읽지는 않습니다.
