@@ -112,6 +112,8 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.con
 
 ## 정적 런타임 설정과의 경계
 
+로컬에서는 Vite 개발 서버와 미리보기 서버가 시작 시 `bin/local.settings.ps1`의 `BackendPort`를 읽습니다. 포트를 바꾸면 백엔드와 Vite를 재시작합니다. 브라우저는 항상 같은 출처의 `/api`를 호출하므로 정적 파일 배포 시에는 Nginx의 `/api/` 프록시 대상에 배포 환경의 백엔드 주소를 지정합니다.
+
 `RuntimeConfig`는 클래스패스 `config/runtime/*.properties`를 자체 로딩합니다. Spring의 `additional-location`은 이 정적 로더의 탐색 경로나 값을 변경하지 않습니다. DB 자격 증명은 Spring 데이터소스 생성에 사용하므로 외부 YAML에서 관리합니다. 런타임 로더의 폴더·파일 INFO/WARN 로그는 Spring이 읽은 외부 YAML의 로딩 목록을 의미하지 않습니다.
 
 ## 관련 문서와 유지 관리

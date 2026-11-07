@@ -24,7 +24,7 @@
 - 웹 앱 기본 주소: `http://localhost:5173`
 - 정적 미리보기 기본 주소: `http://localhost:4173`
 - API 기본 주소: `http://localhost:8080`
-- 개발 프록시 대상: `http://localhost:8080`
+- Vite 개발 서버와 미리보기 서버는 `/api` 요청을 `bin/local.settings.ps1`의 `BackendPort`로 전달합니다(기본값 8080).
 - 정적 미리보기에서도 `/api` 요청을 같은 백엔드로 전달합니다.
 - 브라우저에서 직접 API를 호출할 때 허용할 출처: 쉼표로 구분한 `app.cors.allowed-origin`. local 기본값은 `http://localhost:5173`, `http://localhost:4173`이며 그 외 프로필의 공통 기본값은 `http://localhost:5173`입니다.
 
