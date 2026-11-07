@@ -30,19 +30,30 @@ Linux 및 macOS에서는 Java 21 이상과 Maven 3.6.3 이상을 준비한 뒤 �
 
 `local` 및 `test` 프로파일은 개발·검증 편의를 위해 YAML에 고정 JWT 서명 키를 둡니다. 이 키는 로컬 테스트 전용 예외이며 외부 환경이나 운영에서 사용하지 않습니다. `dev` 및 `prod`에서는 외부 인증 YAML로 UTF-8 기준 32바이트 이상의 별도 비밀 키를 주입해야 합니다.
 
-Flyway는 local/test에서 앱 시작 시 `app` 데이터소스에 미적용 migration을 실행합니다. dev/prod의 일반 앱 실행은 migration을 건너뜁니다. 배포 전 migration 전용 실행은 대상 DB 설정을 담은 외부 YAML과 함께 수행합니다.
 
-V2는 역할·권한 및 사용자 역할·역할 권한 연결 테이블을 생성합니다. 기본 역할이나 권한 할당은 자동 생성하지 않습니다. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
+기본 역할이나 권한 할당은 자동 생성하지 않습니다. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
 
-테스트 전용 데이터는 `backend/src/main/resources/db/seed/`의 Flyway 반복 SQL 파일(`R__...sql`)로 관리하며 `test` 프로파일에서만 적용합니다. 현재 `test-user` 샘플 계정은 테스트 용도입니다.
-
-```powershell
-java -jar backend\target\backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.config.additional-location=file:C:/secure/jdbc.yaml,file:C:/secure/auth.yaml" --spring.flyway.enabled=true --app.database-migration-only=true
-```
-
-이 명령은 웹 서버와 legacy `catalog`·`archive` 연결을 시작하지 않고 `app` DB에만 migration을 적용합니다. 성공한 뒤 일반 앱을 배포합니다.
+로컬과 테스트에서는 Spring이 `app`과 `audit` 데이터소스별로 Flyway를 실행합니다. 업무 스키마는 `db/migration/app`, 두 번째 DB의 스키마는 `db/migration/audit` 클래스패스 경로에서 관리합니다. `@Sql`은 테스트 데이터 준비에 사용합니다.
 
 Vite 핫 리로드를 사용하는 개발 모드는 `cd frontend; npm run dev`로 실행하며 주소는 `http://localhost:5173`입니다.
+
+## DB 마이그레이션 설정
+
+local/test는 시작 시 Flyway를 실행합니다. app·audit DB별로 위치 목록과 적용 이력을 관리하며 dev/prod는 기본 비활성화입니다.
+
+```yaml
+app:
+  migration:
+    enabled: true
+    app-locations:
+      - classpath:db/migration/app
+    audit-locations:
+      - classpath:db/migration/audit
+```
+
+seed가 필요한 프로파일에서는 각 목록에 seed 경로를 추가합니다. 프로파일별 목록은 공통 목록 전체를 대체합니다. 위치 목록이 비어 있으면 해당 DB의 적용을 건너뜁니다. 공통 목록을 비우려면 `app-locations: []` 또는 `audit-locations: []`를 명시합니다.
+
+[DB 마이그레이션 설정](doc/operations/database-migration.md)에서 파일 배치, seed 예시, 외부 YAML과 건너뛰기 설정을 확인할 수 있습니다.
 
 ## 검증 명령
 

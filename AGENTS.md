@@ -32,7 +32,7 @@
 - 세션별 실행 예시는 루트 `README.md`의 검증 명령을 따릅니다. 머신 전역 환경 변수는 변경하지 않습니다.
 
 ## 문서 작성 및 갱신
-- 서버 외부 설정·비밀정보 주입 및 관리·프로파일·JAR 실행 옵션·migration·배포 절차와 관련된 작업을 수행하면 같은 변경에서 `doc/operations/deployment.md`도 갱신합니다. 실행 예시와 현재 구현 제약을 일치시키고 실제로 실행한 검증만 기록합니다.
+- 서버 외부 설정·비밀정보 주입 및 관리·프로파일·JAR 실행 옵션·배포 절차와 관련된 작업을 수행하면 같은 변경에서 `doc/operations/deployment.md`도 갱신합니다. 실행 예시와 현재 구현 제약을 일치시키고 실제로 실행한 검증만 기록합니다.
 - 현재 설계 문서의 위치는 `doc/README.md`에서 확인합니다.
 - `doc/architecture/architecture.md`와 `doc/api/api.md`는 현재 상태를 설명하는 기준 문서입니다.
 - 결정은 `doc/templates/decision-record.md`, 제안 설계는 `doc/templates/design-proposal.md` 서식을 사용합니다.

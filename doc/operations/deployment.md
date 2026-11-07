@@ -44,7 +44,7 @@ app:
       driver-class-name: "<JDBC 드라이버 클래스>"
 ```
 
-현재 일반 실행은 업무 `app` DB 외에 legacy `catalog`·`archive` 데이터소스도 구성하므로 dev/prod 외부 파일에 필요한 연결 설정을 제공합니다. migration 전용 실행에서는 legacy 데이터소스를 생성하지 않습니다.
+현재 일반 실행은 업무 `app` DB 외에 legacy `catalog`·`archive` 데이터소스도 구성하므로 dev/prod 외부 파일에 필요한 연결 설정을 제공합니다.
 
 `auth.yaml`의 구조 예시입니다. 운영용 키는 UTF-8 기준 32바이트 이상의 별도 비밀 키로 준비하고 아래 자리표시자를 교체합니다.
 
@@ -96,21 +96,15 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod --spring.conf
 ```
 
 
-## 배포 실행 순서
-
-1. Java 21 이상과 배포 대상 DB 드라이버가 포함된 JAR을 준비합니다.
-2. 서버의 주제별 YAML에 실제 연결 정보·비밀값을 입력하고 경로와 파일 권한을 확인합니다.
-3. dev/prod는 일반 앱 실행 전에 `app` DB migration 전용 실행을 완료합니다. 아래 명령은 Windows 예시이며 성공 후 일반 실행 명령을 사용합니다.
-
-```powershell
-java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.config.additional-location=file:C:/secure/jdbc.yaml,file:C:/secure/auth.yaml" --spring.flyway.enabled=true --app.database-migration-only=true
-```
-
-4. 위 dev/prod 일반 실행 명령으로 앱을 시작하고 DB 연결 및 헬스체크를 확인합니다. 실행 경로에 따라 상대 경로의 의미가 달라지므로 외부 설정에는 절대 경로를 사용합니다.
-
-현재 문서의 서버 실행 예시는 운영 서버에서 직접 실행 검증하지 않았습니다. 서버 파일 생성이나 실제 자격 증명 주입도 이번 문서 작업에서 수행하지 않았습니다.
-
 ## 정적 런타임 설정과의 경계
+
+### 데이터소스별 DB 설정
+
+프로파일 활성화, 다중 SQL 위치, seed, 빈 목록 처리는 [DB 마이그레이션 설정](database-migration.md)을 따릅니다.
+
+local/test의 `audit` 데이터소스는 업무 DB와 별도의 H2 파일을 사용합니다. backend 기준 local 경로는 `./data/image-ai-audit`, test 경로는 `./target/image-ai-platform-audit-test`입니다. dev/prod에서 사용할 경우 외부 JDBC YAML에 `app.datasources.audit.url`, 사용자명, 비밀번호와 드라이버를 지정합니다.
+
+Flyway 실행은 `app.migration.enabled`로 제어하며 기본값은 false, local/test에서는 true입니다. `app-locations`와 `audit-locations`은 같은 설정 그룹에서 각 DB의 SQL 경로를 지정합니다. 각 DB가 자기 이력 테이블을 관리합니다. 현재 audit의 실제 업무 SQL은 없습니다.
 
 로컬에서는 Vite 개발 서버와 미리보기 서버가 시작 시 `bin/local.settings.ps1`의 `BackendPort`를 읽습니다. 포트를 바꾸면 백엔드와 Vite를 재시작합니다. 브라우저는 항상 같은 출처의 `/api`를 호출하므로 정적 파일 배포 시에는 Nginx의 `/api/` 프록시 대상에 배포 환경의 백엔드 주소를 지정합니다.
 
@@ -124,4 +118,4 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.con
 - [ADR-013 Spring YAML 우선 관리](../decisions/ADR-013-topic-based-spring-yaml.md)
 - [Spring Boot 외부 설정 공식 문서](https://docs.spring.io/spring-boot/reference/features/external-config.html): 추가 위치, 우선순위, 파일 import, 디렉터리와 프로파일별 파일 처리의 기준
 
-향후 외부 설정 경로·파일 구성·비밀정보 전달·프로파일·JAR 실행 옵션·migration·배포 절차를 변경하면 이 문서의 명령, 예시 YAML, 현재 구현 제약과 검증 여부를 같은 변경에서 갱신합니다. 코드에서 제거한 호환 옵션은 문서에서도 제거하고 실행하지 않은 절차를 검증 완료로 기록하지 않습니다.
+향후 외부 설정 경로·파일 구성·비밀정보 전달·프로파일·JAR 실행 옵션·배포 절차를 변경하면 이 문서의 명령, 예시 YAML, 현재 구현 제약과 검증 여부를 같은 변경에서 갱신합니다. 코드에서 제거한 호환 옵션은 문서에서도 제거하고 실행하지 않은 절차를 검증 완료로 기록하지 않습니다.

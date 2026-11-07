@@ -2,8 +2,7 @@
 
 - 그룹: 인증·권한
 - 데이터소스: `app`
-- 상태: V2 migration·권한 조회 DAO 구현 (실제 적용은 환경별 migration 정책에 따름)
-- 생성 마이그레이션: `backend/src/main/resources/db/migration/V2__create_auth_rbac.sql`
+- 상태: 권한 조회 DAO 구현
 - 대응 모델: `com.imageaiplatform.auth.domain.AuthRolePermission`
 - 조회 계약: `com.imageaiplatform.auth.dao.EffectivePermissionDao`
 - 조회 구현: `com.imageaiplatform.auth.dao.impl.MyBatisEffectivePermissionDao`

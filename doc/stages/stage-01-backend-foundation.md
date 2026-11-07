@@ -1,8 +1,10 @@
 # 1단계: 백엔드 프레임워크와 데이터 기반
 
+2026-11-07: local/test에 별도 H2 파일 데이터소스 `audit`을 추가했습니다. local/test에서 `app`·`audit`별 Flyway 빈으로 독립 SQL 적용과 재실행을 검증합니다. [ADR-018](../decisions/ADR-018-per-datasource-migrations.md)
+
 - 상태: 기반 구성 완료, 신규 업무용 app 데이터소스 추가 및 legacy 구성 유지
 - 선행 단계: 없음
-- 관련 문서: [아키텍처](../architecture/architecture.md), [API 계약](../api/api.md), [ADR-002](../decisions/ADR-002-backend-data-access-and-local-test-database.md), [ADR-005](../decisions/ADR-005-shared-dao-across-data-sources.md), [ADR-006](../decisions/ADR-006-backend-package-boundaries.md), [ADR-010](../decisions/ADR-010-app-datasource.md), [ADR-011](../decisions/ADR-011-remove-schema-auto-initialization.md), [ADR-012](../decisions/ADR-012-flyway-app-migrations.md)
+- 관련 문서: [아키텍처](../architecture/architecture.md), [API 계약](../api/api.md), [ADR-002](../decisions/ADR-002-backend-data-access-and-local-test-database.md), [ADR-005](../decisions/ADR-005-shared-dao-across-data-sources.md), [ADR-006](../decisions/ADR-006-backend-package-boundaries.md), [ADR-010](../decisions/ADR-010-app-datasource.md), [ADR-011](../decisions/ADR-011-remove-schema-auto-initialization.md)
 
 ## 목표와 범위
 
@@ -13,7 +15,7 @@
 - 백엔드 Java 패키지는 `controller`, `service`, `dao`, `domain`의 역할 경계로 구성합니다. DAO 계약 인터페이스는 `dao` 바로 아래에, 구현체는 `dao.impl`에 둡니다. `domain`은 업무 모델·값 객체·도메인 규칙과 도메인에 필요한 업무 컴포넌트를 담습니다. HTTP 처리와 응답 매핑은 controller, 업무 흐름과 트랜잭션은 service, 저장소 접근은 dao에 둡니다. 아직 존재하지 않는 업무를 위해 빈 패키지나 클래스를 선행 생성하지 않습니다.
 - DB 접근은 SQL 매퍼 방식을 사용합니다.
 - SQL 매퍼 프레임워크는 MyBatis를 사용합니다.
-- 신규 업무 `app` 및 legacy 데이터소스의 로컬·테스트 설정은 H2 파일 저장 모드를 사용합니다. app 스키마는 Flyway 버전 SQL로 관리하고, legacy 데이터소스는 자동 생성하지 않습니다.
+- 신규 업무 `app` 및 legacy 데이터소스의 로컬·테스트 설정은 H2 파일 저장 모드를 사용합니다.
 - SQL statement는 XML에 작성하고 각 `SqlSessionFactory`가 `classpath*:mapper/**/*.xml` 검색 규칙으로 로드합니다. DAO는 `SqlSessionTemplate`에서 namespace와 statement ID를 직접 호출합니다. MyBatis 자동 mapper scan을 끄고 `@Mapper` 인터페이스/프록시는 사용하지 않습니다.
 - MyBatis 설정 경로는 `application.yaml`의 `mybatis.config-location`과 `mybatis.mapper-locations`에서 관리하고, `MyBatisConfigurationProperties`로 함께 바인딩해 각 `SqlSessionFactory` 생성에 전달합니다. MyBatis 옵션은 `config/mybatis-config.xml`에 둡니다.
 - 다중 데이터소스는 라우팅 데이터소스를 사용하지 않습니다. 데이터소스마다 `SqlSessionFactory`와 Spring 관리 `SqlSessionTemplate`을 두고, 동일 DAO 인터페이스 및 구현 클래스로 구성한 별도 Spring 빈을 각각 연결합니다.
@@ -32,7 +34,7 @@
 | `local` | 개발자 로컬 실행 | classpath의 `config/datasource/jdbc-local.yaml`에서 app과 catalog/archive H2 파일 DB를 가져옵니다. |
 | `dev` | 공유 개발 환경 | 외부 설정 파일을 `spring.config.additional-location` 경로로 읽습니다. DB 제품과 값은 환경별 파일로 관리합니다. |
 | `prod` | 운영 배포 환경 | 서버에서만 관리하는 외부 설정 파일을 `spring.config.additional-location` 경로로 읽습니다. 파일 자체와 비밀 값은 저장소에 두지 않습니다. |
-| 테스트 프로파일 | 자동화 테스트 | classpath의 `config/datasource/jdbc-test.yaml`에서 app과 catalog/archive H2 파일 DB를 읽습니다. app migration은 시작 시 적용하고 legacy probe 테이블은 테스트 fixture에서 준비합니다. |
+| 테스트 프로파일 | 자동화 테스트 | classpath의 `config/datasource/jdbc-test.yaml`에서 app과 catalog/archive H2 파일 DB를 읽습니다. legacy probe 테이블은 테스트 fixture에서 준비합니다. |
 
 프로파일별 설정은 환경 차이만 담고 공통 설정은 기본 설정으로 유지합니다. 기본 활성 프로파일은 `local`이며, Spring이 활성 프로파일에 해당하는 설정을 함께 적용합니다.
 
@@ -93,7 +95,7 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - MyBatis 매퍼는 SQL 실행과 결과 매핑을 담당하며, 업무 규칙은 서비스 계층에 둡니다.
 - 트랜잭션 경계는 하나의 업무 단위가 원자적으로 완료되어야 하는 범위를 기준으로 서비스 계층에 둡니다.
 - 한 트랜잭션 안에서 예외가 발생했을 때 커밋 또는 롤백 동작을 명시하고, 외부 장시간 작업을 DB 트랜잭션에 무리하게 포함하지 않습니다.
-- 로컬 테스트에서 파일 기반 H2를 쓰면 프로세스가 종료되어도 DB 상태가 남습니다. app 테이블은 Flyway가 미적용 버전 SQL로 관리합니다. legacy probe 테이블은 앱에서 생성하지 않습니다.
+- 로컬 테스트에서 파일 기반 H2를 쓰면 프로세스가 종료되어도 DB 상태가 남습니다. legacy probe 테이블은 앱에서 생성하지 않습니다.
 - H2는 로컬 테스트 편의를 위한 설정이며 운영 DB 선택을 결정하지 않습니다. 운영 DB와 H2 간 SQL 차이도 검증 범위에 포함해야 합니다.
 
 ## 설계 범위
@@ -108,8 +110,6 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - `config/` 내 프로파일별 로그 설정 파일과 classpath 참조
 - 로그 레벨, 민감 정보 마스킹, 출력 형식과 운영 수집 경로
 - 트랜잭션의 시작·커밋·롤백 경계와 전파 규칙
-- 로컬 테스트용 H2 파일 경로, app 마이그레이션 및 legacy DB의 별도 스키마 관리
-- SQL 변경 및 스키마 마이그레이션 관리 방식
 - DB 연결 오류와 트랜잭션 실패의 로깅·오류 응답 원칙
 
 ## 결정 기록
@@ -124,19 +124,19 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - 채택: 각 DAO 빈은 해당 데이터소스의 `SqlSessionTemplate`과 트랜잭션 매니저를 사용
 - 채택: 상세 구조와 제한은 [ADR-005](../decisions/ADR-005-shared-dao-across-data-sources.md)에 기록
 - 미결정: 운영 DB와 운영 환경의 데이터 소스 설정
-- 채택: app은 Flyway 버전 SQL을 사용하고, local/test는 시작 시, dev/prod는 배포 단계에서 적용
-- 미결정: 스키마 변경 마이그레이션 방식과 동시 테스트 프로세스 간 H2 파일 접근 정책
 
 ## 완료 조건과 검증 결과
 
 - 완료: JDBC 연결 정보와 HikariCP 풀 설정은 YAML 설정 파일에서 읽습니다. 운영·개발 환경은 `spring.config.additional-location`로 외부 파일을 지정합니다.
 - 완료: MyBatis 설정 경로는 `application.yaml`에서 `MyBatisConfigurationProperties`로 바인딩해 app 및 legacy 세션 팩토리에 적용합니다. `mybatis-config.xml`의 옵션 설정과 mapper-locations 경로를 별도로 전달합니다. Mapper XML은 SQL 실행과 결과 매핑을 담당하고 DAO는 `SqlSessionTemplate`으로 statement를 직접 호출합니다. 업무 규칙은 서비스 계층이 담당합니다.
 - 완료: Spring 트랜잭션 매니저와 예외 시 롤백을 확인하는 자동 테스트를 추가했습니다.
-- 완료: `SchemaInitializationConfiguration` 클래스와 `schema-*.sql` 초기화 파일은 제거했습니다. app은 Flyway `V1__create_auth_user.sql`을 사용하며, legacy probe 테이블은 테스트 fixture에서 준비합니다.
+- 완료: `SchemaInitializationConfiguration` 클래스와 `schema-*.sql` 초기화 파일은 제거했습니다.
 - 완료: 신규 업무용 `appDataSource`와 전용 MyBatis 및 트랜잭션 빈을 추가했습니다. 기존 `catalogFoundationProbeDao`, `archiveFoundationProbeDao` 기반 구성은 그대로 보존했습니다.
 - 완료: 기존 catalog/archive DAO와 트랜잭션 매니저를 유지해 데이터 격리 및 롤백 검증 경계를 보존하고, 신규 업무에는 `appTransactionManager`를 사용합니다.
 - 완료: 기본 프로파일은 `local`이며 `dev`, `prod`, `test` 프로파일별 설정에서 JDBC YAML을 가져옵니다. dev/prod 외부 JDBC YAML은 실행 옵션으로 지정합니다.
 - 완료: 각 local/dev/prod 프로파일은 전용 `config/logger/` Logback XML을 classpath로 지정합니다. 패키징 결과에서 YAML, JDBC, Logback 파일을 확인했습니다.
 - 운영 DB 제품별 SQL 호환성과 legacy catalog/archive 스키마 관리는 별도 설계합니다.
 - 검증: Java 21 세션(`JAVA_HOME=C:\Program Files\Java\jdk-21`)에서 `mvn test` — 성공. catalog/archive 파일 DB 격리, DAO 구현 공유, 각 트랜잭션 매니저의 롤백을 확인했습니다.
-- app 데이터소스 및 Flyway 추가분은 이번 변경에서 테스트를 실행하지 않았습니다. 이전 Maven 컴파일 시 사용자 캐시 잠금 파일 접근이 거부된 바 있어 빌드 검증도 보류 상태입니다.
+- 이전 Maven 컴파일 시 사용자 캐시 잠금 파일 접근이 거부된 바 있어 빌드 검증도 보류 상태입니다.
+
+현재 마이그레이션은 DB별 다중 위치와 seed 적용을 지원하며 app/audit 위치 목록 생략·빈 목록을 허용합니다. 구현 및 검증 기록은 [DB 마이그레이션 설정](../operations/database-migration.md)을 참고합니다.

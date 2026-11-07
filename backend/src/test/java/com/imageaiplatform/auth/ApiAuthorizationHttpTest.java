@@ -29,6 +29,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,8 @@ import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest(properties = "app.datasource.url=jdbc:h2:mem:api-authorization;DB_CLOSE_DELAY=-1")
 @ActiveProfiles("test")
+@Sql(scripts = "classpath:fixtures/auth-user.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS,
+        config = @SqlConfig(dataSource = "appDataSource", transactionManager = "appTransactionManager"))
 @Import(ApiAuthorizationHttpTest.TestEndpoints.class)
 @Transactional("appTransactionManager")
 class ApiAuthorizationHttpTest {

@@ -1,9 +1,9 @@
 spring:
   config:
     import: classpath:config/datasource/jdbc-test.yaml
-  flyway:
-    locations: classpath:db/migration,classpath:db/seed
 app:
+  migration:
+    enabled: true
   auth:
     jwt:
       secret: test-only-signing-key-not-for-real-use-32-bytes

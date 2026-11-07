@@ -2,8 +2,7 @@
 
 - 그룹: 인증·권한
 - 데이터소스: `app`
-- 상태: V2 migration·권한 조회 DAO 구현 (실제 적용은 환경별 migration 정책에 따름)
-- 생성 마이그레이션: `backend/src/main/resources/db/migration/V2__create_auth_rbac.sql`
+- 상태: 권한 조회 DAO 구현
 - 대응 모델: `com.imageaiplatform.auth.domain.AuthPermission`
 - 조회 계약: `com.imageaiplatform.auth.dao.EffectivePermissionDao`
 - 조회 구현: `com.imageaiplatform.auth.dao.impl.MyBatisEffectivePermissionDao`
@@ -31,4 +30,4 @@
 ## 관계 및 삭제 규칙
 
 - `auth_role_permission.permission_code`가 참조합니다. 참조가 남아 있으면 삭제를 거부하고 자동 연쇄 삭제하지 않습니다.
-- 권한 목록은 코드 카탈로그와 Flyway 기본 데이터로 함께 관리할 예정입니다. 실행 중 API가 참조하는 권한 삭제는 서비스·배포 검증으로 금지합니다. API와의 정합성은 FK만으로 보장되지 않습니다.
+- 실행 중 API가 참조하는 권한 삭제는 서비스·배포 검증으로 금지합니다. API와의 정합성은 FK만으로 보장되지 않습니다.

@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.imageaiplatform.auth.dao.EffectivePermissionDao;
 import com.imageaiplatform.auth.service.AuthorizationService;
 import javax.sql.DataSource;
-import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +17,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(properties = "app.datasource.url=jdbc:h2:mem:auth-rbac-integration;DB_CLOSE_DELAY=-1")
 @ActiveProfiles("test")
+@Sql(scripts = "classpath:fixtures/auth-user.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS,
+        config = @SqlConfig(dataSource = "appDataSource", transactionManager = "appTransactionManager"))
 @Transactional("appTransactionManager")
 class AuthorizationDatabaseTest {
     private static final String READ = "dataset:item:read";
@@ -128,23 +131,5 @@ class AuthorizationDatabaseTest {
         jdbc.update("DELETE FROM auth_role_permission WHERE permission_code = ?", READ);
         assertThatCode(() -> jdbc.update("DELETE FROM auth_permission WHERE permission_code = ?", READ))
                 .doesNotThrowAnyException();
-    }
-
-    @Test
-    void upgradesExistingV1DatabaseWithoutChangingAccountsOrSeedingRoles() {
-        String url = "jdbc:h2:mem:auth-rbac-upgrade;DB_CLOSE_DELAY=-1";
-        Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration")
-                .target("1").load().migrate();
-        var upgradeJdbc = new JdbcTemplate(new org.springframework.jdbc.datasource.DriverManagerDataSource(url, "sa", ""));
-        upgradeJdbc.update("INSERT INTO auth_user (username, password_hash, enabled) VALUES ('existing-user', 'existing-hash', FALSE)");
-
-        Flyway flyway = Flyway.configure().dataSource(url, "sa", "").locations("classpath:db/migration").load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
-        assertThat(upgradeJdbc.queryForObject("SELECT password_hash FROM auth_user WHERE username = 'existing-user'", String.class))
-                .isEqualTo("existing-hash");
-        assertThat(upgradeJdbc.queryForObject("SELECT enabled FROM auth_user WHERE username = 'existing-user'", Boolean.class)).isFalse();
-        assertThat(upgradeJdbc.queryForObject("SELECT COUNT(*) FROM auth_role", Integer.class)).isZero();
-        assertThat(upgradeJdbc.queryForObject("SELECT COUNT(*) FROM auth_permission", Integer.class)).isZero();
-        assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 }

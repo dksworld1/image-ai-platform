@@ -2,6 +2,8 @@ spring:
   config:
     import: classpath:config/datasource/jdbc-local.yaml
 app:
+  migration:
+    enabled: true
   cors:
     allowed-origin: http://localhost:5173,http://localhost:4173
   auth:

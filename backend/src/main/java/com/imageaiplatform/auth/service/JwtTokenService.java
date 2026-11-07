@@ -9,10 +9,8 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Service
-@ConditionalOnProperty(name = "app.database-migration-only", havingValue = "false", matchIfMissing = true)
 public class JwtTokenService {
     private final SecretKey signingKey;
     private final Duration ttl;

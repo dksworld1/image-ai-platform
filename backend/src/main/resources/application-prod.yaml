@@ -1,6 +1,2 @@
-spring:
-  flyway:
-    enabled: false
-
 logging:
   config: classpath:config/logger/logback-prod.xml

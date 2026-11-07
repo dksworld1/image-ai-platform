@@ -5,10 +5,8 @@ import com.imageaiplatform.auth.domain.AuthUser;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Service
-@ConditionalOnProperty(name = "app.database-migration-only", havingValue = "false", matchIfMissing = true)
 public class AuthService {
     private final AuthUserDao authUserDao;
     private final PasswordEncoder passwordEncoder;

@@ -8,12 +8,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /** app 데이터소스의 현재 계정 상태와 유효 권한을 확인하는 서비스입니다. */
 @Service
-@ConditionalOnProperty(name = "app.database-migration-only", havingValue = "false", matchIfMissing = true)
 public class AuthorizationService {
     private static final Pattern PERMISSION_CODE =
             Pattern.compile("[a-z][a-z0-9-]*:[a-z][a-z0-9-]*:[a-z][a-z0-9-]*");

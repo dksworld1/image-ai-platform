@@ -44,8 +44,6 @@
 
 - [ ] 운영 적용 전에 대상 보안 규정과 인증 보증 수준을 정하고 인증 기능을 대조 검토합니다. 세부 항목은 [2단계 인증 TODO](../stages/stage-02-authentication.md#보안-준수-todo)에서 추적합니다.
 
-## 데이터베이스 마이그레이션
+## DB 마이그레이션 현재 상태
 
-- 채택: Flyway를 app 데이터소스에 적용합니다. local/test는 앱 시작 시 적용하고 dev/prod는 배포 단계에서 마이그레이션 전용 실행을 사용합니다.
-- 현재 app DB를 초기화한 상태에서 V1을 실행하므로 baseline은 사용하지 않습니다. `catalog`·`archive`는 Flyway 범위에서 제외합니다.
-- 초기 마이그레이션은 `auth_user` 테이블만 생성합니다. 상세 결정은 [ADR-012](../decisions/ADR-012-flyway-app-migrations.md)을 참고합니다.
+local/test에서 app·audit 데이터소스별 Flyway를 실행합니다. 다중 SQL 위치, 테스트 seed와 빈 목록의 적용 건너뛰기를 구현했습니다. dev/prod는 기본 비활성화이며 외부 YAML로 설정합니다. [설정 방법과 검증 기록](../operations/database-migration.md)을 참고합니다.

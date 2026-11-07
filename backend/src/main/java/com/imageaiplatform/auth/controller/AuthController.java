@@ -9,10 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @RestController
-@ConditionalOnProperty(name = "app.database-migration-only", havingValue = "false", matchIfMissing = true)
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;
