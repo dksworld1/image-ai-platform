@@ -46,4 +46,4 @@ erDiagram
 - 초기 화면 경로는 `/admin/users`, `/datasets` 같은 프런트 내부 정적 경로를 사용합니다. 동적 상세 화면 경로·외부 URL 메뉴·아이콘·다국어·사용자별 메뉴 편집은 현재 정의에 포함하지 않습니다.
 - 생성 순서는 기존 auth_permission 확인 → ui_screen → ui_screen_permission·ui_menu(부모 먼저)입니다. CHECK·FK·유일 제약은 V3에 작성했습니다. 운영 DB의 실행 계획·대규모 부하 검증은 아직 하지 않았습니다.
 - 신규 UiApiTest 13개 포함 전체 58개 테스트를 통과했습니다. H2에서 CRUD·인가·계층·롤백·동시 순환 방지를 검증했으며 운영 DB 성능 검증과 구분합니다.
-- API 계약과 요청 예시는 [메뉴·화면 API](../../../api/ui.md)를 참고하세요. V3는 ui:screen:manage·ui:menu:manage 권한 정의만 추가하고 역할·사용자 연결이나 기본 메뉴를 자동 생성하지 않습니다.
+- API 계약과 요청 예시는 [메뉴·화면 API](../../../api/ui.md)를 참고하세요. 공통 db/seed/app/common/R__01_ui_permissions.sql은 ui:screen:manage·ui:menu:manage 권한 정의만 추가하며 같은 common 폴더의 R__02_ui_navigation.sql이 시작·관리 화면·메뉴를 등록합니다. 관리자 계정·역할 연결은 local seed에서만 생성합니다.

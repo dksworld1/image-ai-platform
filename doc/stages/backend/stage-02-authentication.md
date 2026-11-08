@@ -45,9 +45,9 @@
 - 2026-11-08 메뉴·화면 지원: ui 모듈에서 기존 auth 서비스 경계로 유효 권한을 조회해 허용 화면·메뉴를 반환하고 관리 권한으로 CRUD를 제공합니다. app V3, 신규 요청 테스트 13개 포함 전체 58개 통과. 상세 계약은 [메뉴·화면 API](../../api/ui.md)를 참고하며 프런트 연동은 별도입니다.
 
 - `POST /api/auth/token`에서 계정 자격 증명을 검증하고 JWT를 발급합니다. 보호 API는 Bearer 토큰을 확인하며 `/api/health`와 로그인 경로는 비인증으로 허용합니다.
-- 계정은 `app` 데이터소스의 `auth_user` 테이블에서 찾습니다. 계정 행은 자동 생성하지 않습니다.
+- 계정은 `app` 데이터소스의 `auth_user` 테이블에서 찾습니다. 계정 생성 API는 제공하지 않으며 local seed로 개발용 admin 계정을 준비합니다.
 - 테이블 구조는 [인증 테이블 정의서](../../db-schema/tables/auth/auth-user.md)에 기록했습니다.
-- access token 발급 및 검증은 구현했습니다. 가입·역할·refresh token·폐기 및 감사 기능은 미구현입니다.
+- access token 발급 및 검증은 구현했습니다. 역할 관리·refresh token·폐기 및 감사 기능은 미구현입니다.
 - 권한 판정 서비스와 도메인·DAO를 추가했습니다. 2026-11-06 권한 테이블의 실제 MyBatis 조회 DAO를 구현하고 서비스를 Spring 빈으로 연결했습니다. API 인가는 전역 MVC 인터셉터에 연결했고 기본 역할·권한 데이터는 생성하지 않습니다. 설계와 상세 진행 내용은 [권한 설계 제안](../../proposals/authorization-design-proposal.md)에서 관리합니다.
 - 2026-11-04 검증: JDK 21·Maven 3.9.11에서 `mvn test` 성공. 신규 권한 판정 단위 테스트 7개와 기존 기반 테스트 4개, 총 11개가 모두 통과했습니다. 아래 이전 기록의 실행 실패와 구분합니다.
 - 2026-11-06 검증: 신규 RBAC DB 통합 테스트 7개를 포함해 `mvn test` 전체 18개 통과. H2에서 제약·실제 권한 조회를 확인했습니다. API 인가·운영 DB 검증은 아직 수행하지 않았습니다.
@@ -65,3 +65,15 @@
 - [ ] JWT 서명 키 생성·보관·교체, 토큰 용도·issuer/audience 검증과 로그아웃/폐기 정책을 확정합니다.
 - [ ] 운영 HTTPS, 비밀정보·인증정보 로그 처리, 클라이언트 토큰 보관과 MFA 요구 여부를 검토합니다.
 - [ ] 보완 후 자동 검증 및 배포 환경 설정을 확인하고 준수 근거를 기록합니다.
+
+## 로컬 관리자·메뉴 seed
+
+- local 전용 db/seed/app/local의 반복 SQL로 admin 계정(BCrypt, 활성), 소문자 admin 역할과 현재 등록된 모든 권한 연결을 준비합니다. 시작·화면 관리·메뉴 관리 메타데이터는 app/common의 별도 SQL에서 등록합니다.
+- 기존 V1~V3와 test·dev·prod의 기본 seed 정책은 변경하지 않습니다. React 관리 화면은 후속 작업이며 [ADR-022](../../decisions/ADR-022-local-app-seed.md)와 [마이그레이션 설정](../../operations/database-migration.md)을 따릅니다.
+
+- 2026-11-08 DDL·DML 분리: V3의 권한 등록을 db/seed/app/common/R__01_ui_permissions.sql로 이관하고 공통·local 경로 및 검증을 갱신했습니다. 새 검증 DB에서 전체 62개 테스트 통과. 이미 V3 적용한 DB의 checksum 정리는 [ADR-023](../../decisions/ADR-023-ddl-dml-script-separation.md)을 따르며 실제 DB repair는 미실행입니다.
+
+## 현재 검증 결과
+
+- 2026-11-08: JDK 21.0.13·Maven 3.10.0에서 현재 백엔드 전체 59개 테스트 통과. 계정 등록용 전용 테스트 3개는 현재 범위에서 제외되었습니다.
+- 실행 중인 로컬 서버 DB와 분리해 mvn test "-Ddatasource.app.url=jdbc:h2:mem:remove-registration-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:remove-registration-audit;DB_CLOSE_DELAY=-1"로 검증했습니다. 로그인·인가·메뉴 관리·공통 및 로컬 seed 검증은 유지합니다.

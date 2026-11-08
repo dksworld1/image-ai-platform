@@ -22,7 +22,11 @@ class DatabaseMigrationTest {
 
     @Test
     void appliesOnlyEachDatabasesScriptsAndSkipsAppliedVersions() {
-        assertThat(app.info().current().getVersion().toString()).isEqualTo("3");
+        assertThat(app.info().applied()).anyMatch(migration -> migration.getVersion() != null
+                && migration.getVersion().toString().equals("3"));
+        assertThat(new JdbcTemplate(app.getConfiguration().getDataSource()).queryForList(
+                "SELECT permission_code FROM auth_permission ORDER BY permission_code", String.class))
+                .containsExactly("ui:menu:manage", "ui:screen:manage");
         assertThat(audit.info().current().getVersion().toString()).isEqualTo("1");
         String sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'PUBLIC'";
         assertThat(new JdbcTemplate(app.getConfiguration().getDataSource()).queryForList(sql, String.class))

@@ -25,6 +25,8 @@
 - 다중 데이터소스 구성에서는 잘못된 DB 자동 선택을 막기 위해 `@Primary`를 사용하지 않고, datasource·세션 템플릿·트랜잭션 매니저 의존성을 `@Qualifier`로 명시합니다.
 - 동작을 변경할 때 자동 검증 절차를 추가하거나 갱신합니다. 실제로 실행하지 않은 검증을 실행했다고 기록하지 않습니다.
 - 기존 이름과 서식 규칙을 따르고, 관련 없는 의존성을 추가하지 않습니다.
+- DB SQL은 DML(`INSERT`, `UPDATE`, `DELETE`, `MERGE` 등 데이터 변경)을 `db/seed/`에, DDL·DCL(구조·DB 권한 변경)을 `db/migration/`에 분리합니다. 역할·권한 테이블의 행 변경은 DML이므로 seed에 둡니다. 공통 seed와 프로파일 전용 seed를 구분하고 Flyway 실행 순서·의존성을 명시합니다.
+- seed 폴더는 DB별로 묶고 그 아래 데이터 적용 범위를 구분합니다. app 공통 데이터는 `db/seed/app/common/`, app local 프로파일 전용 데이터는 `db/seed/app/local/`에 둡니다. 기본 위치 목록에는 common만 지정하며 local 프로파일에서 local을 추가합니다. 상위 `db/seed/app/` 전체를 지정해 다른 프로파일 데이터를 함께 읽지 않습니다.
 
 ## 백엔드 테스트 실행
 - 백엔드는 Java 21 이상이 필요합니다. Windows에서 Maven 검증을 실행할 때는 새 PowerShell 세션에서 `JAVA_HOME`을 `C:\Program Files\Java\jdk-21`로 지정하고 해당 `bin`을 `PATH` 맨 앞에 둡니다.

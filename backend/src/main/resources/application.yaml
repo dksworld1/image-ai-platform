@@ -12,6 +12,7 @@ app:
     enabled: false
     app-locations:
       - classpath:db/migration/app
+      - classpath:db/seed/app/common
     audit-locations:
       - classpath:db/migration/audit
   cors:

@@ -15,7 +15,7 @@
 | PUT | `/api/ui/menus/{code}` | `ui:menu:manage` | 생성 또는 전체 교체, 204 |
 | DELETE | `/api/ui/menus/{code}` | `ui:menu:manage` | 삭제, 204 |
 
-관리 API에는 Bearer JWT가 필요합니다. 관리 권한 정의는 V3에서 추가하지만 역할·사용자에게 자동 부여하지 않습니다. 메뉴·화면 데이터도 자동 생성하지 않아 설정 전 내비게이션은 빈 배열입니다.
+관리 API에는 Bearer JWT가 필요합니다. 공통 seed는 관리 권한 정의와 시작·관리 화면·메뉴를 등록하며 관리자 계정·역할 연결은 생성하지 않습니다. local 프로파일은 별도 [로컬 seed](../operations/database-migration.md#로컬-app-초기-데이터-seedapplocal)로 admin 계정·역할·권한을 준비합니다. 공통 seed의 시작·관리 화면·메뉴는 프로파일과 무관한 기본 데이터이며 실제 노출은 사용자 접근 조건에 따라 달라집니다.
 
 ## 내비게이션 응답
 

@@ -8,9 +8,15 @@
 
 ## 메뉴·화면 API 배포 시 DB 준비
 
+SQL 작성 규칙은 DDL·DCL → `db/migration`, DML → `db/seed`입니다. app 위치 목록을 외부 YAML로 덮어쓰는 경우 `classpath:db/migration/app`과 `classpath:db/seed/app/common`을 모두 포함합니다. local은 추가로 `classpath:db/seed/app/local`을 사용합니다. dev/prod의 기본 비활성화 정책은 유지합니다.
+
+이번 이관으로 기존 V3의 체크섬이 변경됩니다. 기존 적용 DB는 백업과 SQL 변경 검토 후 동일한 Flyway 데이터소스·위치로 `repair()` → `migrate()` 절차를 수행해야 합니다. 애플리케이션이 자동으로 이력을 보정하지 않습니다. 실제 DB repair는 실행하지 않았습니다. [체크섬 정리](database-migration.md#기존-v3-적용-db의-체크섬-정리)를 참고하세요.
+
+local 프로파일은 `db/seed/app/local`의 반복 SQL로 `admin` 계정·`admin` 역할, 전체 기존 권한 연결을 준비합니다. 시작·화면 관리·메뉴 관리 메타데이터는 common의 R__02_ui_navigation.sql에서 준비합니다. 비밀번호 `admin`은 로컬 개발 전용이며 seed에는 BCrypt 해시만 저장합니다. test·dev·prod의 기본 마이그레이션 위치에는 이 seed가 없습니다. 외부 설정으로 로컬 seed 경로를 운영에 추가하지 않습니다. 재적용 시 비밀번호와 seed 소유 화면·메뉴 설정을 초기값으로 맞추므로 상세 동작은 [로컬 seed 정의](database-migration.md#로컬-app-초기-데이터-seedapplocal)를 따릅니다. 실제 관리 React 화면은 아직 구현하지 않았습니다.
+
 app의 `V3__create_ui_navigation.sql`을 기존 [DB별 마이그레이션 절차](database-migration.md)에 따라 적용해야 합니다. local/test는 기존 YAML에서 활성화되어 있고 dev/prod는 외부 YAML의 app.migration 설정을 명시적으로 관리합니다. 감사 DB에는 새 SQL을 추가하지 않습니다.
 
-V3는 메뉴·화면 테이블 3개와 두 관리 권한의 정의를 생성합니다. 관리 역할 연결·초기 화면·메뉴는 자동 생성하지 않습니다. 승인된 역할에 `ui:screen:manage`, `ui:menu:manage`를 연결한 뒤 관리 API로 데이터를 준비합니다. 일반 요청에서 테이블·권한을 자동 등록하거나 기동 전수 검사를 수행하지 않습니다. 스키마가 없으면 API의 DB 접근은 서버 오류로 실패하며 자동 baseline을 하지 않습니다. H2·MockMvc 전체 58개 테스트를 통과했으며 운영 DB 검증을 수행한 것은 아닙니다.
+V3는 메뉴·화면 테이블 3개를 생성하고, 공통 db/seed/app/common/R__01_ui_permissions.sql이 두 관리 권한을 등록합니다. 공통 R__02_ui_navigation.sql은 시작·관리 화면과 메뉴를 등록합니다. 관리자 계정·역할 연결은 local seed에서만 생성합니다. 승인된 역할에 `ui:screen:manage`, `ui:menu:manage`를 연결한 뒤 관리 API로 데이터를 준비합니다. 일반 요청에서 테이블·권한을 자동 등록하거나 기동 전수 검사를 수행하지 않습니다. 스키마가 없으면 API의 DB 접근은 서버 오류로 실패하며 자동 baseline을 하지 않습니다. H2·MockMvc 전체 58개 테스트를 통과했으며 운영 DB 검증을 수행한 것은 아닙니다.
 
 ## 호스트 서버의 비밀정보 관리
 
@@ -171,3 +177,7 @@ if ($response.StatusCode -ne 200 -or $response.Content -notmatch 'id="root"') {
 - [Spring Boot 외부 설정 공식 문서](https://docs.spring.io/spring-boot/reference/features/external-config.html): 추가 위치, 우선순위, 파일 import, 디렉터리와 프로파일별 파일 처리의 기준
 
 향후 외부 설정 경로·파일 구성·비밀정보 전달·프로파일·JAR 실행 옵션·배포 절차를 변경하면 이 문서의 명령, 예시 YAML, 현재 구현 제약과 검증 여부를 같은 변경에서 갱신합니다. 코드에서 제거한 호환 옵션은 문서에서도 제거하고 실행하지 않은 절차를 검증 완료로 기록하지 않습니다.
+
+## 로컬 V3 체크섬 정리 완료 기록
+
+2026-11-08 로컬 app 파일 DB를 백업한 뒤 V3 체크섬 불일치만 확인해 Flyway repair·migrate를 실행했습니다. 반복 seed 3개와 전체 이력 검증이 성공했고 관리자 역할·권한 연결 및 화면 정보를 확인했습니다. 이는 위 미실행 기록 이후의 로컬 조치이며 다른 환경 DB의 repair를 의미하지 않습니다. 백업 위치와 상세 결과는 [마이그레이션 검증 기록](database-migration.md#로컬-db-체크섬-정리-실행-결과)을 참고합니다. 백엔드는 재시작하지 않았습니다.

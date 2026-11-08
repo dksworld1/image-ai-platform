@@ -62,10 +62,12 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 
 ## 인증
 
+프런트 인덱스는 현재 로그인 화면을 먼저 표시합니다. `POST /api/auth/token` 성공 후 기존 시작 화면으로 전환하며 토큰 응답은 `App`의 메모리 상태에만 보관합니다. 새로고침 시 재로그인이 필요합니다. 내비게이션 조회에는 로그인 토큰을 전달하고 허용 메뉴 계층을 표시합니다. 미구현 관리 화면은 준비 중으로 표시합니다. 나머지 업무 API 토큰 전달·로그아웃·만료 처리와 실제 화면 라우팅은 후속 구현입니다. [ADR-020](../decisions/ADR-020-login-entry-memory-token.md), [프런트 인증 단계](../stages/front/stage-02-authentication.md)를 참고합니다.
+
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 외부 YAML의 `app.auth.jwt.secret`에서 읽습니다. 기본 유효기간은 15분입니다.
 - JWT 필터가 인증을 등록하고 전역 MVC 인가 인터셉터가 메서드의 `@PublicApi`·`@RequirePermission`을 읽어 공개·인증 전용·세부 권한 필요 요청을 판정합니다. 필터 체인의 URL별 인가 목록은 제거하고 MVC 인터셉터에서 기본 거부합니다. 어노테이션 없는 핸들러와 정적 리소스 핸들러도 거부합니다. 비-MVC 서블릿을 추가할 때는 별도의 보안 적용이 필요합니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
-- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. API 인터셉터에 연결되어 비공개 API마다 활성 계정과 필요한 세부 권한을 확인합니다. 역할·권한 기본 데이터는 제공하지 않습니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
+- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. API 인터셉터에 연결되어 비공개 API마다 활성 계정과 필요한 세부 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 시작·관리 메뉴 메타데이터는 app 공통 seed에서 준비합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
 
 ## DB 테이블 정의
 

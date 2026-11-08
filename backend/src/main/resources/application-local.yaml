@@ -4,6 +4,10 @@ spring:
 app:
   migration:
     enabled: true
+    app-locations:
+      - classpath:db/migration/app
+      - classpath:db/seed/app/common
+      - classpath:db/seed/app/local
   cors:
     allowed-origin: http://localhost:5173,http://localhost:4173
   auth:

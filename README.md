@@ -33,7 +33,7 @@ Windows 백엔드 스크립트는 `bin/local.settings.ps1`의 `BackendJavaHome`�
 `local` 및 `test` 프로파일은 개발·검증 편의를 위해 YAML에 고정 JWT 서명 키를 둡니다. 이 키는 로컬 테스트 전용 예외이며 외부 환경이나 운영에서 사용하지 않습니다. `dev` 및 `prod`에서는 외부 인증 YAML로 UTF-8 기준 32바이트 이상의 별도 비밀 키를 주입해야 합니다.
 
 
-기본 역할이나 권한 할당은 자동 생성하지 않습니다. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
+공통 스키마는 기본 역할·권한 할당을 생성하지 않습니다. local 프로파일은 별도 seed로 admin 계정(로컬 비밀번호 admin), admin 역할과 모든 기존 권한 연결 및 시작·관리 메뉴 정보를 준비합니다. 자세한 재적용 규칙은 [로컬 seed](doc/operations/database-migration.md#로컬-app-초기-데이터-seedapplocal)를 참고하세요. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
 
 로컬과 테스트에서는 Spring이 `app`과 `audit` 데이터소스별로 Flyway를 실행합니다. 업무 스키마는 `db/migration/app`, 두 번째 DB의 스키마는 `db/migration/audit` 클래스패스 경로에서 관리합니다. `@Sql`은 테스트 데이터 준비에 사용합니다.
 
@@ -51,6 +51,7 @@ app:
     enabled: true
     app-locations:
       - classpath:db/migration/app
+      - classpath:db/seed/app/common
     audit-locations:
       - classpath:db/migration/audit
 ```

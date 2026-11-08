@@ -9,7 +9,7 @@
 | 단계 | 기능 | 선행 단계 | 상태 | 현재 도달점 | 남은 일 또는 재개 조건 |
 |---|---|---|---|---|---|
 | 우선 | [애플리케이션 설정](backend/stage-application-settings.md) | 1 | 진행 중 | 정적 로더 구현, fat JAR에서 최초 로딩·동일 객체 반환 확인 | 첫 런타임 설정 항목 확정 시 필드 매핑·검증 |
-| 프런트 | [화면과 사용자 흐름 설계](front/README.md) | 기존 프런트 골격, 기능별 2~8 | 구현 중 | F1 화면 골격 구현, F1~F5 단계와 API 의존성 기록 | F1 화면 범위·이동 흐름·UI 정책 및 F2 인증 유지 정책 확정 |
+| 프런트 | [화면과 사용자 흐름 설계](front/README.md) | 기존 프런트 골격, 기능별 2~8 | 구현 중 | F1 화면 골격, F2 로그인 우선 진입·토큰 발급 연동 구현 | 화면 이동·메뉴 연동, 토큰 전달·로그아웃·만료·권한 오류 처리 |
 | 1 | [백엔드 프레임워크와 데이터 기반](backend/stage-01-backend-foundation.md) | 없음 | 완료 | 업무·legacy·audit 데이터소스, MyBatis·트랜잭션, DB별 Flyway 다중 위치·seed·생략 처리 | — |
 | 2 | [인증과 권한](backend/stage-02-authentication.md) | 1 | 진행 중 | JWT 로그인·요청 단위 인가와 [메뉴·화면 DB/API](../api/ui.md) 구현. 전체 58개 테스트 통과 | 프런트 메뉴·화면 연동은 미구현. 나머지 [권한 하위 작업](../proposals/authorization-design-proposal.md)은 해당 기록 기준으로 진행 |
 | 3 | [데이터셋과 메타데이터](backend/stage-03-datasets.md) | 1, 2 | 계획 | 데이터 모델 설계 범위 기록 | 필수 메타데이터와 공유 단위 결정 |
