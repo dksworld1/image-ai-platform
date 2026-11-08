@@ -11,7 +11,7 @@
 | 우선 | [애플리케이션 설정](backend/stage-application-settings.md) | 1 | 진행 중 | 정적 로더 구현, fat JAR에서 최초 로딩·동일 객체 반환 확인 | 첫 런타임 설정 항목 확정 시 필드 매핑·검증 |
 | 프런트 | [화면과 사용자 흐름 설계](front/README.md) | 기존 프런트 골격, 기능별 2~8 | 구현 중 | F1 화면 골격 구현, F1~F5 단계와 API 의존성 기록 | F1 화면 범위·이동 흐름·UI 정책 및 F2 인증 유지 정책 확정 |
 | 1 | [백엔드 프레임워크와 데이터 기반](backend/stage-01-backend-foundation.md) | 없음 | 완료 | 업무·legacy·audit 데이터소스, MyBatis·트랜잭션, DB별 Flyway 다중 위치·seed·생략 처리 | — |
-| 2 | [인증과 권한](backend/stage-02-authentication.md) | 1 | 진행 중 | JWT 로그인·요청 단위 인가 구현. [권한 하위 작업](../proposals/authorization-design-proposal.md) 10개 중 1~5 완료 | 6은 서비스·비동기 인가 필요 시 재개. 7~9 미착수, 10은 부하 측정 후 선택 |
+| 2 | [인증과 권한](backend/stage-02-authentication.md) | 1 | 진행 중 | JWT 로그인·요청 단위 인가와 [메뉴·화면 DB/API](../api/ui.md) 구현. 전체 58개 테스트 통과 | 프런트 메뉴·화면 연동은 미구현. 나머지 [권한 하위 작업](../proposals/authorization-design-proposal.md)은 해당 기록 기준으로 진행 |
 | 3 | [데이터셋과 메타데이터](backend/stage-03-datasets.md) | 1, 2 | 계획 | 데이터 모델 설계 범위 기록 | 필수 메타데이터와 공유 단위 결정 |
 | 4 | [이미지 수집과 업로드](backend/stage-04-ingestion-upload.md) | 1, 2, 3 | 계획 | 수집·업로드 단계 범위 기록 | 저장소·전송 방식과 중복 판별 기준 결정 |
 | 5 | [이미지 전처리](backend/stage-05-preprocessing.md) | 1, 3, 4 | 계획 | 변환 작업과 결과 추적 범위 기록 | 기본 변환 연산과 작업 실행 방식 결정 |

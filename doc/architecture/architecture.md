@@ -1,7 +1,7 @@
 # 아키텍처
 
 상태: 초안 기준선  
-갱신일: 2026-11-07
+갱신일: 2026-11-08
 
 ## 개요
 
@@ -16,7 +16,7 @@
 ## 구성 요소
 
 - `frontend/`: 화면과 API 호출 모듈. 개발 및 정적 미리보기 중 `/api` 요청은 Vite 프록시를 통해 백엔드로 전달합니다.
-- `backend/`: Java 21, Spring Boot 4, MVC 기반 API. 하나의 애플리케이션과 배포 단위를 유지하는 모듈러 모놀리스입니다. 공통 기반 코드는 `foundation`, 업무 기능은 `auth`와 `dataset` 기능 모듈로 구성합니다.
+- `backend/`: Java 21, Spring Boot 4, MVC 기반 API. 하나의 애플리케이션과 배포 단위를 유지하는 모듈러 모놀리스입니다. 공통 기반 코드는 `foundation`, 업무 기능은 `auth`, `ui`, `dataset` 기능 모듈로 구성합니다.
 - `doc/`: 제품 설계, 현재 아키텍처·API 계약, 기능 구현 단계 및 의사결정 기록.
 
 ## 로컬 실행 경계
@@ -70,3 +70,7 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 ## DB 테이블 정의
 
 DB 테이블은 `doc/db-schema/tables/` 아래 업무 그룹별 정의서로 관리합니다. 현재 테이블 정의는 [정의서 색인](../db-schema/tables/README.md)을 참고합니다.
+
+## 화면·메뉴
+
+ui 모듈은 app DB의 ui_screen·ui_menu·ui_screen_permission을 MyBatis로 관리합니다. 권한 조회는 AuthorizationService.effectivePermissions를 호출해 auth 서비스 경계를 유지합니다. 조회는 화면·조건·메뉴를 일괄 읽어 Set/Map으로 계산하고 공개 내비게이션에는 허용된 화면과 메뉴만 반환합니다. 관리 API는 ui:screen:manage·ui:menu:manage로 구분하며 역할에 자동 부여하지 않습니다. 화면·조건 교체와 메뉴 수정은 app 트랜잭션으로 처리하고 메뉴 쓰기는 기존 메뉴 행 잠금으로 동시 부모 변경을 조율합니다. 상세 계약은 [메뉴·화면 API](../api/ui.md)를 참고하세요.

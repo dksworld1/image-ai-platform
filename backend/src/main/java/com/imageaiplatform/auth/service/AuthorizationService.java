@@ -49,13 +49,18 @@ public class AuthorizationService {
             throw new IllegalArgumentException("Permission code must use domain:resource:action format.");
         }
 
-        requireActiveAccount(authenticatedUsername);
-        Set<String> permissions = Objects.requireNonNull(
-                effectivePermissionDao.findEffectivePermissionCodesByUsername(authenticatedUsername),
-                "EffectivePermissionDao must return a non-null set.");
+        Set<String> permissions = effectivePermissions(authenticatedUsername);
         if (!permissions.contains(permissionCode)) {
             throw new AccessDeniedException("Required permission is not granted.");
         }
+    }
+
+    /** 다른 모듈에서 사용할 활성 사용자의 현재 유효 권한입니다. */
+    public Set<String> effectivePermissions(String authenticatedUsername) {
+        requireActiveAccount(authenticatedUsername);
+        return Set.copyOf(Objects.requireNonNull(
+                effectivePermissionDao.findEffectivePermissionCodesByUsername(authenticatedUsername),
+                "EffectivePermissionDao must return a non-null set."));
     }
 
     /** 인증만 필요한 API에서도 현재 계정 상태를 확인합니다. */

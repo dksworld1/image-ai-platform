@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ui">
+  <sql id="screenColumns">screen_code, display_name, route_path, public_access, permission_required, enabled</sql>
+  <sql id="menuColumns">menu_code, parent_menu_code, node_type, display_name, screen_code, sort_order, enabled</sql>
+  <select id="screens" resultType="com.imageaiplatform.ui.domain.UiScreen" flushCache="true" useCache="false">
+    SELECT <include refid="screenColumns"/> FROM ui_screen ORDER BY screen_code
+  </select>
+  <select id="screen" resultType="com.imageaiplatform.ui.domain.UiScreen" flushCache="true" useCache="false">
+    SELECT <include refid="screenColumns"/> FROM ui_screen WHERE screen_code = #{code}
+  </select>
+  <select id="permissions" resultType="com.imageaiplatform.ui.domain.ScreenPermission" flushCache="true" useCache="false">
+    SELECT screen_code, permission_code FROM ui_screen_permission ORDER BY screen_code, permission_code
+  </select>
+  <select id="menus" resultType="com.imageaiplatform.ui.domain.UiMenu" flushCache="true" useCache="false">
+    SELECT <include refid="menuColumns"/> FROM ui_menu ORDER BY sort_order, menu_code
+  </select>
+  <select id="lockMenus" resultType="com.imageaiplatform.ui.domain.UiMenu" flushCache="true" useCache="false">
+    SELECT <include refid="menuColumns"/> FROM ui_menu ORDER BY menu_code FOR UPDATE
+  </select>
+  <insert id="insertScreen">
+    INSERT INTO ui_screen (<include refid="screenColumns"/>)
+    VALUES (#{screenCode}, #{displayName}, #{routePath}, #{publicAccess}, #{permissionRequired}, #{enabled})
+  </insert>
+  <update id="updateScreen">
+    UPDATE ui_screen SET display_name = #{displayName}, route_path = #{routePath}, public_access = #{publicAccess},
+      permission_required = #{permissionRequired}, enabled = #{enabled} WHERE screen_code = #{screenCode}
+  </update>
+  <delete id="deleteScreen">DELETE FROM ui_screen WHERE screen_code = #{code}</delete>
+  <delete id="deletePermissions">DELETE FROM ui_screen_permission WHERE screen_code = #{code}</delete>
+  <insert id="insertPermission">
+    INSERT INTO ui_screen_permission (screen_code, permission_code) VALUES (#{screenCode}, #{permissionCode})
+  </insert>
+  <insert id="insertMenu">
+    INSERT INTO ui_menu (<include refid="menuColumns"/>)
+    VALUES (#{menuCode}, #{parentMenuCode}, #{nodeType}, #{displayName}, #{screenCode}, #{sortOrder}, #{enabled})
+  </insert>
+  <update id="updateMenu">
+    UPDATE ui_menu SET parent_menu_code = #{parentMenuCode}, node_type = #{nodeType}, display_name = #{displayName},
+      screen_code = #{screenCode}, sort_order = #{sortOrder}, enabled = #{enabled} WHERE menu_code = #{menuCode}
+  </update>
+  <delete id="deleteMenu">DELETE FROM ui_menu WHERE menu_code = #{code}</delete>
+</mapper>

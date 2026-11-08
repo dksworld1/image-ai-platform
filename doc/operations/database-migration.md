@@ -48,14 +48,17 @@ audit 데이터소스와 Flyway 빈은 `datasource.audit.url`이 있을 때 생�
 
 ## SQL 파일과 seed
 
-`backend/src/main/resources/`가 클래스패스 루트입니다. 현재 업무 SQL은 아래 두 파일입니다.
+`backend/src/main/resources/`가 클래스패스 루트입니다. 현재 업무 SQL은 아래 세 파일입니다.
 
 ```text
 db/migration/app/V1__create_auth_user.sql
 db/migration/app/V2__create_auth_rbac.sql
+db/migration/app/V3__create_ui_navigation.sql
 ```
 
 audit의 실제 업무 SQL은 아직 없습니다. 이후 `db/migration/audit/`에 해당 DB용 SQL을 추가합니다. 파일 번호는 DB별로 독립적입니다. 적용된 버전 파일은 유지하고 후속 변경은 새 버전 파일로 추가합니다.
+
+V3는 app DB에 ui_screen·ui_menu·ui_screen_permission과 ui:screen:manage·ui:menu:manage 권한 정의를 추가합니다. 기존 같은 코드의 권한 정의는 유지하며 역할 연결·기본 화면·메뉴는 자동 생성하지 않습니다. 메뉴 API를 사용할 배포에서는 app V3를 먼저 적용하고 승인된 관리 역할에 필요한 권한을 연결해야 합니다. audit DB 스키마에는 영향을 주지 않습니다.
 
 seed가 필요한 프로파일의 YAML에서 스키마·seed 경로를 함께 지정합니다. 아래 seed 경로는 예시이며 실제 SQL을 해당 위치에 준비해야 합니다.
 
@@ -104,6 +107,7 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.con
 - local 활성화·audit 위치 생략 처리 후 전체 44개 테스트 통과.
 - app 위치 생략 처리 후 관련 테스트 3개 통과. 두 위치 생략 시 DB 연결을 사용하지 않고 빈 생성 성공을 확인했습니다.
 - 파일 DB별 SQL 격리, 버전·seed 위치 동시 적용과 재실행 0건을 검증했습니다.
+- 2026-11-08: app V3 메뉴·화면 스키마 추가 후 전체 58개 테스트 통과. DB별 스크립트 격리·재실행 0건과 메뉴·화면 API를 함께 확인했습니다.
 
 ## 관련 문서
 
