@@ -31,7 +31,7 @@ try {
         }
 
         Write-Host "프런트엔드 서버: http://localhost:$Port (중지하려면 Ctrl+C)"
-        & npm run preview -- --port $Port
+        & npm run preview
         if ($LASTEXITCODE -ne 0) { throw "프런트엔드 서버 종료 코드: $LASTEXITCODE." }
     }
     finally {

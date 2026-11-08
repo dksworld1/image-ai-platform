@@ -13,7 +13,7 @@ React + TypeScript 프런트엔드와 Spring Boot REST API로 구성된 모노�
 Linux 및 macOS에서는 Java 21 이상과 Maven 3.6.3 이상을 준비한 뒤 저장소 루트에서 백엔드를 실행합니다.
 
 ```bash
-./bin/start-backend.sh
+./bin/start-local-backend.sh
 ```
 
 `local` 프로필로 실행하며, 포트는 Windows와 동일하게 `bin/local.settings.ps1`의 `BackendPort`에서 읽습니다. Maven이 Java 21 이상을 사용하도록 준비합니다. 백엔드 디렉토리를 기준으로 실행하므로 로컬 H2 데이터는 `backend/data/`에 저장됩니다. 상태 확인은 `curl http://localhost:8080/api/health`, 종료는 Ctrl+C입니다.
@@ -26,7 +26,9 @@ Linux 및 macOS에서는 Java 21 이상과 Maven 3.6.3 이상을 준비한 뒤 �
 
 실행 창은 `-NoExit` 옵션으로 유지되므로 시작 오류와 로그를 확인할 수 있습니다. `start-local.ps1` 실행 창도 서버 창을 띄운 뒤 Enter 입력을 기다립니다. 이 창에서 Enter를 눌러도 서버 창은 계속 열려 있습니다. 서버가 종료된 뒤에는 각 서버 창이 Enter 입력을 기다립니다. 서버 창을 닫으면 해당 서버가 종료됩니다. 포트나 빌드 설정은 [bin/local.settings.ps1](bin/local.settings.ps1)에서 수정할 수 있습니다.
 
-프런트엔드 스크립트는 최초 실행 시 의존성을 설치하고 정적 파일을 빌드한 뒤 `http://localhost:4173`에서 제공합니다. 백엔드는 `http://localhost:8080`에서 실행됩니다. 정적 서버는 `/api` 요청을 백엔드로 프록시하므로 로컬 상태 표시도 동작합니다. 서버를 각각 실행하려면 `./bin/start-frontend.ps1`, `./bin/start-backend.ps1`을 사용합니다. 개별 실행 시에도 스크립트가 끝나면 Enter 입력을 기다려 창이 바로 닫히지 않습니다.
+프런트엔드 스크립트는 최초 실행 시 의존성을 설치하고 정적 파일을 빌드한 뒤 `http://localhost:4173`에서 제공합니다. 백엔드는 `http://localhost:8080`에서 실행됩니다. 정적 서버는 `/api` 요청을 백엔드로 프록시하므로 로컬 상태 표시도 동작합니다. 서버를 각각 실행하려면 `./bin/start-local-frontend.ps1`, `./bin/start-local-backend.ps1`을 사용합니다. 개별 실행 시에도 스크립트가 끝나면 Enter 입력을 기다려 창이 바로 닫히지 않습니다.
+
+Windows 백엔드 스크립트는 `bin/local.settings.ps1`의 `BackendJavaHome`에 지정한 JDK로 Maven과 애플리케이션을 실행합니다. 기본값은 `C:\Program Files\Java\jdk-21`이며 설치 위치가 다르면 수정하세요. PATH에서 찾은 표준 Maven 배포판의 `boot/plexus-classworlds-*.jar`와 `bin/m2.conf`를 사용하며, 실행 스크립트는 `JAVA_HOME`·`PATH`를 읽거나 변경하지 않습니다.
 
 `local` 및 `test` 프로파일은 개발·검증 편의를 위해 YAML에 고정 JWT 서명 키를 둡니다. 이 키는 로컬 테스트 전용 예외이며 외부 환경이나 운영에서 사용하지 않습니다. `dev` 및 `prod`에서는 외부 인증 YAML로 UTF-8 기준 32바이트 이상의 별도 비밀 키를 주입해야 합니다.
 

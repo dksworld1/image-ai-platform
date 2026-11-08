@@ -2,3 +2,6 @@
 [int] $FrontendPort = 4173
 [int] $BackendPort = 8080
 [bool] $SkipFrontendBuild = $false
+
+# Windows 백엔드 실행에 사용할 JDK 경로
+[string] $BackendJavaHome = 'C:\Program Files\Java\jdk-21'

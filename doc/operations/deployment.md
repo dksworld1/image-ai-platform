@@ -1,6 +1,6 @@
 # 배포 및 서버 설정 운영
 
-갱신일: 2026-11-07
+갱신일: 2026-11-08
 
 ## 목적과 적용 범위
 
@@ -110,6 +110,53 @@ Flyway 실행은 `app.migration.enabled`로 제어하며 기본값은 false, loc
 `RuntimeConfig`는 클래스패스 `config/runtime/*.properties`를 자체 로딩합니다. Spring의 `additional-location`은 이 정적 로더의 탐색 경로나 값을 변경하지 않습니다. DB 자격 증명은 Spring 데이터소스 생성에 사용하므로 외부 YAML에서 관리합니다. 런타임 로더의 폴더·파일 INFO/WARN 로그는 Spring이 읽은 외부 YAML의 로딩 목록을 의미하지 않습니다.
 
 ## 관련 문서와 유지 관리
+
+### Windows 로컬 백엔드 JDK 선택
+
+`bin/start-local-backend.ps1`은 `bin/local.settings.ps1`의 `BackendJavaHome`에 지정한 `bin/java.exe`로 Maven과 Spring Boot를 실행합니다. 기본값은 `C:\Program Files\Java\jdk-21`입니다. 클래스 파일 버전 65(Java 21)를 Java 17(최대 61)로 실행하는 오류를 해결하기 위해 런타임 선택을 명시했습니다. 이 경로는 Windows 로컬 실행 전용이며 서버 외부 YAML 설정과 별개입니다.
+
+Maven은 PATH에서 찾은 `mvn`의 설치 디렉터리를 기준으로 표준 배포판의 `boot/plexus-classworlds-*.jar`와 `bin/m2.conf`를 사용해 직접 기동합니다. 실행 스크립트는 환경 변수를 읽거나 설정하지 않습니다. `mvn.cmd`의 환경 변수 옵션, rc 스크립트 및 `.mvn/jvm.config` 로딩은 이 실행 경로에 적용하지 않습니다. Maven 래퍼나 별도 shim 설치는 현재 지원 범위에 없습니다. Linux/macOS의 `.sh` 실행은 기존처럼 Java 21 이상을 사용하는 Maven 환경을 준비해야 합니다.
+
+재검증 시 저장소 루트에서 다음 명령을 실행하고, 시작 로그의 Java 버전이 21 이상인지 확인합니다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bin\start-local-backend.ps1
+```
+
+별도 PowerShell에서 응답을 자동 확인합니다.
+
+```powershell
+. .\bin\local.settings.ps1
+$response = Invoke-RestMethod -Uri "http://localhost:$BackendPort/api/health"
+if ($response.status -ne 'UP') { throw '백엔드 헬스체크 실패' }
+```
+
+2026-11-08 검증: Windows PowerShell 실행에서 Java 21.0.13으로 Spring Boot 기동, Tomcat 8080 포트 시작 및 헬스체크 `UP`을 확인했습니다. Maven 캐시 쓰기와 로컬 HTTP 확인에는 실행 환경의 추가 권한이 필요했습니다. 업무 코드 변경은 없으며 Maven 테스트는 이번 수정에서 실행하지 않았습니다.
+
+### 로컬 프런트 실행과 검증
+
+`bin/start-local.ps1`은 `bin/start-local-frontend.ps1`을 Windows PowerShell에서 실행합니다. 프런트 스크립트는 `SkipFrontendBuild`가 false이면 빌드 성공 후 `npm run preview`를 실행합니다. 미리보기 포트는 Vite가 `bin/local.settings.ps1`의 `FrontendPort`를 직접 읽으며 명령행으로 전달하지 않습니다. API 프록시 포트는 같은 파일의 `BackendPort`를 사용합니다.
+
+Windows PowerShell에서 `npm run preview -- --port $Port`를 호출했을 때 실제 npm 스크립트가 `vite preview 4173`으로 실행되는 문제를 재현했습니다. 이때 Vite는 포트 숫자를 프로젝트 경로로 해석하므로 빌드가 성공했어도 해당 하위 경로의 `dist`가 없다는 오류가 발생했습니다. 포트를 설정 파일에서 읽도록 변경해 인자 전달을 제거했습니다.
+
+재검증은 저장소 루트에서 다음 명령으로 통합 실행이 호출하는 프런트 스크립트를 직접 실행합니다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bin\start-local-frontend.ps1
+```
+
+빌드가 성공하고 `vite preview` 뒤에 포트 숫자가 위치 인자로 출력되지 않으며 설정한 주소로 기동하는지 확인합니다. 별도 PowerShell에서 다음 자동 확인을 실행합니다.
+
+```powershell
+$settingsPath = Join-Path (Get-Location) 'bin/local.settings.ps1'
+. $settingsPath
+$response = Invoke-WebRequest -Uri "http://127.0.0.1:$FrontendPort/" -UseBasicParsing
+if ($response.StatusCode -ne 200 -or $response.Content -notmatch 'id="root"') {
+    throw '프런트 미리보기 응답 검증 실패'
+}
+```
+
+2026-11-08 검증: 수정 전 Windows PowerShell에서 빌드 성공 후 `vite preview 4173`과 `dist` 오류를 재현했습니다. 수정 후 동일 프런트 스크립트에서 빌드 성공 및 `http://127.0.0.1:4173/` 기동 출력을 확인했습니다. HTTP 응답 검증은 실행 환경의 소켓 접근 제한·연결 시간 초과로 완료하지 못했습니다. 백엔드 실행과 두 창을 여는 통합 실행 자체는 이번 검증에서 실행하지 않았습니다.
 
 - [아키텍처](../architecture/architecture.md)
 - [애플리케이션 설정 모듈](../stages/backend/stage-application-settings.md)

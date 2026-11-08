@@ -7,6 +7,10 @@ export default defineConfig(({ command }) => {
   if (command === 'build') return { plugins }
 
   const settings = readFileSync(new URL('../bin/local.settings.ps1', import.meta.url), 'utf8')
+  const frontendPort = Number(settings.match(/^\s*\[int\]\s*\$FrontendPort\s*=\s*(\d+)\s*$/m)?.[1])
+  if (!Number.isInteger(frontendPort) || frontendPort < 1 || frontendPort > 65535) {
+    throw new Error('local.settings.ps1의 FrontendPort는 1~65535 사이의 정수여야 합니다.')
+  }
   const port = Number(settings.match(/^\s*\[int\]\s*\$BackendPort\s*=\s*(\d+)\s*$/m)?.[1])
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('local.settings.ps1의 BackendPort는 1~65535 사이의 정수여야 합니다.')
@@ -15,6 +19,6 @@ export default defineConfig(({ command }) => {
   return {
     plugins,
     server: { proxy },
-    preview: { host: '127.0.0.1', port: 4173, strictPort: true, proxy },
+    preview: { host: '127.0.0.1', port: frontendPort, strictPort: true, proxy },
   }
 })

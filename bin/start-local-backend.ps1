@@ -15,9 +15,23 @@ try {
     if (-not $mavenCommand) {
         throw 'Maven을 찾을 수 없습니다. Maven 3.6.3 이상을 설치한 뒤 다시 실행하세요.'
     }
+    $javaCommand = Join-Path $BackendJavaHome 'bin/java.exe'
+    if (-not (Test-Path -LiteralPath $javaCommand)) {
+        throw 'local.settings.ps1의 BackendJavaHome을 설치된 JDK 21 이상 경로로 지정하세요.'
+    }
+    $mavenHome = Split-Path -Parent (Split-Path -Parent $mavenCommand)
+    $launcherJar = (Get-ChildItem -LiteralPath (Join-Path $mavenHome 'boot') -Filter 'plexus-classworlds-*.jar' | Select-Object -First 1).FullName
+    $mavenArguments = @(
+        '-classpath', $launcherJar,
+        "-Dclassworlds.conf=$mavenHome\bin\m2.conf",
+        "-Dmaven.home=$mavenHome",
+        "-Dmaven.multiModuleProjectDirectory=$backendPath",
+        'org.codehaus.plexus.classworlds.launcher.Launcher'
+    )
+    Write-Host "백엔드 Java: $javaCommand"
     Push-Location $backendPath
     try {
-        & $mavenCommand spring-boot:run "-Dspring-boot.run.arguments=--server.port=$Port"
+        & $javaCommand @mavenArguments spring-boot:run "-Dspring-boot.run.arguments=--server.port=$Port"
         if ($LASTEXITCODE -ne 0) { throw "백엔드 서버 종료 코드: $LASTEXITCODE." }
     }
     finally {

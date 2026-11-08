@@ -5,8 +5,8 @@ $utf8 = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = $utf8
 
 try {
-    $frontendScript = Join-Path $PSScriptRoot 'start-frontend.ps1'
-    $backendScript = Join-Path $PSScriptRoot 'start-backend.ps1'
+    $frontendScript = Join-Path $PSScriptRoot 'start-local-frontend.ps1'
+    $backendScript = Join-Path $PSScriptRoot 'start-local-backend.ps1'
     $settingsScript = Join-Path $PSScriptRoot 'local.settings.ps1'
     $powerShell = Join-Path $PSHOME 'powershell.exe'
 
