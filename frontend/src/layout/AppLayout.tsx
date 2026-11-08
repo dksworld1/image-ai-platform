@@ -2,7 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { fetchNavigation, type UiNavigation } from '../api/ui'
 import Navigation from './Navigation'
 
-export default function AppLayout({ children, accessToken }: { children: ReactNode; accessToken: string }) {
+export default function AppLayout({ children, accessToken, username, onLogout }: {
+  children: ReactNode
+  accessToken: string
+  username: string
+  onLogout: () => void
+}) {
   const [navigation, setNavigation] = useState<UiNavigation | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -23,6 +28,13 @@ export default function AppLayout({ children, accessToken }: { children: ReactNo
     <div className="app-layout">
       <header className="app-header">
         <a className="brand" href="/">Image AI Platform</a>
+        <div className="header-account">
+          <div className="account-info">
+            <span className="account-label">로그인 계정</span>
+            <span className="account-username">{username}</span>
+          </div>
+          <button className="logout-button" type="button" onClick={onLogout}>로그아웃</button>
+        </div>
       </header>
       <nav className="app-nav" aria-label="주요 메뉴">
         {error ? (

@@ -1,7 +1,7 @@
 import { useRef, useState, type SubmitEvent } from 'react'
 import { login, type AuthToken } from '../api/auth'
 
-export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken) => void }) {
+export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken, username: string) => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
@@ -17,7 +17,7 @@ export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken) => 
     try {
       const token = await login(username.trim(), password)
       setPassword('')
-      onLogin(token)
+      onLogin(token, username.trim())
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : '로그인에 실패했습니다.')
     } finally {

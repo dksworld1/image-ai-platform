@@ -62,7 +62,7 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 
 ## 인증
 
-프런트 인덱스는 현재 로그인 화면을 먼저 표시합니다. `POST /api/auth/token` 성공 후 기존 시작 화면으로 전환하며 토큰 응답은 `App`의 메모리 상태에만 보관합니다. 새로고침 시 재로그인이 필요합니다. 내비게이션 조회에는 로그인 토큰을 전달하고 허용 메뉴 계층을 표시합니다. 미구현 관리 화면은 준비 중으로 표시합니다. 나머지 업무 API 토큰 전달·로그아웃·만료 처리와 실제 화면 라우팅은 후속 구현입니다. [ADR-020](../decisions/ADR-020-login-entry-memory-token.md), [프런트 인증 단계](../stages/front/stage-02-authentication.md)를 참고합니다.
+프런트 인덱스는 유효한 탭 세션이 없으면 로그인 화면을 표시합니다. `POST /api/auth/token` 성공 후 토큰·만료 시각·아이디를 sessionStorage에 저장하고 시작 화면으로 전환합니다. 같은 탭에서 새로고침하면 복원하며 로그아웃·만료 시 저장값과 로그인 상태를 제거합니다. 헤더 우상단에는 아이디와 로그아웃 버튼을 표시합니다. 내비게이션 조회에는 로그인 토큰을 전달하고 허용 메뉴 계층을 표시합니다. 미구현 관리 화면은 준비 중으로 표시합니다. 나머지 업무 API 토큰 전달과 실제 화면 라우팅은 후속 구현입니다. [ADR-025](../decisions/ADR-025-tab-session-and-header-account.md), [프런트 인증 단계](../stages/front/stage-02-authentication.md)를 참고합니다.
 
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 외부 YAML의 `app.auth.jwt.secret`에서 읽습니다. 기본 유효기간은 15분입니다.

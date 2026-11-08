@@ -17,6 +17,22 @@ const { login } = require('../src/api/auth.ts')
 const App = require('../src/App.tsx').default
 const Navigation = require('../src/layout/Navigation.tsx').default
 const { fetchNavigation } = require('../src/api/ui.ts')
+const { saveAuthSession, loadAuthSession, clearAuthSession } = require('../src/authSession.ts')
+
+function sessionStorageForTest(t) {
+  const entries = new Map()
+  const previousWindow = globalThis.window
+  globalThis.window = { sessionStorage: {
+    getItem: key => entries.get(key) ?? null,
+    setItem: (key, value) => entries.set(key, value),
+    removeItem: key => entries.delete(key),
+  } }
+  t.after(() => {
+    if (previousWindow === undefined) delete globalThis.window
+    else globalThis.window = previousWindow
+  })
+  return entries
+}
 
 test('인덱스 첫 화면은 로그인 폼이며 업무 메뉴를 표시하지 않는다', () => {
   const html = renderToStaticMarkup(React.createElement(App))
@@ -96,4 +112,50 @@ test('내비게이션 인증 만료와 서버·연결 실패를 안내한다', a
   await assert.rejects(fetchNavigation('test-token'), /메뉴를 불러오지 못했습니다/)
   request.mock.mockImplementation(async () => { throw new TypeError('fetch failed') })
   await assert.rejects(fetchNavigation('test-token'), /서버에 연결할 수 없습니다/)
+})
+
+test('저장한 토큰을 새 앱 진입에서 복원하고 로그아웃 버튼을 표시한다', t => {
+  const entries = sessionStorageForTest(t)
+  t.mock.method(Date, 'now', () => 1000)
+  const session = saveAuthSession({ accessToken: 'saved-token', tokenType: 'Bearer', expiresIn: 900 }, 'admin')
+  assert.equal(session.username, 'admin')
+  assert.equal(session.expiresAt, 901000)
+  assert.deepEqual(loadAuthSession(), session)
+  assert.equal(entries.size, 1)
+  const html = renderToStaticMarkup(React.createElement(App))
+  assert.match(html, /프로젝트 시작 화면/)
+  assert.match(html, /로그인 계정/)
+  assert.match(html, />admin</)
+  assert.match(html, /<button[^>]*>로그아웃<\/button>/)
+  assert.doesNotMatch(html, /type="password"/)
+})
+
+test('로그아웃으로 저장 토큰을 제거하면 다시 로그인 화면을 표시한다', t => {
+  const entries = sessionStorageForTest(t)
+  saveAuthSession({ accessToken: 'saved-token', tokenType: 'Bearer', expiresIn: 900 }, 'admin')
+  clearAuthSession()
+  assert.equal(entries.size, 0)
+  assert.equal(loadAuthSession(), null)
+  const html = renderToStaticMarkup(React.createElement(App))
+  assert.match(html, /type="password"/)
+  assert.doesNotMatch(html, /프로젝트 시작 화면/)
+})
+
+test('토큰 만료 시 저장값을 제거하고 로그인 화면을 표시한다', t => {
+  const entries = sessionStorageForTest(t)
+  const clock = t.mock.method(Date, 'now', () => 1000)
+  saveAuthSession({ accessToken: 'saved-token', tokenType: 'Bearer', expiresIn: 1 }, 'admin')
+  clock.mock.mockImplementation(() => 2000)
+  assert.equal(loadAuthSession(), null)
+  assert.equal(entries.size, 0)
+  assert.match(renderToStaticMarkup(React.createElement(App)), /type="password"/)
+})
+
+test('손상되거나 형식이 잘못된 저장값을 제거한다', t => {
+  const entries = sessionStorageForTest(t)
+  for (const value of ['not-json', 'null', '{}', '{"accessToken":123,"tokenType":"Bearer","expiresIn":900,"expiresAt":9999999999999}']) {
+    entries.set('image-ai-platform.auth', value)
+    assert.equal(loadAuthSession(), null)
+    assert.equal(entries.size, 0)
+  }
 })
