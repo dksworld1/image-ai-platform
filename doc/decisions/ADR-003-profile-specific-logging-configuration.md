@@ -2,7 +2,7 @@
 
 - 상태: 채택
 - 날짜: 2026-11-01
-- 관련 기록: [1단계 백엔드 프레임워크와 데이터 기반](../stages/stage-01-backend-foundation.md)
+- 관련 기록: [1단계 백엔드 프레임워크와 데이터 기반](../stages/backend/stage-01-backend-foundation.md)
 
 ## 맥락
 

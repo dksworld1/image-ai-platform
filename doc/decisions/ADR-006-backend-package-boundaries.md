@@ -2,7 +2,7 @@
 
 - 상태: 채택
 - 날짜: 2026-11-01
-- 관련 단계: [1단계 백엔드 프레임워크와 데이터 기반](../stages/stage-01-backend-foundation.md)
+- 관련 단계: [1단계 백엔드 프레임워크와 데이터 기반](../stages/backend/stage-01-backend-foundation.md)
 
 ## 맥락
 
@@ -26,4 +26,4 @@
 
 - 업무 흐름과 트랜잭션 경계는 service에 놓고, DAO를 service에서 명시적으로 선택합니다.
 - API DTO는 controller 경계에 두며, domain 모델을 HTTP 응답으로 직접 노출하지 않습니다.
-- 이 결정은 현재 [아키텍처 문서](../architecture/architecture.md)와 [1단계 문서](../stages/stage-01-backend-foundation.md)에 반영합니다.
+- 이 결정은 현재 [아키텍처 문서](../architecture/architecture.md)와 [1단계 문서](../stages/backend/stage-01-backend-foundation.md)에 반영합니다.

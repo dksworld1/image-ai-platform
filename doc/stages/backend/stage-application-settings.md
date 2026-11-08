@@ -3,8 +3,8 @@
 - 상태: 구현 중
 - 우선순위: 다음 백엔드 개발의 최우선 항목
 - 선행 단계: 1단계 백엔드 프레임워크와 데이터 기반
-- 관련 문서: [개발 계획](../plans/roadmap.md), [기능 구현 단계](README.md), [백엔드 기반](stage-01-backend-foundation.md)
-- 관련 결정: [ADR-014 클래스 초기화 기반 런타임 설정과 정적 접근](../decisions/ADR-014-static-runtime-settings.md)
+- 관련 문서: [개발 계획](../../plans/roadmap.md), [기능 구현 단계](../README.md), [백엔드 기반](stage-01-backend-foundation.md)
+- 관련 결정: [ADR-014 클래스 초기화 기반 런타임 설정과 정적 접근](../../decisions/ADR-014-static-runtime-settings.md)
 
 ## 목표와 사용자 가치
 
@@ -39,8 +39,8 @@
 
 | 날짜 | 상태 | 결정 | 근거와 영향 | 관련 ADR |
 |---|---|---|---|---|
-| 2026-11-07 | 채택 | 중앙 로더·불변 설정 객체·클래스 초기화 기반 정적 접근 및 별도 properties 파일 | main 초기화 없이 모든 클래스에서 타입이 명시된 설정에 접근 | [ADR-014](../decisions/ADR-014-static-runtime-settings.md) |
-| 2026-11-07 | 채택 | Spring YAML 우선 및 주제별 설정 파일 분리 | 환경 변수는 불가피한 경우에만 사용하고 예외 사유 기록 | [ADR-013](../decisions/ADR-013-topic-based-spring-yaml.md) |
+| 2026-11-07 | 채택 | 중앙 로더·불변 설정 객체·클래스 초기화 기반 정적 접근 및 별도 properties 파일 | main 초기화 없이 모든 클래스에서 타입이 명시된 설정에 접근 | [ADR-014](../../decisions/ADR-014-static-runtime-settings.md) |
+| 2026-11-07 | 채택 | Spring YAML 우선 및 주제별 설정 파일 분리 | 환경 변수는 불가피한 경우에만 사용하고 예외 사유 기록 | [ADR-013](../../decisions/ADR-013-topic-based-spring-yaml.md) |
 | 2026-11-07 | 채택 | 애플리케이션 설정 모듈을 다음 백엔드 개발의 최우선 항목으로 추가 | 사용자 요청에 따라 누락된 개발 항목을 보완하고 남은 기능보다 우선 진행 | - |
 
 ## 미결정 질문과 후속 조치

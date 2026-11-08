@@ -15,6 +15,8 @@
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](proposals/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의
 - [개발 진척도 현황판](stages/README.md): 전체 집계, 기능별 상태·완료 근거·남은 작업
+- [프런트 단계 설계](stages/front/README.md): 화면 흐름, 코드 구성, API 연동 및 프런트 완료 조건
+- [백엔드 단계 설계](stages/backend/README.md): 백엔드 기반·인증·업무 기능별 설계와 완료 조건
 - [결정 기록](decisions/): 채택한 주요 기술·구조 결정 (ADR)
 - [문서 서식](templates/): 설계 제안과 ADR 서식
 

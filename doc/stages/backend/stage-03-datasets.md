@@ -2,8 +2,8 @@
 
 - 상태: 계획
 - 선행 단계: 1, 2단계
-- 관련 문서: [제품 개요](../product/project-overview.md), [API 계약](../api/api.md)
-- 관련 결정: [ADR-007 백엔드 모듈 경계](../decisions/ADR-007-backend-modules.md)
+- 관련 문서: [제품 개요](../../product/project-overview.md), [API 계약](../../api/api.md)
+- 관련 결정: [ADR-007 백엔드 모듈 경계](../../decisions/ADR-007-backend-modules.md)
 
 ## 목표
 

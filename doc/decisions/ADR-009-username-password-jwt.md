@@ -2,7 +2,7 @@
 
 - 상태: 채택
 - 날짜: 2026-11-02
-- 관련 기록: [ADR-007 백엔드 모듈 경계](ADR-007-backend-modules.md), [2단계 인증과 권한](../stages/stage-02-authentication.md)
+- 관련 기록: [ADR-007 백엔드 모듈 경계](ADR-007-backend-modules.md), [2단계 인증과 권한](../stages/backend/stage-02-authentication.md)
 
 ## 맥락
 

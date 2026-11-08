@@ -2,7 +2,7 @@
 
 - 상태: 계획
 - 선행 단계: 1, 3, 4단계, 필요 시 5단계
-- 관련 문서: [제품 개요](../product/project-overview.md)
+- 관련 문서: [제품 개요](../../product/project-overview.md)
 
 ## 목표
 

@@ -3,7 +3,7 @@
 - 상태: 검토 중
 - 작성일: 2026-11-03
 - 담당: 미정
-- 관련 문서/ADR: [2단계 인증과 권한](../stages/stage-02-authentication.md), [아이디·비밀번호 로그인과 JWT](../decisions/ADR-009-username-password-jwt.md)
+- 관련 문서/ADR: [2단계 인증과 권한](../stages/backend/stage-02-authentication.md), [아이디·비밀번호 로그인과 JWT](../decisions/ADR-009-username-password-jwt.md)
 
 ## 문서 관리 원칙
 

@@ -1,14 +1,14 @@
 # 1단계: 백엔드 프레임워크와 데이터 기반
 
-2026-11-07: local/test에 별도 H2 파일 데이터소스 `audit`을 추가했습니다. local/test에서 `app`·`audit`별 Flyway 빈으로 독립 SQL 적용과 재실행을 검증합니다. [ADR-018](../decisions/ADR-018-per-datasource-migrations.md)
+2026-11-07: local/test에 별도 H2 파일 데이터소스 `audit`을 추가했습니다. local/test에서 `app`·`audit`별 Flyway 빈으로 독립 SQL 적용과 재실행을 검증합니다. [ADR-018](../../decisions/ADR-018-per-datasource-migrations.md)
 
 - 상태: 기반 구성 완료, 신규 업무용 app 데이터소스 추가 및 legacy 구성 유지
 - 선행 단계: 없음
-- 관련 문서: [아키텍처](../architecture/architecture.md), [API 계약](../api/api.md), [ADR-002](../decisions/ADR-002-backend-data-access-and-local-test-database.md), [ADR-005](../decisions/ADR-005-shared-dao-across-data-sources.md), [ADR-006](../decisions/ADR-006-backend-package-boundaries.md), [ADR-010](../decisions/ADR-010-app-datasource.md), [ADR-011](../decisions/ADR-011-remove-schema-auto-initialization.md)
+- 관련 문서: [아키텍처](../../architecture/architecture.md), [API 계약](../../api/api.md), [ADR-002](../../decisions/ADR-002-backend-data-access-and-local-test-database.md), [ADR-005](../../decisions/ADR-005-shared-dao-across-data-sources.md), [ADR-006](../../decisions/ADR-006-backend-package-boundaries.md), [ADR-010](../../decisions/ADR-010-app-datasource.md), [ADR-011](../../decisions/ADR-011-remove-schema-auto-initialization.md)
 
 ## 목표와 범위
 
-기능 단계들이 공통으로 사용할 백엔드 실행 기반과 데이터 접근 방식을 마련합니다. 데이터 소스 설정, SQL 매퍼, 트랜잭션 관리와 로컬 테스트용 데이터베이스 구성을 다룹니다. 신규 업무 기능의 기본 데이터소스는 `app`이며 기존 `catalog`·`archive` 및 foundation DAO는 legacy 호환을 위해 유지합니다. 현재 원칙은 [ADR-010](../decisions/ADR-010-app-datasource.md)을 따릅니다.
+기능 단계들이 공통으로 사용할 백엔드 실행 기반과 데이터 접근 방식을 마련합니다. 데이터 소스 설정, SQL 매퍼, 트랜잭션 관리와 로컬 테스트용 데이터베이스 구성을 다룹니다. 신규 업무 기능의 기본 데이터소스는 `app`이며 기존 `catalog`·`archive` 및 foundation DAO는 legacy 호환을 위해 유지합니다. 현재 원칙은 [ADR-010](../../decisions/ADR-010-app-datasource.md)을 따릅니다.
 
 ## 채택한 기술 방향
 
@@ -122,7 +122,7 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - 채택: 프로파일별 로그 설정을 `config/`에 두고 `logging.config`의 classpath 경로로 참조
 - 채택: 트랜잭션 경계를 업무 서비스 단위로 관리
 - 채택: 각 DAO 빈은 해당 데이터소스의 `SqlSessionTemplate`과 트랜잭션 매니저를 사용
-- 채택: 상세 구조와 제한은 [ADR-005](../decisions/ADR-005-shared-dao-across-data-sources.md)에 기록
+- 채택: 상세 구조와 제한은 [ADR-005](../../decisions/ADR-005-shared-dao-across-data-sources.md)에 기록
 - 미결정: 운영 DB와 운영 환경의 데이터 소스 설정
 
 ## 완료 조건과 검증 결과
@@ -139,4 +139,4 @@ DAO에 주입하는 세션은 Spring 관리 `SqlSessionTemplate`로 합니다. r
 - 검증: Java 21 세션(`JAVA_HOME=C:\Program Files\Java\jdk-21`)에서 `mvn test` — 성공. catalog/archive 파일 DB 격리, DAO 구현 공유, 각 트랜잭션 매니저의 롤백을 확인했습니다.
 - 이전 Maven 컴파일 시 사용자 캐시 잠금 파일 접근이 거부된 바 있어 빌드 검증도 보류 상태입니다.
 
-현재 마이그레이션은 DB별 다중 위치와 seed 적용을 지원하며 app/audit 위치 목록 생략·빈 목록을 허용합니다. 구현 및 검증 기록은 [DB 마이그레이션 설정](../operations/database-migration.md)을 참고합니다.
+현재 마이그레이션은 DB별 다중 위치와 seed 적용을 지원하며 app/audit 위치 목록 생략·빈 목록을 허용합니다. 구현 및 검증 기록은 [DB 마이그레이션 설정](../../operations/database-migration.md)을 참고합니다.

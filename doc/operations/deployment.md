@@ -112,7 +112,7 @@ Flyway 실행은 `app.migration.enabled`로 제어하며 기본값은 false, loc
 ## 관련 문서와 유지 관리
 
 - [아키텍처](../architecture/architecture.md)
-- [애플리케이션 설정 모듈](../stages/stage-application-settings.md)
+- [애플리케이션 설정 모듈](../stages/backend/stage-application-settings.md)
 - [ADR-004 외부 JDBC YAML](../decisions/ADR-004-datasource-config-files.md)
 - [ADR-013 Spring YAML 우선 관리](../decisions/ADR-013-topic-based-spring-yaml.md)
 - [Spring Boot 외부 설정 공식 문서](https://docs.spring.io/spring-boot/reference/features/external-config.html): 추가 위치, 우선순위, 파일 import, 디렉터리와 프로파일별 파일 처리의 기준
