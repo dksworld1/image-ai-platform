@@ -24,7 +24,7 @@ public class DatabaseMigrationConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty("app.datasources.audit.url")
+    @ConditionalOnProperty("datasource.audit.url")
     Flyway auditFlyway(@Qualifier("auditDataSource") DataSource source,
             DatabaseMigrationProperties properties) {
         Flyway flyway = Flyway.configure().dataSource(source)

@@ -1,5 +1,5 @@
-app:
-  datasource:
+datasource:
+  app:
     url: jdbc:h2:file:./data/image-ai-app;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password:
@@ -7,28 +7,27 @@ app:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
-  datasources:
-    audit:
-      url: jdbc:h2:file:./data/image-ai-audit;DB_CLOSE_ON_EXIT=FALSE
-      username: sa
-      password:
-      driver-class-name: org.h2.Driver
-      hikari:
-        maximum-pool-size: 10
-        minimum-idle: 2
-    catalog:
-      url: jdbc:h2:file:./data/image-ai-catalog;DB_CLOSE_ON_EXIT=FALSE
-      username: sa
-      password:
-      driver-class-name: org.h2.Driver
-      hikari:
-        maximum-pool-size: 10
-        minimum-idle: 2
-    archive:
-      url: jdbc:h2:file:./data/image-ai-archive;DB_CLOSE_ON_EXIT=FALSE
-      username: sa
-      password:
-      driver-class-name: org.h2.Driver
-      hikari:
-        maximum-pool-size: 10
-        minimum-idle: 2
+  audit:
+    url: jdbc:h2:file:./data/image-ai-audit;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  catalog:
+    url: jdbc:h2:file:./data/image-ai-catalog;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  archive:
+    url: jdbc:h2:file:./data/image-ai-archive;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2

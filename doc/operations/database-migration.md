@@ -44,7 +44,7 @@ DB 연결 정보는 기존 `config/datasource/jdbc-local.yaml` 또는 `jdbc-test
 | app | ./data/image-ai-app | ./target/image-ai-platform-app-test |
 | audit | ./data/image-ai-audit | ./target/image-ai-platform-audit-test |
 
-audit 데이터소스와 Flyway 빈은 `app.datasources.audit.url`이 있을 때 생성됩니다.
+audit 데이터소스와 Flyway 빈은 `datasource.audit.url`이 있을 때 생성됩니다.
 
 ## SQL 파일과 seed
 

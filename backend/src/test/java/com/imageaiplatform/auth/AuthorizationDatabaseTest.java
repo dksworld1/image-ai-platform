@@ -21,7 +21,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(properties = "app.datasource.url=jdbc:h2:mem:auth-rbac-integration;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "datasource.app.url=jdbc:h2:mem:auth-rbac-integration;DB_CLOSE_DELAY=-1")
 @ActiveProfiles("test")
 @Sql(scripts = "classpath:fixtures/auth-user.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS,
         config = @SqlConfig(dataSource = "appDataSource", transactionManager = "appTransactionManager"))

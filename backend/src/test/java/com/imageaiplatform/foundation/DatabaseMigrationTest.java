@@ -12,8 +12,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(properties = {
         "app.migration.audit-locations=classpath:fixtures/audit-migration,classpath:fixtures/audit-seed",
-        "app.datasource.url=jdbc:h2:file:./target/dual-db-test-${random.uuid}/app",
-        "app.datasources.audit.url=jdbc:h2:file:./target/dual-db-test-${random.uuid}/audit"
+        "datasource.app.url=jdbc:h2:file:./target/dual-db-test-${random.uuid}/app",
+        "datasource.audit.url=jdbc:h2:file:./target/dual-db-test-${random.uuid}/audit"
 })
 @ActiveProfiles("test")
 class DatabaseMigrationTest {

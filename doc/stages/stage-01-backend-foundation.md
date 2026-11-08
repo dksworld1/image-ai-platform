@@ -46,7 +46,7 @@
 - JDBC 설정 파일은 `config/datasource/` 아래에 둡니다. 로컬 H2 설정은 `classpath:config/datasource/jdbc-local.yaml`을 사용합니다.
 - 자동화 테스트의 H2 파일 DB 설정은 `classpath:config/datasource/jdbc-test.yaml`에 두고 테스트 프로파일에서 가져옵니다.
 - dev/prod는 `--spring.config.additional-location`으로 외부 JDBC YAML을 읽습니다.
-- `dev`와 `prod` 외부 YAML은 신규 업무 DB의 `app.datasource`와 legacy DB의 `app.datasources.catalog`, `app.datasources.archive`에 연결 설정을 둡니다. app은 신규 업무에서 필수입니다.
+- `dev`와 `prod` 외부 YAML은 신규 업무 DB의 `datasource.app`와 legacy DB의 `datasource.catalog`, `datasource.archive`에 연결 설정을 둡니다. app은 신규 업무에서 필수입니다.
 - 필수 외부 파일은 `optional:` 없이 지정합니다.
 - 실제 연결값을 저장소에 두지 않습니다. 예시 파일을 둘 경우 값은 자리표시자로만 작성합니다.
 

@@ -25,23 +25,22 @@ C:/secure/
 `jdbc.yaml`의 구조 예시입니다. 아래 값은 실제 접속 정보로 바꿔야 하는 자리표시자입니다. 드라이버에 필요한 의존성이 배포 JAR에 포함되어 있어야 합니다.
 
 ```yaml
-app:
-  datasource:
+datasource:
+  app:
     url: "<업무 DB JDBC URL>"
     username: "<업무 DB 사용자명>"
     password: "<업무 DB 비밀번호>"
     driver-class-name: "<JDBC 드라이버 클래스>"
-  datasources:
-    catalog:
-      url: "<catalog DB JDBC URL>"
-      username: "<catalog DB 사용자명>"
-      password: "<catalog DB 비밀번호>"
-      driver-class-name: "<JDBC 드라이버 클래스>"
-    archive:
-      url: "<archive DB JDBC URL>"
-      username: "<archive DB 사용자명>"
-      password: "<archive DB 비밀번호>"
-      driver-class-name: "<JDBC 드라이버 클래스>"
+  catalog:
+    url: "<catalog DB JDBC URL>"
+    username: "<catalog DB 사용자명>"
+    password: "<catalog DB 비밀번호>"
+    driver-class-name: "<JDBC 드라이버 클래스>"
+  archive:
+    url: "<archive DB JDBC URL>"
+    username: "<archive DB 사용자명>"
+    password: "<archive DB 비밀번호>"
+    driver-class-name: "<JDBC 드라이버 클래스>"
 ```
 
 현재 일반 실행은 업무 `app` DB 외에 legacy `catalog`·`archive` 데이터소스도 구성하므로 dev/prod 외부 파일에 필요한 연결 설정을 제공합니다.
@@ -102,7 +101,7 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod --spring.conf
 
 프로파일 활성화, 다중 SQL 위치, seed, 빈 목록 처리는 [DB 마이그레이션 설정](database-migration.md)을 따릅니다.
 
-local/test의 `audit` 데이터소스는 업무 DB와 별도의 H2 파일을 사용합니다. backend 기준 local 경로는 `./data/image-ai-audit`, test 경로는 `./target/image-ai-platform-audit-test`입니다. dev/prod에서 사용할 경우 외부 JDBC YAML에 `app.datasources.audit.url`, 사용자명, 비밀번호와 드라이버를 지정합니다.
+local/test의 `audit` 데이터소스는 업무 DB와 별도의 H2 파일을 사용합니다. backend 기준 local 경로는 `./data/image-ai-audit`, test 경로는 `./target/image-ai-platform-audit-test`입니다. dev/prod에서 사용할 경우 외부 JDBC YAML에 `datasource.audit.url`, 사용자명, 비밀번호와 드라이버를 지정합니다.
 
 Flyway 실행은 `app.migration.enabled`로 제어하며 기본값은 false, local/test에서는 true입니다. `app-locations`와 `audit-locations`은 같은 설정 그룹에서 각 DB의 SQL 경로를 지정합니다. 각 DB가 자기 이력 테이블을 관리합니다. 현재 audit의 실제 업무 SQL은 없습니다.
 

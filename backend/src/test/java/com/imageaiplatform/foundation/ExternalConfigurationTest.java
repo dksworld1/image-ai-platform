@@ -14,12 +14,12 @@ class ExternalConfigurationTest {
     @ParameterizedTest
     @ValueSource(strings = {"dev", "prod"})
     void loadsJdbcAndAuthFromAdditionalLocations(String profile, @TempDir Path directory) throws Exception {
-        Path jdbc = Files.writeString(directory.resolve("jdbc.yaml"), "app.datasource.username: external-user");
+        Path jdbc = Files.writeString(directory.resolve("jdbc.yaml"), "datasource.app.username: external-user");
         Path auth = Files.writeString(directory.resolve("auth.yaml"), "app.auth.jwt.secret: test-only-key");
         try (var context = new SpringApplicationBuilder(ExternalConfigurationTest.class)
                 .web(WebApplicationType.NONE).run("--spring.profiles.active=" + profile,
                         "--spring.config.additional-location=" + jdbc.toUri() + "," + auth.toUri())) {
-            assertThat(context.getEnvironment().getProperty("app.datasource.username")).isEqualTo("external-user");
+            assertThat(context.getEnvironment().getProperty("datasource.app.username")).isEqualTo("external-user");
             assertThat(context.getEnvironment().getProperty("app.auth.jwt.secret")).isEqualTo("test-only-key");
         }
     }

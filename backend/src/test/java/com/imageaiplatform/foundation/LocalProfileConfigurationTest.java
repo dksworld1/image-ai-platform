@@ -21,9 +21,9 @@ import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest(properties = {
         "app.auth.jwt.secret=local-profile-test-only-signing-key-32-bytes",
-        "app.datasource.url=jdbc:h2:mem:local-app;DB_CLOSE_DELAY=-1",
-        "app.datasources.catalog.url=jdbc:h2:mem:local-catalog;DB_CLOSE_DELAY=-1",
-        "app.datasources.archive.url=jdbc:h2:mem:local-archive;DB_CLOSE_DELAY=-1"
+        "datasource.app.url=jdbc:h2:mem:local-app;DB_CLOSE_DELAY=-1",
+        "datasource.catalog.url=jdbc:h2:mem:local-catalog;DB_CLOSE_DELAY=-1",
+        "datasource.archive.url=jdbc:h2:mem:local-archive;DB_CLOSE_DELAY=-1"
 })
 @ActiveProfiles("local")
 class LocalProfileConfigurationTest {

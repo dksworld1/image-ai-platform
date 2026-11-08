@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
 
-@SpringBootTest(properties = "app.datasource.url=jdbc:h2:mem:api-authorization;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "datasource.app.url=jdbc:h2:mem:api-authorization;DB_CLOSE_DELAY=-1")
 @ActiveProfiles("test")
 @Sql(scripts = "classpath:fixtures/auth-user.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS,
         config = @SqlConfig(dataSource = "appDataSource", transactionManager = "appTransactionManager"))

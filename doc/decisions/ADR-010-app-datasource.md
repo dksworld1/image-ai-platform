@@ -25,3 +25,5 @@
 - 신규 업무 기능은 데이터소스 선택이 `app`으로 일관됩니다.
 - 기존 foundation DAO 검증을 유지하면서 새 업무 테이블과 기존 catalog/archive 저장소를 분리합니다.
 - local에서 기존 catalog/archive 데이터는 기존 파일에 그대로 남습니다. 신규 업무 데이터는 `image-ai-app` 파일에 저장되며 legacy DB에서 자동 이전하지 않습니다.
+
+현재 설정 경로는 [ADR-019](ADR-019-datasource-settings-tree.md)의 datasource.<이름> 구조를 따릅니다.

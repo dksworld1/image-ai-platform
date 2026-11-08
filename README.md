@@ -37,6 +37,8 @@ Linux 및 macOS에서는 Java 21 이상과 Maven 3.6.3 이상을 준비한 뒤 �
 
 Vite 핫 리로드를 사용하는 개발 모드는 `cd frontend; npm run dev`로 실행하며 주소는 `http://localhost:5173`입니다.
 
+DB 연결 설정은 datasource 아래에 app, audit, catalog, archive 이름별로 작성합니다. 외부 JDBC YAML 예시는 [배포 문서](doc/operations/deployment.md)를 참고하세요.
+
 ## DB 마이그레이션 설정
 
 local/test는 시작 시 Flyway를 실행합니다. app·audit DB별로 위치 목록과 적용 이력을 관리하며 dev/prod는 기본 비활성화입니다.

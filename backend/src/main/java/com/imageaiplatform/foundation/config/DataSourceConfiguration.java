@@ -23,54 +23,54 @@ import org.springframework.transaction.PlatformTransactionManager;
 @EnableConfigurationProperties(MyBatisConfigurationProperties.class)
 public class DataSourceConfiguration {
     @Bean
-    @ConditionalOnProperty("app.datasources.audit.url")
-    @ConfigurationProperties("app.datasources.audit")
+    @ConditionalOnProperty("datasource.audit.url")
+    @ConfigurationProperties("datasource.audit")
     DataSourceProperties auditDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    @ConditionalOnProperty("app.datasources.audit.url")
-    @ConfigurationProperties("app.datasources.audit.hikari")
+    @ConditionalOnProperty("datasource.audit.url")
+    @ConfigurationProperties("datasource.audit.hikari")
     HikariDataSource auditDataSource(
             @Qualifier("auditDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
     }
 
     @Bean
-    @ConfigurationProperties("app.datasource")
+    @ConfigurationProperties("datasource.app")
     DataSourceProperties appDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    @ConfigurationProperties("app.datasource.hikari")
+    @ConfigurationProperties("datasource.app.hikari")
     HikariDataSource appDataSource(
             @Qualifier("appDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
     }
 
     @Bean
-    @ConfigurationProperties("app.datasources.catalog")
+    @ConfigurationProperties("datasource.catalog")
     DataSourceProperties catalogDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    @ConfigurationProperties("app.datasources.catalog.hikari")
+    @ConfigurationProperties("datasource.catalog.hikari")
     HikariDataSource catalogDataSource(
             @Qualifier("catalogDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
     }
 
     @Bean
-    @ConfigurationProperties("app.datasources.archive")
+    @ConfigurationProperties("datasource.archive")
     DataSourceProperties archiveDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    @ConfigurationProperties("app.datasources.archive.hikari")
+    @ConfigurationProperties("datasource.archive.hikari")
     HikariDataSource archiveDataSource(
             @Qualifier("archiveDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();

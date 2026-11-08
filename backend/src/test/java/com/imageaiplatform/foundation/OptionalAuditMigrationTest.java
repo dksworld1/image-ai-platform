@@ -20,7 +20,7 @@ class OptionalAuditMigrationTest {
                 .withBean("appDataSource", DataSource.class, () -> app)
                 .withBean("auditDataSource", DataSource.class, () -> audit)
                 .withPropertyValues("app.migration.enabled=true",
-                        "app.datasources.audit.url=jdbc:h2:mem:unused")
+                        "datasource.audit.url=jdbc:h2:mem:unused")
                 .run(context -> {
                     assertThat(context).hasNotFailed().hasBean("appFlyway").hasBean("auditFlyway");
                     verifyNoInteractions(app, audit);
@@ -37,7 +37,7 @@ class OptionalAuditMigrationTest {
                 .withBean("auditDataSource", DataSource.class, () -> audit)
                 .withPropertyValues("app.migration.enabled=true",
                         "app.migration.app-locations=classpath:db/migration/app",
-                        "app.datasources.audit.url=jdbc:h2:mem:unused-audit")
+                        "datasource.audit.url=jdbc:h2:mem:unused-audit")
                 .run(context -> {
                     assertThat(context).hasNotFailed().hasBean("appFlyway").hasBean("auditFlyway");
                     verifyNoInteractions(audit);
