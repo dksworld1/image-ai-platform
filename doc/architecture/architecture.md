@@ -34,7 +34,7 @@
 - API 기본 주소: `http://localhost:8080`
 - Vite 개발 서버와 미리보기 서버는 `/api` 요청을 `bin/local.settings.ps1`의 `BackendPort`로 전달합니다(기본값 8080).
 - 정적 미리보기에서도 `/api` 요청을 같은 백엔드로 전달합니다.
-- 브라우저에서 직접 API를 호출할 때 허용할 출처: 쉼표로 구분한 `app.cors.allowed-origin`. local 기본값은 `http://localhost:5173`, `http://localhost:4173`이며 그 외 프로필의 공통 기본값은 `http://localhost:5173`입니다.
+- 브라우저에서 직접 API를 호출할 때 허용할 출처: 쉼표로 구분한 `app.cors.allowed-origin`. local 기본값은 `http://localhost:5173`, `http://localhost:4173`, `http://127.0.0.1:5173`, `http://127.0.0.1:4173`이며 그 외 프로필의 공통 기본값은 `http://localhost:5173`입니다.
 
 백엔드는 `application.yaml` 및 프로파일별 YAML에서 데이터소스 설정을 가져오며 HikariCP와 MyBatis XML을 사용합니다. 신규 업무 기본 데이터소스는 `app`이며 `datasource.app` 아래에서 설정합니다. 기존 `catalog`·`archive` 데이터소스와 foundation DAO는 호환성을 위해 유지합니다. MyBatis 설정은 `MyBatisConfigurationProperties`를 통해 세션 팩토리에 전달합니다. 기본 프로파일은 `local`이고 dev/prod는 `spring.config.additional-location`에서 DB 설정을 읽습니다. 프로파일별 Logback 설정은 `backend/src/main/resources/config/logger/`에 둡니다.
 

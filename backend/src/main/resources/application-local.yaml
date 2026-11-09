@@ -9,7 +9,7 @@ app:
       - classpath:db/seed/app/common
       - classpath:db/seed/app/local
   cors:
-    allowed-origin: http://localhost:5173,http://localhost:4173
+    allowed-origin: http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173
   auth:
     jwt:
       secret: local-only-jwt-signing-key-not-for-production-2026

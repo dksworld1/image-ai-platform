@@ -31,7 +31,7 @@ try {
     Write-Host "백엔드 Java: $javaCommand"
     Push-Location $backendPath
     try {
-        & $javaCommand @mavenArguments spring-boot:run "-Dspring-boot.run.arguments=--server.port=$Port"
+        & $javaCommand @mavenArguments spring-boot:run "-Dspring-boot.run.workingDirectory=$backendPath" "-Dspring-boot.run.arguments=--server.port=$Port"
         if ($LASTEXITCODE -ne 0) { throw "백엔드 서버 종료 코드: $LASTEXITCODE." }
     }
     finally {

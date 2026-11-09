@@ -2,6 +2,8 @@ package com.imageaiplatform.foundation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,13 +39,27 @@ class LocalProfileConfigurationTest {
     @Test
     void allowsLocalFrontendPreflightWithoutAuthentication() throws Exception {
         var mvc = MockMvcBuilders.webAppContextSetup(webContext).addFilters(securityFilter).build();
-        for (String origin : new String[] {"http://localhost:5173", "http://localhost:4173"}) {
+        for (String origin : new String[] {"http://localhost:5173", "http://localhost:4173",
+                "http://127.0.0.1:5173", "http://127.0.0.1:4173"}) {
             mvc.perform(options("/api/auth/token")
                             .header("Origin", origin)
                             .header("Access-Control-Request-Method", "POST")
                             .header("Access-Control-Request-Headers", "authorization,content-type"))
                     .andExpect(status().is2xxSuccessful())
                     .andExpect(header().string("Access-Control-Allow-Origin", origin));
+        }
+    }
+
+    @Test
+    void allowsBrowserLoginFromLocalhostAndLoopbackOrigins() throws Exception {
+        var mvc = MockMvcBuilders.webAppContextSetup(webContext).addFilters(securityFilter).build();
+        for (String origin : new String[] {"http://localhost:5173", "http://localhost:4173",
+                "http://127.0.0.1:5173", "http://127.0.0.1:4173"}) {
+            mvc.perform(post("/api/auth/token").header("Origin", origin).contentType("application/json")
+                            .content("{\"username\":\"admin\",\"password\":\"admin\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                    .andExpect(jsonPath("$.accessToken").isNotEmpty());
         }
     }
 

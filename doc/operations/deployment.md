@@ -1,6 +1,6 @@
 # 배포 및 서버 설정 운영
 
-갱신일: 2026-11-08
+갱신일: 2026-11-09
 
 ## 목적과 적용 범위
 
@@ -125,6 +125,10 @@ Flyway 실행은 `app.migration.enabled`로 제어하며 기본값은 false, loc
 
 ### Windows 로컬 백엔드 JDK 선택
 
+`bin/start-local-backend.ps1`은 `$PSScriptRoot`의 상위 저장소에서 `backend` 절대 경로를 구합니다. `Push-Location`으로 Maven 실행 위치를 고정하고 `-Dspring-boot.run.workingDirectory=<backend 절대 경로>`로 Spring Boot 자식 프로세스의 작업 디렉터리도 명시합니다. 호출 위치와 무관하게 local YAML의 `jdbc:h2:file:./data/...`는 `backend/data/`를 사용합니다. 종료 시 호출자의 작업 디렉터리는 복원합니다. IDE나 JAR 직접 실행에는 이 스크립트의 고정 정책이 적용되지 않습니다.
+
+2026-11-09 검증: Spring Boot Maven Plugin 4.1.2의 실제 플러그인 명세에서 `spring-boot.run.workingDirectory` 속성을 확인했습니다. Windows PowerShell 5.1에서 저장소 루트·frontend·임시 폴더를 호출 위치로 자동 검증했습니다. JVM 호출만 대역으로 교체해 실제 스크립트의 Maven 실행 위치, `spring-boot:run` 목표, backend 작업 디렉터리 인자와 호출 위치 복원을 모두 확인했습니다. 이번 검증에서는 서버를 기동하거나 DB 파일을 이동·수정하지 않았습니다.
+
 `bin/start-local-backend.ps1`은 `bin/local.settings.ps1`의 `BackendJavaHome`에 지정한 `bin/java.exe`로 Maven과 Spring Boot를 실행합니다. 기본값은 `C:\Program Files\Java\jdk-21`입니다. 클래스 파일 버전 65(Java 21)를 Java 17(최대 61)로 실행하는 오류를 해결하기 위해 런타임 선택을 명시했습니다. 이 경로는 Windows 로컬 실행 전용이며 서버 외부 YAML 설정과 별개입니다.
 
 Maven은 PATH에서 찾은 `mvn`의 설치 디렉터리를 기준으로 표준 배포판의 `boot/plexus-classworlds-*.jar`와 `bin/m2.conf`를 사용해 직접 기동합니다. 실행 스크립트는 환경 변수를 읽거나 설정하지 않습니다. `mvn.cmd`의 환경 변수 옵션, rc 스크립트 및 `.mvn/jvm.config` 로딩은 이 실행 경로에 적용하지 않습니다. Maven 래퍼나 별도 shim 설치는 현재 지원 범위에 없습니다. Linux/macOS의 `.sh` 실행은 기존처럼 Java 21 이상을 사용하는 Maven 환경을 준비해야 합니다.
@@ -181,3 +185,11 @@ if ($response.StatusCode -ne 200 -or $response.Content -notmatch 'id="root"') {
 ## 로컬 V3 체크섬 정리 완료 기록
 
 2026-11-08 로컬 app 파일 DB를 백업한 뒤 V3 체크섬 불일치만 확인해 Flyway repair·migrate를 실행했습니다. 반복 seed 3개와 전체 이력 검증이 성공했고 관리자 역할·권한 연결 및 화면 정보를 확인했습니다. 이는 위 미실행 기록 이후의 로컬 조치이며 다른 환경 DB의 repair를 의미하지 않습니다. 백업 위치와 상세 결과는 [마이그레이션 검증 기록](database-migration.md#로컬-db-체크섬-정리-실행-결과)을 참고합니다. 백엔드는 재시작하지 않았습니다.
+
+## 로컬 루프백 주소 로그인 CORS
+
+local YAML의 app.cors.allowed-origin은 localhost와 127.0.0.1 각각의 5173·4173 출처를 허용합니다. 브라우저 주소가 127.0.0.1이면 Origin도 해당 호스트로 전달되며, Vite가 백엔드로 프록시한 요청에도 이 출처 검사가 적용됩니다. localhost 허용만으로 127.0.0.1이 허용되지는 않습니다. dev/prod 허용 출처는 이번 변경에서 확대하지 않았습니다.
+
+2026-11-09 수정 전 실제 미리보기 프록시에 Origin=http://127.0.0.1:4173을 포함한 admin 로그인이 HTTP 403과 Invalid CORS request로 거부되는 것을 재현했습니다. Origin 없는 동일 요청은 HTTP 200이었습니다. 설정 변경 후 실행 중인 백엔드를 재시작해야 적용됩니다.
+
+수정 후 Java 21.0.13·Maven 3.10.0에서 전체 60개 테스트가 통과했습니다. local 프로파일로 네 출처의 preflight와 admin 로그인 성공·토큰 발급을 MockMvc에서 확인하고 미허용 출처 거부 검증을 유지했습니다. 실행 중인 서버 DB를 사용하지 않도록 mvn test에 검증 전용 datasource.app.url=jdbc:h2:mem:loopback-login-app;DB_CLOSE_DELAY=-1 및 datasource.audit.url=jdbc:h2:mem:loopback-login-audit;DB_CLOSE_DELAY=-1을 지정했습니다. 실제 서버 재시작과 재시작 후 브라우저 조작은 수행하지 않았습니다.
