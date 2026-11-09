@@ -26,7 +26,7 @@ export default function App() {
   if (token === null) return <LoginPage onLogin={handleLogin} />
 
   return (
-    <AppLayout accessToken={token.accessToken} username={token.username} onLogout={logout}>
+    <AppLayout username={token.username} onLogout={logout}>
       <HomePage />
     </AppLayout>
   )

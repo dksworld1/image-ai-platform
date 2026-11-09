@@ -1,5 +1,13 @@
 # DB 마이그레이션 설정
 
+## 기존 UI 모듈 철거 적용 — 2026-11-09
+
+[ADR-027](../decisions/ADR-027-remove-ui-module.md)에 따라 V3 적용 이력은 보존하고 V4에서 ui_screen_permission → ui_menu → ui_screen 순서로 삭제합니다. 이 변경은 화면·메뉴 데이터를 영구 삭제하므로 DB 백업 후 적용합니다. 기존 UI 서비스나 프런트 연동과 함께 운영하지 않습니다.
+
+공통 반복 seed는 이력 호환을 위해 기존 파일명을 유지합니다. R__01_ui_permissions.sql은 ui:screen:manage·ui:menu:manage의 역할 연결과 권한 행을 삭제하고, R__02_ui_navigation.sql은 SELECT 1만 실행합니다. local seed는 관리자 계정·역할·현재 권한 연결만 준비합니다. V4 DDL 후 공통 01 → 공통 02 → local seed 순서이며 다른 권한과 역할은 삭제하지 않습니다. 이후 재기동에서도 UI 데이터가 재생성되지 않습니다.
+
+이번 작업은 실제 로컬·운영 DB에 적용하지 않았습니다. 마이그레이션 활성 프로파일은 다음 기동 시 적용되며 비활성 환경은 기존 절차대로 명시적으로 활성화해야 합니다. 예전 V3 체크섬 불일치가 있는 DB는 기존 정합성 절차를 먼저 따릅니다. 자동 repair나 이력 삭제는 수행하지 않습니다. 아래 과거 UI 등록 설명과 검증 기록은 철거 전 이력입니다.
+
 갱신일: 2026-11-08
 
 ## 현재 실행 방식
@@ -179,3 +187,9 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.con
 - 실제 불일치는 V3의 -279982466 → 1990233926뿐이며 추가로 공통·local 반복 seed 3개가 미적용 상태임을 확인했습니다. 동일 app DB와 현재 filesystem SQL 경로에 Flyway repair() 후 migrate()를 실행했습니다.
 - 공통 권한·화면 메뉴·로컬 admin seed 3개 적용 및 전체 6개 마이그레이션 validate() 성공을 확인했습니다. admin→admin 역할, 모든 등록 권한 연결, 화면 3개의 존재를 조회 검증했습니다.
 - 이 기록은 앞선 실제 로컬 DB 미적용·repair 미실행 기록 이후의 조치입니다. 다른 DB에는 repair를 실행하지 않았고 애플리케이션 기동 코드는 변경하지 않았습니다. 서버는 중지 상태로 두었습니다.
+
+## UI 모듈 철거 검증 — 2026-11-09
+
+- 프런트: `node --test frontend/test/*.test.cjs` 9개 통과, `npm --prefix frontend run build` 성공. 로그인·세션 복원·로그아웃·만료 처리는 유지하고 로그인 후 메뉴를 렌더링하지 않는 것을 확인했습니다.
+- 백엔드: Java 21.0.13·Maven 3.10.0 확인 후 `mvn clean test`를 별도 메모리 DB에서 실행해 삭제 리소스를 정리했고, 최종 추가 검증을 포함한 `mvn test "-Ddatasource.app.url=jdbc:h2:mem:remove-ui-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:remove-ui-audit;DB_CLOSE_DELAY=-1"`에서 49개 통과, 실패·오류 0개.
+- 신규 DB의 최종 UI 테이블 부재, 기존 V3 데이터의 V4 제거, UI 권한·역할 연결만 정리, 다른 권한 보존, 재적용 0건과 제거 API의 404 응답을 검증했습니다. 실제 로컬·운영 DB 마이그레이션이나 브라우저 검증은 실행하지 않았습니다.

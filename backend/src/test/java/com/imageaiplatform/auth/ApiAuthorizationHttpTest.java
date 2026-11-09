@@ -67,6 +67,13 @@ class ApiAuthorizationHttpTest {
     }
 
     @Test
+    void removedUiEndpointsAreNotAvailable() throws Exception {
+        for (String path : new String[] {"/api/ui/navigation", "/api/ui/screens", "/api/ui/screens/home", "/api/ui/menus"}) {
+            mvc.perform(get(path).header("Authorization", bearer)).andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
     void publicApisRemainAvailableAndLoginChecksCredentials() throws Exception {
         mvc.perform(get("/api/health")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
         mvc.perform(get("/api/test/public")).andExpect(status().isOk());

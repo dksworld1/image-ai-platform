@@ -4,12 +4,14 @@
 
 ## 문서 분류
 
+- [화면 스토리보드](storyboards/README.md): 기능별 화면 구성 이미지, 사용자 흐름과 설계 상태
+
 - [제품 개요](product/project-overview.md): 제품 목적과 주요 기능
 - [지원 포트폴리오 기록](portfolio/README.md): 채용공고 적합도 분석과 프로젝트 어필 근거
 - [아키텍처](architecture/architecture.md): 현재 시스템 구성과 기술 경계
 - [API 계약](api/api.md): 현재 제공하는 HTTP API와 변경 원칙
 - [DB 테이블 정의서](db-schema/tables/README.md): 기능별 DB 테이블 구조 및 제약
-- [화면·메뉴 스키마](db-schema/tables/ui/README.md): 화면 접근 정책·메뉴 계층·기존 권한 연결 (구현됨)
+- [화면·메뉴 스키마](db-schema/tables/ui/README.md): 폐기한 화면·메뉴 구조 이력 (ADR-027에 따라 제거)
 - [DB 마이그레이션 설정](operations/database-migration.md): DB별 Flyway 활성화, SQL·seed 경로와 생략 처리
 - [개발 계획](plans/roadmap.md): 현재 상태와 다음 설계 항목
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차

@@ -1,5 +1,9 @@
 # 2단계: 인증과 권한
 
+## 기존 UI 모듈 철거 — 2026-11-09
+
+[ADR-027](../../decisions/ADR-027-remove-ui-module.md)에 따라 기존 화면·메뉴 API, 서비스·DAO·도메인·매퍼와 프런트 동적 내비게이션을 제거했습니다. 아래 기존 UI 구현·검증 내용은 과거 이력이며 현재 제공 기능이 아닙니다. 로그인·세션·로그아웃과 공통 레이아웃은 유지합니다. 새 메뉴 구현은 별도 작업이며 URL은 React 코드에서, 숨김은 메뉴 렌더링에서 관리합니다.
+
 ## 권한 검사 경계 변경 — 2026-11-09 확정
 
 제한이 필요한 서비스 메서드에만 `@PreAuthorize`를 적용하며 모든 서비스에 강제하지 않습니다. 컨트롤러 퍼미션 체크는 완전히 제거하고 앞으로도 추가하지 않습니다. 서비스는 단일 계층으로 유지하며 여러 서비스 조합은 필요한 경우 업무별 상위 서비스에서 호출합니다. 서비스 Method Security 전환을 구현했으며 기존 관리 API의 필요 권한과 401·403·500 오류 계약은 유지합니다.
@@ -91,3 +95,8 @@
 - 테스트의 별도 상위 서비스가 두 보호 서비스 빈을 주입받아 호출하도록 구성해 각 권한 누락 시 거부와 양쪽 권한 보유 시 성공을 검증했습니다. UI 서비스 직접 호출의 인증·권한 거부와 업무 미실행, 제한 없는 서비스 호출, HTTP 관리 API·HEAD·CORS와 권한 조회 DB 장애 시 500 응답·데이터 미변경도 검증했습니다.
 - Java 21.0.13·Maven 3.10.0 확인 후 `mvn test "-Ddatasource.app.url=jdbc:h2:mem:service-permission-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:service-permission-audit;DB_CLOSE_DELAY=-1"` 실행: 전체 62개, 실패·오류 0개.
 - 기본 파일형 테스트 DB에는 기존 V3 체크섬 충돌이 있어 최초 전체 실행은 실패했습니다. 이후 별도 메모리 DB로 검증했으며 기존 DB의 이력·데이터는 수정하지 않았습니다. 비동기 전달·민감 작업 동시성은 별도 과제입니다.
+## UI 모듈 철거 검증 — 2026-11-09
+
+- 프런트: `node --test frontend/test/*.test.cjs` 9개 통과, `npm --prefix frontend run build` 성공. 로그인·세션 복원·로그아웃·만료 처리는 유지하고 로그인 후 메뉴를 렌더링하지 않는 것을 확인했습니다.
+- 백엔드: Java 21.0.13·Maven 3.10.0 확인 후 `mvn clean test`를 별도 메모리 DB에서 실행해 삭제 리소스를 정리했고, 최종 추가 검증을 포함한 `mvn test "-Ddatasource.app.url=jdbc:h2:mem:remove-ui-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:remove-ui-audit;DB_CLOSE_DELAY=-1"`에서 49개 통과, 실패·오류 0개.
+- 신규 DB의 최종 UI 테이블 부재, 기존 V3 데이터의 V4 제거, UI 권한·역할 연결만 정리, 다른 권한 보존, 재적용 0건과 제거 API의 404 응답을 검증했습니다. 실제 로컬·운영 DB 마이그레이션이나 브라우저 검증은 실행하지 않았습니다.

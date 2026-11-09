@@ -23,14 +23,14 @@ class DatabaseMigrationTest {
     @Test
     void appliesOnlyEachDatabasesScriptsAndSkipsAppliedVersions() {
         assertThat(app.info().applied()).anyMatch(migration -> migration.getVersion() != null
-                && migration.getVersion().toString().equals("3"));
+                && migration.getVersion().toString().equals("4"));
         assertThat(new JdbcTemplate(app.getConfiguration().getDataSource()).queryForList(
                 "SELECT permission_code FROM auth_permission ORDER BY permission_code", String.class))
-                .containsExactly("ui:menu:manage", "ui:screen:manage");
+                .isEmpty();
         assertThat(audit.info().current().getVersion().toString()).isEqualTo("1");
         String sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'PUBLIC'";
         assertThat(new JdbcTemplate(app.getConfiguration().getDataSource()).queryForList(sql, String.class))
-                .contains("AUTH_USER").doesNotContain("AUDIT_TEST_PROBE");
+                .contains("AUTH_USER").doesNotContain("AUDIT_TEST_PROBE", "UI_SCREEN", "UI_MENU", "UI_SCREEN_PERMISSION");
         assertThat(new JdbcTemplate(audit.getConfiguration().getDataSource()).queryForList(sql, String.class))
                 .contains("AUDIT_TEST_PROBE").doesNotContain("AUTH_USER");
         assertThat(app.migrate().migrationsExecuted).isZero();

@@ -18,7 +18,7 @@ h1 { margin: 18px 0 12px; font-size: clamp(28px, 5vw, 40px); letter-spacing: -.0
 .dot { width: 9px; height: 9px; border-radius: 50%; background: #eab25e; }
 .dot.online { background: #55d49a; }
 
-.app-layout { min-height: 100vh; display: grid; grid-template-columns: 224px minmax(0, 1fr); grid-template-rows: auto 1fr; }
+.app-layout { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
 .app-header { grid-column: 1 / -1; min-height: 56px; display: flex; align-items: center; padding: 12px 24px; border-bottom: 1px solid #2b3241; background: #171c26; }
 .brand { color: #eef1f7; font-weight: 700; text-decoration: none; }
 .header-account { margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 16px; }
@@ -29,18 +29,6 @@ h1 { margin: 18px 0 12px; font-size: clamp(28px, 5vw, 40px); letter-spacing: -.0
 .logout-button { flex-shrink: 0; padding: 8px 12px; border: 1px solid #65718b; border-radius: 8px; background: #202736; color: #eef1f7; font: inherit; cursor: pointer; }
 .logout-button:hover { background: #2b3241; }
 .logout-button:focus-visible { outline: 2px solid #b9c5ff; outline-offset: 4px; }
-.app-nav { padding: 24px 16px; border-right: 1px solid #2b3241; }
-.nav-link { display: block; padding: 12px 16px; border-radius: 8px; color: #eef1f7; text-decoration: none; }
-.nav-link[aria-current="page"] { background: #202736; font-weight: 700; border-left: 3px solid #91a6ff; }
-.nav-tree, .nav-children { list-style: none; margin: 0; padding: 0; }
-.nav-tree { width: 100%; }
-.nav-children { padding-left: 12px; }
-.nav-group-title { display: block; padding: 20px 16px 8px; color: #aab2c2; font-size: 14px; font-weight: 700; }
-.nav-unavailable { color: #aab2c2; }
-.nav-unavailable small { display: block; margin-top: 4px; font-size: 12px; }
-.nav-message { margin: 0; padding: 12px; line-height: 1.6; color: #c9d0df; overflow-wrap: anywhere; }
-.nav-message button { padding: 8px 12px; border: 1px solid #65718b; border-radius: 8px; background: #202736; color: #eef1f7; font: inherit; cursor: pointer; }
-.nav-message button:focus-visible { outline: 2px solid #b9c5ff; outline-offset: 4px; }
 a:hover { color: #b9c5ff; }
 a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 .app-main { min-width: 0; padding: 24px; overflow-wrap: anywhere; }
@@ -58,9 +46,8 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 .login-error { margin: 4px 0 0; color: #ffb4b4; line-height: 1.6; }
 .login-progress { min-height: 1.5em; font-size: 14px; color: #aab2c2; }
 @media (width < 1024px) {
-  .app-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; }
+  .app-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .app-header { padding-inline: 16px; }
-  .app-nav { display: flex; flex-wrap: wrap; padding: 8px 16px; border-right: 0; border-bottom: 1px solid #2b3241; }
   .app-main { padding: 16px; }
   .card { padding: 24px; }
 }

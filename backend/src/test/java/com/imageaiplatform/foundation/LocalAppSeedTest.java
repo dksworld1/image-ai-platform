@@ -12,7 +12,36 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 class LocalAppSeedTest {
     @Test
-    void seedsAdminNavigationAndAllExistingPermissionsIdempotently() {
+    void removesExistingUiSchemaAndGrantsWithoutRemovingOtherPermissions() {
+        var old = Flyway.configure()
+                .dataSource("jdbc:h2:mem:retire-ui-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "")
+                .locations("classpath:db/migration/app").target("3").load();
+        old.migrate();
+        var source = old.getConfiguration().getDataSource();
+        var jdbc = new JdbcTemplate(source);
+        jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('reader', 'Reader')");
+        jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES "
+                + "('ui:screen:manage', 'Screen'), ('ui:menu:manage', 'Menu'), ('dataset:item:read', 'Read')");
+        jdbc.update("INSERT INTO auth_role_permission VALUES ('reader', 'ui:screen:manage'), "
+                + "('reader', 'ui:menu:manage'), ('reader', 'dataset:item:read')");
+        jdbc.update("INSERT INTO ui_screen (screen_code, display_name, route_path) VALUES ('home', 'Home', '/')");
+        jdbc.update("INSERT INTO ui_screen_permission VALUES ('home', 'ui:screen:manage')");
+        jdbc.update("INSERT INTO ui_menu (menu_code, node_type, display_name, screen_code) "
+                + "VALUES ('home', 'SCREEN', 'Home', 'home')");
+        var current = Flyway.configure().dataSource(source)
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common").load();
+        current.migrate();
+        assertThat(jdbc.queryForList("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='PUBLIC'", String.class))
+                .doesNotContain("UI_SCREEN", "UI_MENU", "UI_SCREEN_PERMISSION");
+        assertThat(jdbc.queryForList("SELECT permission_code FROM auth_permission", String.class))
+                .containsExactly("dataset:item:read");
+        assertThat(jdbc.queryForList("SELECT permission_code FROM auth_role_permission", String.class))
+                .containsExactly("dataset:item:read");
+        assertThat(current.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    void seedsAdminAndAllExistingPermissionsIdempotently() {
         var flyway = Flyway.configure()
                 .dataSource("jdbc:h2:mem:local-seed-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "")
                 .locations("classpath:db/migration/app").load();
@@ -26,8 +55,6 @@ class LocalAppSeedTest {
         assertThat(common.migrate().migrationsExecuted).isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role", Integer.class)).isZero();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_screen", Integer.class)).isEqualTo(3);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_menu", Integer.class)).isEqualTo(4);
         var withSeed = Flyway.configure().dataSource(source)
                 .locations("classpath:db/migration/app", "classpath:db/seed/app/common", "classpath:db/seed/app/local").load();
         assertThat(withSeed.migrate().migrationsExecuted).isEqualTo(1);
@@ -39,11 +66,6 @@ class LocalAppSeedTest {
                 .containsExactly("admin");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_permission p WHERE NOT EXISTS "
                 + "(SELECT 1 FROM auth_role_permission r WHERE r.role_code='admin' AND r.permission_code=p.permission_code)", Integer.class)).isZero();
-        assertThat(jdbc.queryForList("SELECT route_path FROM ui_screen ORDER BY screen_code", String.class))
-                .containsExactlyInAnyOrder("/", "/admin/screens", "/admin/menus");
-        assertThat(jdbc.queryForObject("SELECT permission_required FROM ui_screen WHERE screen_code='home'", Boolean.class)).isFalse();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_screen_permission", Integer.class)).isEqualTo(2);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_menu WHERE parent_menu_code='admin-menu'", Integer.class)).isEqualTo(2);
         assertThat(withSeed.migrate().migrationsExecuted).isZero();
 
         // SQL 자체의 재실행에서도 중복 없이 추가된 권한을 연결합니다.
@@ -53,7 +75,6 @@ class LocalAppSeedTest {
         new ResourceDatabasePopulator(new ClassPathResource("db/seed/app/local/R__local_app_seed.sql")).execute(source);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user_role", Integer.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(4);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_menu", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(2);
     }
 }

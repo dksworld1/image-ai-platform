@@ -9,7 +9,7 @@
 [ADR-026](../decisions/ADR-026-service-permission-boundary.md)에 따라 서비스 권한 검사를 구현했습니다. 이전 컨트롤러 권한 선언 의무·선언 누락 기본 거부·서비스 경계 보류 방침은 대체되었습니다. 비동기 인증 전달은 별도 보류 상태입니다.
 
 상태: 초안 기준선  
-갱신일: 2026-11-08
+갱신일: 2026-11-09
 
 ## 개요
 
@@ -24,7 +24,7 @@
 ## 구성 요소
 
 - `frontend/`: 화면과 API 호출 모듈. 개발 및 정적 미리보기 중 `/api` 요청은 Vite 프록시를 통해 백엔드로 전달합니다.
-- `backend/`: Java 21, Spring Boot 4, MVC 기반 API. 하나의 애플리케이션과 배포 단위를 유지하는 모듈러 모놀리스입니다. 공통 기반 코드는 `foundation`, 업무 기능은 `auth`, `ui`, `dataset` 기능 모듈로 구성합니다.
+- `backend/`: Java 21, Spring Boot 4, MVC 기반 API. 하나의 애플리케이션과 배포 단위를 유지하는 모듈러 모놀리스입니다. 공통 기반 코드는 `foundation`, 업무 기능은 `auth`, `dataset` 기능 모듈로 구성합니다.
 - `doc/`: 제품 설계, 현재 아키텍처·API 계약, 기능 구현 단계 및 의사결정 기록.
 
 ## 로컬 실행 경계
@@ -70,12 +70,12 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 
 ## 인증
 
-프런트 인덱스는 유효한 탭 세션이 없으면 로그인 화면을 표시합니다. `POST /api/auth/token` 성공 후 토큰·만료 시각·아이디를 sessionStorage에 저장하고 시작 화면으로 전환합니다. 같은 탭에서 새로고침하면 복원하며 로그아웃·만료 시 저장값과 로그인 상태를 제거합니다. 헤더 우상단에는 아이디와 로그아웃 버튼을 표시합니다. 내비게이션 조회에는 로그인 토큰을 전달하고 허용 메뉴 계층을 표시합니다. 미구현 관리 화면은 준비 중으로 표시합니다. 나머지 업무 API 토큰 전달과 실제 화면 라우팅은 후속 구현입니다. [ADR-025](../decisions/ADR-025-tab-session-and-header-account.md), [프런트 인증 단계](../stages/front/stage-02-authentication.md)를 참고합니다.
+프런트 인덱스는 유효한 탭 세션이 없으면 로그인 화면을 표시합니다. 로그인 토큰·만료 시각·아이디는 sessionStorage에 보관하고 헤더에 아이디와 로그아웃을 표시합니다. 로그인 후 시작 화면만 표시하며 기존 내비게이션 조회·트리 렌더링은 제거했습니다. 새 메뉴는 아직 구현하지 않았습니다.
 
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 외부 YAML의 `app.auth.jwt.secret`에서 읽습니다. 기본 유효기간은 15분입니다.
 - JWT 필터가 인증을 등록하고 `@EnableMethodSecurity`로 활성화한 서비스 메서드의 `@PreAuthorize`가 필요한 권한을 확인합니다. 컨트롤러 정책 어노테이션·MVC 인가 인터셉터는 제거했습니다. URL은 필터 체인에서 통과시키며 선언 없는 서비스나 미등록 경로를 정책 누락으로 일괄 거부하지 않습니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
-- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. 서비스의 `@PreAuthorize`에서 `hasPermission`을 호출해 현재 SecurityContext의 인증 주체·활성 계정·명시 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 시작·관리 메뉴 메타데이터는 app 공통 seed에서 준비합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
+- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. 서비스의 `@PreAuthorize`에서 `hasPermission`을 호출해 현재 SecurityContext의 인증 주체·활성 계정·명시 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 UI 전용 권한은 app 공통 seed에서 제거합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
 
 ## DB 테이블 정의
 
@@ -83,4 +83,4 @@ DB 테이블은 `doc/db-schema/tables/` 아래 업무 그룹별 정의서로 관
 
 ## 화면·메뉴
 
-ui 모듈은 app DB의 ui_screen·ui_menu·ui_screen_permission을 MyBatis로 관리합니다. 권한 조회는 AuthorizationService.effectivePermissions를 호출해 auth 서비스 경계를 유지합니다. 조회는 화면·조건·메뉴를 일괄 읽어 Set/Map으로 계산하고 공개 내비게이션에는 허용된 화면과 메뉴만 반환합니다. 관리 API는 ui:screen:manage·ui:menu:manage로 구분하며 역할에 자동 부여하지 않습니다. 화면·조건 교체와 메뉴 수정은 app 트랜잭션으로 처리하고 메뉴 쓰기는 기존 메뉴 행 잠금으로 동시 부모 변경을 조율합니다. 상세 계약은 [메뉴·화면 API](../api/ui.md)를 참고하세요.
+기존 ui 모듈의 API·서비스·DAO·도메인·매퍼를 제거했습니다. V3 이력은 유지하고 V4에서 UI 테이블을 삭제합니다. UI 전용 권한은 공통 seed에서 정리하며 local seed는 관리자 계정·역할·현재 권한 연결만 유지합니다. [ADR-027](../decisions/ADR-027-remove-ui-module.md)을 따릅니다.

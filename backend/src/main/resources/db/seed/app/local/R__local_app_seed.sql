@@ -11,7 +11,6 @@ SELECT 'admin', 'admin'
 WHERE NOT EXISTS (SELECT 1 FROM auth_user_role WHERE username = 'admin' AND role_code = 'admin');
 
 -- 와일드카드나 역할명 우회 없이 현재 정의된 모든 권한을 연결합니다.
--- 현재 코드가 사용하는 관리 권한은 공통 seed의 ui:screen:manage, ui:menu:manage입니다.
 INSERT INTO auth_role_permission (role_code, permission_code)
 SELECT 'admin', permission.permission_code
 FROM auth_permission permission
