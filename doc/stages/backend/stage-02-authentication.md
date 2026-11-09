@@ -1,5 +1,11 @@
 # 2단계: 인증과 권한
 
+## 권한 검사 경계 변경 — 2026-11-09 확정
+
+제한이 필요한 서비스 메서드에만 `@PreAuthorize`를 적용하며 모든 서비스에 강제하지 않습니다. 컨트롤러 퍼미션 체크는 완전히 제거하고 앞으로도 추가하지 않습니다. 서비스는 단일 계층으로 유지하며 여러 서비스 조합은 필요한 경우 업무별 상위 서비스에서 호출합니다. 서비스 Method Security 전환을 구현했으며 기존 관리 API의 필요 권한과 401·403·500 오류 계약은 유지합니다.
+
+[ADR-026](../../decisions/ADR-026-service-permission-boundary.md)이 아래 기존 컨트롤러 권한 선언 의무·선언 누락 기본 거부·서비스 경계 보류 방침을 대체합니다. 아래 컨트롤러·MVC 인터셉터 설명과 검증 결과는 전환 전 구현 또는 당시 이력이며 새 구현 지침이 아닙니다. 서비스 권한 검사는 구현 완료이며 비동기 인증 전달은 별도 보류 상태입니다.
+
 - 상태: 진행 중
 - 선행 단계: 1단계
 - 관련 문서: [제품 개요](../../product/project-overview.md), [아키텍처](../../architecture/architecture.md)
@@ -77,3 +83,11 @@
 
 - 2026-11-08: JDK 21.0.13·Maven 3.10.0에서 현재 백엔드 전체 59개 테스트 통과. 계정 등록용 전용 테스트 3개는 현재 범위에서 제외되었습니다.
 - 실행 중인 로컬 서버 DB와 분리해 mvn test "-Ddatasource.app.url=jdbc:h2:mem:remove-registration-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:remove-registration-audit;DB_CLOSE_DELAY=-1"로 검증했습니다. 로그인·인가·메뉴 관리·공통 및 로컬 seed 검증은 유지합니다.
+
+## 서비스 권한 검사 구현·검증 — 2026-11-09
+
+- `@EnableMethodSecurity`를 활성화하고 UI 관리 메서드 6개에만 `@PreAuthorize`를 적용했습니다. 공개 조회는 기존 화면 정책을 유지합니다.
+- 컨트롤러의 `@PublicApi`·`@RequirePermission`과 MVC 인가 인터셉터·등록 설정을 제거했습니다. 권한 확인 전용 계층이나 제품용 조합 서비스를 추가하지 않았습니다.
+- 테스트의 별도 상위 서비스가 두 보호 서비스 빈을 주입받아 호출하도록 구성해 각 권한 누락 시 거부와 양쪽 권한 보유 시 성공을 검증했습니다. UI 서비스 직접 호출의 인증·권한 거부와 업무 미실행, 제한 없는 서비스 호출, HTTP 관리 API·HEAD·CORS와 권한 조회 DB 장애 시 500 응답·데이터 미변경도 검증했습니다.
+- Java 21.0.13·Maven 3.10.0 확인 후 `mvn test "-Ddatasource.app.url=jdbc:h2:mem:service-permission-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:service-permission-audit;DB_CLOSE_DELAY=-1"` 실행: 전체 62개, 실패·오류 0개.
+- 기본 파일형 테스트 DB에는 기존 V3 체크섬 충돌이 있어 최초 전체 실행은 실패했습니다. 이후 별도 메모리 DB로 검증했으며 기존 DB의 이력·데이터는 수정하지 않았습니다. 비동기 전달·민감 작업 동시성은 별도 과제입니다.

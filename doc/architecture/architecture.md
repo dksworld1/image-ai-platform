@@ -1,5 +1,13 @@
 # 아키텍처
 
+## 권한 검사 경계 변경 — 2026-11-09 확정
+
+다중 권한 업무는 별도 상위 서비스 빈이 각 보호 서비스를 생성자 주입받아 호출합니다. 같은 객체 내부 호출로 프록시를 우회하지 않습니다. [작성 가이드라인](../proposals/authorization-design-proposal.md#다중-권한-서비스-작성-가이드라인)을 따릅니다.
+
+제한이 필요한 서비스 메서드에만 `@PreAuthorize`를 적용하며 모든 서비스에 강제하지 않습니다. 컨트롤러 퍼미션 체크는 완전히 제거하고 앞으로도 추가하지 않습니다. 서비스는 단일 계층으로 유지하며 여러 서비스 조합은 필요한 경우 업무별 상위 서비스에서 호출합니다. 서비스 Method Security 전환을 구현했으며 기존 관리 API의 필요 권한과 401·403·500 오류 계약은 유지합니다.
+
+[ADR-026](../decisions/ADR-026-service-permission-boundary.md)에 따라 서비스 권한 검사를 구현했습니다. 이전 컨트롤러 권한 선언 의무·선언 누락 기본 거부·서비스 경계 보류 방침은 대체되었습니다. 비동기 인증 전달은 별도 보류 상태입니다.
+
 상태: 초안 기준선  
 갱신일: 2026-11-08
 
@@ -66,8 +74,8 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 외부 YAML의 `app.auth.jwt.secret`에서 읽습니다. 기본 유효기간은 15분입니다.
-- JWT 필터가 인증을 등록하고 전역 MVC 인가 인터셉터가 메서드의 `@PublicApi`·`@RequirePermission`을 읽어 공개·인증 전용·세부 권한 필요 요청을 판정합니다. 필터 체인의 URL별 인가 목록은 제거하고 MVC 인터셉터에서 기본 거부합니다. 어노테이션 없는 핸들러와 정적 리소스 핸들러도 거부합니다. 비-MVC 서블릿을 추가할 때는 별도의 보안 적용이 필요합니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
-- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. API 인터셉터에 연결되어 비공개 API마다 활성 계정과 필요한 세부 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 시작·관리 메뉴 메타데이터는 app 공통 seed에서 준비합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
+- JWT 필터가 인증을 등록하고 `@EnableMethodSecurity`로 활성화한 서비스 메서드의 `@PreAuthorize`가 필요한 권한을 확인합니다. 컨트롤러 정책 어노테이션·MVC 인가 인터셉터는 제거했습니다. URL은 필터 체인에서 통과시키며 선언 없는 서비스나 미등록 경로를 정책 누락으로 일괄 거부하지 않습니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
+- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. 서비스의 `@PreAuthorize`에서 `hasPermission`을 호출해 현재 SecurityContext의 인증 주체·활성 계정·명시 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 시작·관리 메뉴 메타데이터는 app 공통 seed에서 준비합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
 
 ## DB 테이블 정의
 

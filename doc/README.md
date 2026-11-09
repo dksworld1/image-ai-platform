@@ -18,6 +18,7 @@
 - [개발 진척도 현황판](stages/README.md): 전체 집계, 기능별 상태·완료 근거·남은 작업
 - [프런트 단계 설계](stages/front/README.md): 화면 흐름, 코드 구성, API 연동 및 프런트 완료 조건
 - [백엔드 단계 설계](stages/backend/README.md): 백엔드 기반·인증·업무 기능별 설계와 완료 조건
+- [서비스 권한 검사 경계](decisions/ADR-026-service-permission-boundary.md): 선택적 서비스 권한 검사와 컨트롤러 퍼미션 체크 제거 (구현)
 - [결정 기록](decisions/): 채택한 주요 기술·구조 결정 (ADR)
 - [문서 서식](templates/): 설계 제안과 ADR 서식
 

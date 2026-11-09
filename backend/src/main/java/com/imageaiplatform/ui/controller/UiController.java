@@ -1,7 +1,5 @@
 package com.imageaiplatform.ui.controller;
 
-import com.imageaiplatform.auth.controller.PublicApi;
-import com.imageaiplatform.auth.controller.RequirePermission;
 import com.imageaiplatform.ui.domain.UiMenu;
 import com.imageaiplatform.ui.domain.UiScreen;
 import com.imageaiplatform.ui.service.UiService;
@@ -38,7 +36,6 @@ public class UiController {
     public UiController(UiService service) { this.service = service; }
 
     @GetMapping("/navigation")
-    @PublicApi
     public NavigationResponse navigation(Authentication authentication) {
         var navigation = service.navigation(username(authentication));
         return new NavigationResponse(navigation.screens().stream().map(ScreenSummary::from).toList(),
@@ -46,13 +43,11 @@ public class UiController {
     }
 
     @GetMapping("/screens/{code}")
-    @PublicApi
     public ScreenSummary screen(@PathVariable String code, Authentication authentication) {
         return ScreenSummary.from(service.screenForUser(code, username(authentication)));
     }
 
     @GetMapping("/screens")
-    @RequirePermission("ui:screen:manage")
     public List<ScreenResponse> screens() {
         return service.screens().stream().map(config -> {
             var screen = config.screen();
@@ -62,7 +57,6 @@ public class UiController {
     }
 
     @PutMapping("/screens/{code}")
-    @RequirePermission("ui:screen:manage")
     public ResponseEntity<Void> saveScreen(@PathVariable String code, @Valid @RequestBody ScreenRequest request) {
         service.saveScreen(new UiScreen(code, request.displayName(), request.routePath(), request.publicAccess(),
                 request.permissionRequired(), request.enabled()), request.permissionCodes());
@@ -70,18 +64,15 @@ public class UiController {
     }
 
     @DeleteMapping("/screens/{code}")
-    @RequirePermission("ui:screen:manage")
     public ResponseEntity<Void> deleteScreen(@PathVariable String code) {
         service.deleteScreen(code);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/menus")
-    @RequirePermission("ui:menu:manage")
     public List<MenuResponse> menus() { return service.menus().stream().map(MenuResponse::from).toList(); }
 
     @PutMapping("/menus/{code}")
-    @RequirePermission("ui:menu:manage")
     public ResponseEntity<Void> saveMenu(@PathVariable String code, @Valid @RequestBody MenuRequest request) {
         service.saveMenu(new UiMenu(code, request.parentMenuCode(), request.nodeType(), request.displayName(),
                 request.screenCode(), request.sortOrder(), request.enabled()));
@@ -89,7 +80,6 @@ public class UiController {
     }
 
     @DeleteMapping("/menus/{code}")
-    @RequirePermission("ui:menu:manage")
     public ResponseEntity<Void> deleteMenu(@PathVariable String code) {
         service.deleteMenu(code);
         return ResponseEntity.noContent().build();

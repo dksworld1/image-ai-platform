@@ -1,5 +1,7 @@
 # Image AI Platform
 
+권한 검사 위치는 [ADR-026](doc/decisions/ADR-026-service-permission-boundary.md)에 따라 제한이 필요한 서비스 메서드에만 `@PreAuthorize`를 적용하는 것으로 결정했습니다. 컨트롤러 퍼미션 체크는 완전히 제거하고 앞으로도 추가하지 않으며 서비스는 단일 계층으로 유지합니다. 서비스 Method Security 전환을 구현했습니다. 컨트롤러 정책 어노테이션과 MVC 인가 인터셉터는 제거했습니다.
+
 React + TypeScript 프런트엔드와 Spring Boot REST API로 구성된 모노레포 보일러플레이트입니다.
 
 ## 필요 환경
@@ -33,7 +35,7 @@ Windows 백엔드 스크립트는 `bin/local.settings.ps1`의 `BackendJavaHome`�
 `local` 및 `test` 프로파일은 개발·검증 편의를 위해 YAML에 고정 JWT 서명 키를 둡니다. 이 키는 로컬 테스트 전용 예외이며 외부 환경이나 운영에서 사용하지 않습니다. `dev` 및 `prod`에서는 외부 인증 YAML로 UTF-8 기준 32바이트 이상의 별도 비밀 키를 주입해야 합니다.
 
 
-공통 스키마는 기본 역할·권한 할당을 생성하지 않습니다. local 프로파일은 별도 seed로 admin 계정(로컬 비밀번호 admin), admin 역할과 모든 기존 권한 연결 및 시작·관리 메뉴 정보를 준비합니다. 자세한 재적용 규칙은 [로컬 seed](doc/operations/database-migration.md#로컬-app-초기-데이터-seedapplocal)를 참고하세요. 현재 권한 판정 서비스는 실제 DB와 API 인가 인터셉터에 연결되어 있습니다. 컨트롤러에 `@PublicApi`(공개), `@RequirePermission`(인증만 필요), `@RequirePermission("dataset:item:read")`(세부 권한 필요)로 선언합니다. 정책 없는 요청은 기본 거부하며 기동 검사나 권한 자동 등록은 하지 않습니다.
+공통 스키마는 기본 역할·권한 할당을 생성하지 않습니다. local 프로파일은 별도 seed로 admin 계정(로컬 비밀번호 admin), admin 역할과 모든 기존 권한 연결 및 시작·관리 메뉴 정보를 준비합니다. 자세한 재적용 규칙은 [로컬 seed](doc/operations/database-migration.md#로컬-app-초기-데이터-seedapplocal)를 참고하세요. 권한 판정은 실제 DB와 연결된 `AuthorizationService`를 사용하며 제한이 필요한 서비스 메서드의 `@PreAuthorize`에서 호출합니다. UI 관리 메서드는 화면·메뉴 관리 권한을 각각 확인합니다. 컨트롤러 정책 선언과 MVC 인가 인터셉터는 제거했으며 선언 없는 서비스는 일괄 거부하지 않습니다. 기동 검사나 권한 자동 등록은 하지 않습니다.
 
 로컬과 테스트에서는 Spring이 `app`과 `audit` 데이터소스별로 Flyway를 실행합니다. 업무 스키마는 `db/migration/app`, 두 번째 DB의 스키마는 `db/migration/audit` 클래스패스 경로에서 관리합니다. `@Sql`은 테스트 데이터 준비에 사용합니다.
 

@@ -4,17 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.imageaiplatform.auth.config.ApiAuthorizationInterceptor;
-import com.imageaiplatform.auth.controller.PublicApi;
-import com.imageaiplatform.auth.controller.RequirePermission;
-import com.imageaiplatform.auth.domain.AuthUser;
-import com.imageaiplatform.auth.service.AuthorizationService;
 import com.imageaiplatform.auth.service.JwtTokenService;
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.Filter;
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.Filter;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +18,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestComponent;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -43,7 +36,8 @@ import org.springframework.web.context.WebApplicationContext;
 @ActiveProfiles("test")
 @Sql(scripts = "classpath:fixtures/auth-user.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS,
         config = @SqlConfig(dataSource = "appDataSource", transactionManager = "appTransactionManager"))
-@Import(ApiAuthorizationHttpTest.TestEndpoints.class)
+@Import({ApiAuthorizationHttpTest.TestEndpoints.class, ApiAuthorizationHttpTest.ProtectedService.class,
+        ApiAuthorizationHttpTest.CompositeService.class, ApiAuthorizationHttpTest.WriteService.class})
 @Transactional("appTransactionManager")
 class ApiAuthorizationHttpTest {
     private static final String SECRET = "test-only-signing-key-not-for-real-use-32-bytes";
@@ -53,7 +47,8 @@ class ApiAuthorizationHttpTest {
     @Autowired @Qualifier("springSecurityFilterChain") private Filter securityFilter;
     @Autowired @Qualifier("appDataSource") private DataSource dataSource;
     @Autowired private JwtTokenService tokens;
-    @Autowired private TestEndpoints endpoints;
+    @Autowired private ProtectedService protectedService;
+    @Autowired private CompositeService compositeService;
 
     private MockMvc mvc;
     private JdbcTemplate jdbc;
@@ -68,7 +63,7 @@ class ApiAuthorizationHttpTest {
         jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:read', 'Read')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('API_READER', 'dataset:item:read')");
         bearer = "Bearer " + tokens.issue("api-user").value();
-        endpoints.executions.set(0);
+        protectedService.reset();
     }
 
     @Test
@@ -88,7 +83,7 @@ class ApiAuthorizationHttpTest {
         mvc.perform(get("/api/test/auth").header("Authorization", bearer)).andExpect(status().isUnauthorized());
         jdbc.update("DELETE FROM auth_user WHERE username = 'api-user'");
         mvc.perform(get("/api/test/auth").header("Authorization", bearer)).andExpect(status().isUnauthorized());
-        assertThat(endpoints.executions.get()).isEqualTo(1);
+        assertThat(protectedService.executionCount()).isEqualTo(1);
     }
 
     @Test
@@ -99,7 +94,7 @@ class ApiAuthorizationHttpTest {
         mvc.perform(get("/api/test/permission").header("Authorization", bearer)).andExpect(status().isOk());
         jdbc.update("DELETE FROM auth_user_role WHERE username = 'api-user'");
         mvc.perform(get("/api/test/permission").header("Authorization", bearer)).andExpect(status().isForbidden());
-        assertThat(endpoints.executions.get()).isEqualTo(1);
+        assertThat(protectedService.executionCount()).isEqualTo(1);
     }
 
     @Test
@@ -113,17 +108,15 @@ class ApiAuthorizationHttpTest {
             mvc.perform(get("/api/test/auth").header("Authorization", "Bearer " + token))
                     .andExpect(status().isUnauthorized());
         }
-        assertThat(endpoints.executions.get()).isZero();
+        assertThat(protectedService.executionCount()).isZero();
     }
 
     @Test
-    void missingPolicyWrongMethodAndUnmappedHandlersDoNotExecuteWork() throws Exception {
-        mvc.perform(post("/api/test/permission").header("Authorization", bearer)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/test/missing").header("Authorization", bearer)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/not-registered").header("Authorization", bearer)).andExpect(status().isForbidden());
-        mvc.perform(get("/error").header("Authorization", bearer)).andExpect(status().isForbidden());
-        mvc.perform(options("/api/test/auth").header("Authorization", bearer)).andExpect(status().isForbidden());
-        assertThat(endpoints.executions.get()).isZero();
+    void unrestrictedServicesAndControllersDoNotRequirePolicyDeclarations() throws Exception {
+        mvc.perform(post("/api/test/permission")).andExpect(status().isOk());
+        mvc.perform(get("/api/test/missing")).andExpect(status().isOk());
+        mvc.perform(get("/api/not-registered")).andExpect(status().isNotFound());
+        assertThat(protectedService.unrestricted()).isEqualTo("unrestricted");
     }
 
     @Test
@@ -139,20 +132,13 @@ class ApiAuthorizationHttpTest {
                 .andExpect(status().isUnauthorized()).andExpect(header().string("Access-Control-Allow-Origin", ORIGIN));
         mvc.perform(get("/api/test/permission").header("Origin", ORIGIN).header("Authorization", bearer))
                 .andExpect(status().isForbidden()).andExpect(header().string("Access-Control-Allow-Origin", ORIGIN));
-        assertThat(endpoints.executions.get()).isZero();
+        assertThat(protectedService.executionCount()).isZero();
     }
 
     @Test
-    void headPreservesGetPolicyAndAsyncRedispatchRechecksAccount() throws Exception {
+    void headPreservesGetServiceRestriction() throws Exception {
         mvc.perform(head("/api/test/auth")).andExpect(status().isUnauthorized());
         mvc.perform(head("/api/test/auth").header("Authorization", bearer)).andExpect(status().isOk());
-        var allowed = mvc.perform(get("/api/test/async").header("Authorization", bearer))
-                .andExpect(request().asyncStarted()).andReturn();
-        mvc.perform(asyncDispatch(allowed)).andExpect(status().isOk()).andExpect(content().string("async"));
-        var result = mvc.perform(get("/api/test/async").header("Authorization", bearer))
-                .andExpect(request().asyncStarted()).andReturn();
-        jdbc.update("UPDATE auth_user SET enabled = FALSE WHERE username = 'api-user'");
-        mvc.perform(asyncDispatch(result)).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -163,46 +149,89 @@ class ApiAuthorizationHttpTest {
     }
 
     @Test
-    void databaseFailureReturnsServerErrorWithoutExecutingController() throws Exception {
-        var service = new AuthorizationService(
-                username -> new AuthUser(username, "unused", true),
-                username -> { throw new DataRetrievalFailureException("Internal database details"); });
-        var standalone = MockMvcBuilders.standaloneSetup(endpoints)
-                .addInterceptors(new ApiAuthorizationInterceptor(service)).build();
+    void directAndCompositeServiceCallsUseMethodSecurity() {
         var securityContext = SecurityContextHolder.createEmptyContext();
         securityContext.setAuthentication(new UsernamePasswordAuthenticationToken("api-user", null, Set.of()));
         SecurityContextHolder.setContext(securityContext);
         try {
-            standalone.perform(get("/api/test/permission"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(content().json("{\"error\":\"INTERNAL_SERVER_ERROR\"}"));
-            assertThat(endpoints.executions.get()).isZero();
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> protectedService.permission())
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> compositeService.execute())
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+            assertThat(protectedService.executionCount()).isZero();
+            jdbc.update("INSERT INTO auth_user_role VALUES ('api-user', 'API_READER')");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> compositeService.execute())
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+            assertThat(protectedService.executionCount()).isEqualTo(1);
+            jdbc.update("INSERT INTO auth_permission VALUES ('dataset:item:write', 'Write', NULL)");
+            jdbc.update("INSERT INTO auth_role_permission VALUES ('API_READER', 'dataset:item:write')");
+            assertThat(compositeService.execute()).isEqualTo("ok");
+            assertThat(protectedService.executionCount()).isEqualTo(2);
+            jdbc.update("UPDATE auth_user SET enabled = FALSE WHERE username = 'api-user'");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> protectedService.permission())
+                    .isInstanceOf(org.springframework.security.core.AuthenticationException.class);
         } finally {
             SecurityContextHolder.clearContext();
         }
     }
 
+    @org.springframework.stereotype.Service
+    @TestComponent
+    public static class ProtectedService {
+        final AtomicInteger executions = new AtomicInteger();
+        public void reset() { executions.set(0); }
+        public int executionCount() { return executions.get(); }
+
+        @org.springframework.security.access.prepost.PreAuthorize("@authorizationService.isActiveAccount()")
+        public String authenticated() { executions.incrementAndGet(); return "ok"; }
+
+        @org.springframework.security.access.prepost.PreAuthorize("@authorizationService.hasPermission('dataset:item:read')")
+        public String permission() { executions.incrementAndGet(); return "ok"; }
+
+        public String unrestricted() { return "unrestricted"; }
+    }
+
+    @org.springframework.stereotype.Service
+    @TestComponent
+    public static class CompositeService {
+        private final ProtectedService service;
+        private final WriteService writer;
+        public CompositeService(ProtectedService service, WriteService writer) {
+            this.service = service;
+            this.writer = writer;
+        }
+        public String execute() {
+            service.permission();
+            return writer.execute();
+        }
+    }
+
+    @org.springframework.stereotype.Service
+    @TestComponent
+    public static class WriteService {
+        @org.springframework.security.access.prepost.PreAuthorize("@authorizationService.hasPermission('dataset:item:write')")
+        public String execute() { return "ok"; }
+    }
+
     @RestController
     @TestComponent
     static class TestEndpoints {
-        final AtomicInteger executions = new AtomicInteger();
+        private final ProtectedService service;
+        TestEndpoints(ProtectedService service) { this.service = service; }
 
-        @GetMapping("/api/test/public") @PublicApi
+        @GetMapping("/api/test/public")
         public String publicApi() { return "public"; }
 
-        @GetMapping("/api/test/auth") @RequirePermission
-        public String authenticated() { executions.incrementAndGet(); return "ok"; }
+        @GetMapping("/api/test/auth")
+        public String authenticated() { return service.authenticated(); }
 
-        @GetMapping("/api/test/permission") @RequirePermission("dataset:item:read")
-        public String permission() { executions.incrementAndGet(); return "ok"; }
+        @GetMapping("/api/test/permission")
+        public String permission() { return service.permission(); }
 
         @PostMapping("/api/test/permission")
-        public String wrongMethod() { executions.incrementAndGet(); return "wrong"; }
+        public String wrongMethod() { return service.unrestricted(); }
 
         @GetMapping("/api/test/missing")
-        public String missing() { executions.incrementAndGet(); return "missing"; }
-
-        @GetMapping("/api/test/async") @RequirePermission
-        public Callable<String> async() { return () -> "async"; }
+        public String missing() { return service.unrestricted(); }
     }
 }

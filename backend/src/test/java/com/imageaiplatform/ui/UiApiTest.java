@@ -32,6 +32,8 @@ class UiApiTest {
     @Autowired @Qualifier("appDataSource") private DataSource source;
     @Autowired private JwtTokenService tokens;
     @Autowired private UiService service;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private com.imageaiplatform.auth.dao.EffectivePermissionDao permissions;
     private JdbcTemplate jdbc;
     private MockMvc mvc;
     private String manager;
@@ -65,6 +67,40 @@ class UiApiTest {
         manager = bearer("ui-manager");
         viewer = bearer("viewer");
         plain = bearer("plain");
+    }
+
+    @Test
+    void permissionLookupFailureReturnsServerErrorWithoutChangingData() throws Exception {
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataRetrievalFailureException("Database unavailable"))
+                .when(permissions).findEffectivePermissionCodesByUsername("ui-manager");
+        mvc.perform(delete("/api/ui/screens/home").header("Authorization", manager))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_screen WHERE screen_code='home'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void directServiceCallsEnforceManagementPermissionsBeforeMutations() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        try {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.screens())
+                    .isInstanceOf(org.springframework.security.core.AuthenticationException.class);
+            var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                    "viewer", null, java.util.List.of());
+            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.deleteScreen("home"))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.deleteMenu("home"))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_screen WHERE screen_code='home'", Integer.class)).isEqualTo(1);
+            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            "ui-manager", null, java.util.List.of()));
+            assertThat(service.screens()).isNotEmpty();
+            assertThat(service.menus()).isNotEmpty();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 
     @Test

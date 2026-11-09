@@ -9,6 +9,10 @@ import java.util.regex.Pattern;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 
 /** app 데이터소스의 현재 계정 상태와 유효 권한을 확인하는 서비스입니다. */
 @Service
@@ -22,6 +26,26 @@ public class AuthorizationService {
     public AuthorizationService(AuthUserDao authUserDao, EffectivePermissionDao effectivePermissionDao) {
         this.authUserDao = Objects.requireNonNull(authUserDao);
         this.effectivePermissionDao = Objects.requireNonNull(effectivePermissionDao);
+    }
+
+    /** Method Security에서 검증된 인증 주체의 권한을 판정합니다. */
+    public boolean hasPermission(String permissionCode) {
+        requirePermission(authenticatedUsername(SecurityContextHolder.getContext().getAuthentication()), permissionCode);
+        return true;
+    }
+
+    /** 인증만 필요한 서비스의 활성 계정을 확인합니다. */
+    public boolean isActiveAccount() {
+        requireActiveAccount(authenticatedUsername(SecurityContextHolder.getContext().getAuthentication()));
+        return true;
+    }
+
+    private String authenticatedUsername(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            throw new AuthenticationCredentialsNotFoundException("Authentication is required.");
+        }
+        return authentication.getName();
     }
 
     /**

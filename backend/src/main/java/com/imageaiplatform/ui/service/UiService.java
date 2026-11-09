@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,6 +66,7 @@ public class UiService {
         return screen;
     }
 
+    @PreAuthorize("@authorizationService.hasPermission('ui:screen:manage')")
     public List<UiScreen.Configuration> screens() {
         Map<String, Set<String>> conditions = conditions();
         return dao.screens().stream()
@@ -72,9 +74,11 @@ public class UiService {
                 .toList();
     }
 
+    @PreAuthorize("@authorizationService.hasPermission('ui:menu:manage')")
     public List<UiMenu> menus() { return dao.menus(); }
 
     @Transactional(transactionManager = "appTransactionManager")
+    @PreAuthorize("@authorizationService.hasPermission('ui:screen:manage')")
     public void saveScreen(UiScreen screen, Set<String> permissions) {
         validateCode(screen.screenCode());
         if (screen.displayName() == null || screen.displayName().isBlank() || screen.displayName().length() > 100
@@ -97,6 +101,7 @@ public class UiService {
     }
 
     @Transactional(transactionManager = "appTransactionManager")
+    @PreAuthorize("@authorizationService.hasPermission('ui:screen:manage')")
     public void deleteScreen(String code) {
         validateCode(code);
         dao.deletePermissions(code);
@@ -104,6 +109,7 @@ public class UiService {
     }
 
     @Transactional(transactionManager = "appTransactionManager")
+    @PreAuthorize("@authorizationService.hasPermission('ui:menu:manage')")
     public void saveMenu(UiMenu menu) {
         validateCode(menu.menuCode());
         if (menu.displayName() == null || menu.displayName().isBlank() || menu.displayName().length() > 100
@@ -135,6 +141,7 @@ public class UiService {
     }
 
     @Transactional(transactionManager = "appTransactionManager")
+    @PreAuthorize("@authorizationService.hasPermission('ui:menu:manage')")
     public void deleteMenu(String code) {
         validateCode(code);
         dao.lockMenus();
