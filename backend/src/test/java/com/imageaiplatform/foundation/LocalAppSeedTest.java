@@ -35,7 +35,8 @@ class LocalAppSeedTest {
         assertThat(jdbc.queryForList("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='PUBLIC'", String.class))
                 .doesNotContain("UI_SCREEN", "UI_MENU", "UI_SCREEN_PERMISSION");
         assertThat(jdbc.queryForList("SELECT permission_code FROM auth_permission", String.class))
-                .containsExactly("dataset:item:read");
+                .containsExactlyInAnyOrder("dataset:item:read", "dataset:item:create", "dataset:item:use",
+                        "dataset:item:update", "dataset:item:delete");
         assertThat(jdbc.queryForList("SELECT permission_code FROM auth_role_permission", String.class))
                 .containsExactly("dataset:item:read");
         assertThat(current.migrate().migrationsExecuted).isZero();
@@ -53,7 +54,7 @@ class LocalAppSeedTest {
         jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:read', 'Read')");
         var common = Flyway.configure().dataSource(source)
                 .locations("classpath:db/migration/app", "classpath:db/seed/app/common").load();
-        assertThat(common.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(common.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role", Integer.class)).isZero();
         var withSeed = Flyway.configure().dataSource(source)
@@ -84,7 +85,7 @@ class LocalAppSeedTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT user_key FROM auth_user WHERE user_id='admin'", String.class)).isEqualTo(userKey);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user_role", Integer.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(6);
         for (String table : new String[] {"auth_user", "auth_role"}) {
             var audit = jdbc.queryForMap("SELECT created_at, updated_at, created_by, updated_by FROM " + table);
             assertThat(((OffsetDateTime) audit.get("CREATED_AT")).toInstant()).isEqualTo(originalCreated.toInstant());

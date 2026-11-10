@@ -69,7 +69,6 @@ class UserIdentityTest {
     @Test
     void keepsRolesTokensAndAuditKeysAfterLoginIdAndRealNameChange() throws Exception {
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('reader', 'Reader')");
-        jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:read', 'Read')");
         jdbc.update("INSERT INTO auth_user_role (user_key, role_code) VALUES ('internal-a', 'reader')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('reader', 'dataset:item:read')");
         String bearer = "Bearer " + auth.login("alice-login", "password").token().value();

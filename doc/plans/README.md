@@ -12,6 +12,7 @@
 | [백엔드 단계](backend/README.md) | 단계별 계획·설계 | 기반·인증·업무별 목표·원리·완료 근거 |
 | [데이터셋 업무 개발 작업계획서](dataset-development-plan.md) | 작업계획 | 사용자 지시용 작업 ID, 선행 조건, 완료 기준과 결과 기록 |
 | [권한 시스템 설계 제안](authorization-design-proposal.md) | 설계 제안 | RBAC·서비스 권한 정책, 검토 사항과 부분 채택·대체 이력 |
+| [워크스페이스 설계 제안](workspace-design-proposal.md) | 설계 제안 · 검토 중 | 다중 가입·관리자 승인·멤버십·데이터셋 접근 경계와 기존 데이터 전환 |
 
 ## 관리 원칙
 

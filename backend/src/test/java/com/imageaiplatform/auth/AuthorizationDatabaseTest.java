@@ -67,7 +67,6 @@ class AuthorizationDatabaseTest {
         jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES (?, ?, ?)", "rbac-user", "login-rbac", "test-only");
         jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES (?, ?, ?)", "empty-user", "login-empty", "test-only");
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('READER', 'Reader'), ('EDITOR', 'Editor')");
-        jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES (?, 'Read'), (?, 'Delete')", READ, DELETE);
         jdbc.update("INSERT INTO auth_user_role (user_key, role_code) VALUES ('rbac-user', 'READER'), ('rbac-user', 'EDITOR')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('READER', ?), ('EDITOR', ?), ('EDITOR', ?)", READ, READ, DELETE);
     }

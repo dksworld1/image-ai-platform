@@ -17,6 +17,7 @@
 - [개발 계획·설계·진척 관리](plans/README.md): 로드맵·작업계획·설계 제안·단계별 구현 기록의 통합 목록
 - [개발 로드맵](plans/README.md#개발-로드맵): 현재 상태와 다음 설계 항목
 - [데이터셋 업무 개발 작업계획서](plans/dataset-development-plan.md): 사용자 지시용 작업 ID·상태·선행 조건·완료 기준
+- [워크스페이스 설계 제안](plans/workspace-design-proposal.md): 가입 승인·멤버 역할·공간별 데이터셋 접근 범위 검토
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의

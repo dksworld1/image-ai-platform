@@ -60,7 +60,6 @@ class ApiAuthorizationHttpTest {
         jdbc = new JdbcTemplate(dataSource);
         jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES ('api-user', 'login-api-user', 'unused')");
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('API_READER', 'Test reader')");
-        jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:read', 'Read')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('API_READER', 'dataset:item:read')");
         bearer = "Bearer " + tokens.issue("api-user").value();
         protectedService.reset();
