@@ -71,4 +71,4 @@
 ## 출처
 
 - [SK Careers 채용 공고 R261970](https://www.skcareers.com/Recruit/Detail/R261970)
-- 이 저장소의 `doc/product/project-overview.md`, `doc/plans/roadmap.md`, `doc/architecture/architecture.md`, `doc/stages/`, `doc/decisions/` 및 소스 코드 (기준일: 2026-11-02)
+- 이 저장소의 `doc/product/project-overview.md`, `doc/plans/README.md`, `doc/architecture/architecture.md`, `doc/plans/`, `doc/decisions/` 및 소스 코드 (기준일: 2026-11-02)

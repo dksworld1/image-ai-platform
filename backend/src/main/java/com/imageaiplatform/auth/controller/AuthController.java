@@ -22,10 +22,11 @@ public class AuthController {
     @PostMapping("/token")
     public TokenResponse issueToken(@Valid @RequestBody LoginRequest request) {
         try {
-            AuthService.IssuedToken token = authService.login(request.username(), request.password());
-            return new TokenResponse(token.value(), "Bearer", token.expiresIn());
+            AuthService.LoginResult result = authService.login(request.userId(), request.password());
+            return new TokenResponse(result.token().value(), "Bearer", result.token().expiresIn(),
+                    result.userKey(), result.userId(), result.username());
         } catch (BadCredentialsException exception) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid user ID or password.");
         }
     }
 }

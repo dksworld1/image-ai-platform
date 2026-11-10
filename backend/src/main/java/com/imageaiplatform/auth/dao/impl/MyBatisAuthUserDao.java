@@ -16,7 +16,12 @@ public class MyBatisAuthUserDao implements AuthUserDao {
     }
 
     @Override
-    public AuthUser findByUsername(String username) {
-        return sqlSession.selectOne(NAMESPACE + ".findByUsername", username);
+    public AuthUser findByUserId(String userId) {
+        return sqlSession.selectOne(NAMESPACE + ".findByUserId", userId);
+    }
+
+    @Override
+    public AuthUser findByUserKey(String userKey) {
+        return sqlSession.selectOne(NAMESPACE + ".findByUserKey", userKey);
     }
 }

@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.imageaiplatform.auth.dao.AuthUserDao;
 import com.imageaiplatform.auth.dao.EffectivePermissionDao;
 import com.imageaiplatform.auth.service.AuthorizationService;
+import java.time.OffsetDateTime;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,34 +40,51 @@ class AuthorizationDatabaseTest {
     private EffectivePermissionDao permissionDao;
 
     @Autowired
+    private AuthUserDao userDao;
+
+    @Autowired
     private AuthorizationService authorizationService;
 
     private JdbcTemplate jdbc;
 
+    @Test
+    void mapsCreationAndModificationMetadataWithoutLosingTheInstant() {
+        var created = OffsetDateTime.parse("2026-01-01T09:00:00+09:00");
+        var updated = OffsetDateTime.parse("2026-02-01T12:30:00+09:00");
+        jdbc.update("UPDATE auth_user SET created_at=?, updated_at=?, created_by=?, updated_by=? WHERE user_key=?",
+                created, updated, "creator", "editor", "rbac-user");
+        var user = userDao.findByUserKey("rbac-user");
+        assertThat(user.createdAt().toInstant()).isEqualTo(created.toInstant());
+        assertThat(user.updatedAt().toInstant()).isEqualTo(updated.toInstant());
+        assertThat(user.createdBy()).isEqualTo("creator");
+        assertThat(user.updatedBy()).isEqualTo("editor");
+        assertThat(user.enabled()).isTrue();
+    }
+
     @BeforeEach
     void createAssignments() {
         jdbc = new JdbcTemplate(appDataSource);
-        jdbc.update("INSERT INTO auth_user (username, password_hash) VALUES (?, ?)", "rbac-user", "test-only");
-        jdbc.update("INSERT INTO auth_user (username, password_hash) VALUES (?, ?)", "empty-user", "test-only");
+        jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES (?, ?, ?)", "rbac-user", "login-rbac", "test-only");
+        jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES (?, ?, ?)", "empty-user", "login-empty", "test-only");
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('READER', 'Reader'), ('EDITOR', 'Editor')");
         jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES (?, 'Read'), (?, 'Delete')", READ, DELETE);
-        jdbc.update("INSERT INTO auth_user_role (username, role_code) VALUES ('rbac-user', 'READER'), ('rbac-user', 'EDITOR')");
+        jdbc.update("INSERT INTO auth_user_role (user_key, role_code) VALUES ('rbac-user', 'READER'), ('rbac-user', 'EDITOR')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('READER', ?), ('EDITOR', ?), ('EDITOR', ?)", READ, READ, DELETE);
     }
 
     @Test
     void combinesMultipleRolesWithoutDuplicatePermissionsOrOtherUsersPermissions() {
-        assertThat(permissionDao.findEffectivePermissionCodesByUsername("rbac-user"))
+        assertThat(permissionDao.findEffectivePermissionCodesByUserKey("rbac-user"))
                 .containsExactlyInAnyOrder(READ, DELETE);
-        assertThat(permissionDao.findEffectivePermissionCodesByUsername("empty-user")).isEmpty();
-        assertThat(permissionDao.findEffectivePermissionCodesByUsername("missing-user")).isEmpty();
-        assertThat(permissionDao.findEffectivePermissionCodesByUsername("' OR '1'='1")).isEmpty();
+        assertThat(permissionDao.findEffectivePermissionCodesByUserKey("empty-user")).isEmpty();
+        assertThat(permissionDao.findEffectivePermissionCodesByUserKey("missing-user")).isEmpty();
+        assertThat(permissionDao.findEffectivePermissionCodesByUserKey("' OR '1'='1")).isEmpty();
     }
 
     @Test
     void wiredServiceReflectsAssignmentAndRolePermissionRevocation() {
         authorizationService.requirePermission("rbac-user", DELETE);
-        jdbc.update("DELETE FROM auth_user_role WHERE username = 'rbac-user' AND role_code = 'EDITOR'");
+        jdbc.update("DELETE FROM auth_user_role WHERE user_key = 'rbac-user' AND role_code = 'EDITOR'");
         assertThatThrownBy(() -> authorizationService.requirePermission("rbac-user", DELETE))
                 .isInstanceOf(AccessDeniedException.class);
         authorizationService.requirePermission("rbac-user", READ);
@@ -77,7 +96,7 @@ class AuthorizationDatabaseTest {
     @Test
     void rejectsInactiveMissingAndUnassignedAccounts() {
         authorizationService.requirePermission("rbac-user", READ);
-        jdbc.update("UPDATE auth_user SET enabled = FALSE WHERE username = 'rbac-user'");
+        jdbc.update("UPDATE auth_user SET enabled = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = '0' WHERE user_key = 'rbac-user'");
         assertThatThrownBy(() -> authorizationService.requirePermission("rbac-user", READ))
                 .isInstanceOf(BadCredentialsException.class);
         assertThatThrownBy(() -> authorizationService.requirePermission("missing-user", READ))
@@ -91,7 +110,7 @@ class AuthorizationDatabaseTest {
         for (String sql : new String[] {
                 "INSERT INTO auth_role (role_code, display_name) VALUES ('READER', 'Duplicate')",
                 "INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:read', 'Duplicate')",
-                "INSERT INTO auth_user_role (username, role_code) VALUES ('rbac-user', 'READER')",
+                "INSERT INTO auth_user_role (user_key, role_code) VALUES ('rbac-user', 'READER')",
                 "INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('READER', 'dataset:item:read')"
         }) {
             assertThatThrownBy(() -> jdbc.update(sql)).isInstanceOf(DataIntegrityViolationException.class);
@@ -101,8 +120,8 @@ class AuthorizationDatabaseTest {
     @Test
     void rejectsAllMissingParentReferences() {
         for (String sql : new String[] {
-                "INSERT INTO auth_user_role (username, role_code) VALUES ('missing-user', 'READER')",
-                "INSERT INTO auth_user_role (username, role_code) VALUES ('rbac-user', 'MISSING')",
+                "INSERT INTO auth_user_role (user_key, role_code) VALUES ('missing-user', 'READER')",
+                "INSERT INTO auth_user_role (user_key, role_code) VALUES ('rbac-user', 'MISSING')",
                 "INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('MISSING', 'dataset:item:read')",
                 "INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('READER', 'missing:item:read')"
         }) {
@@ -113,17 +132,17 @@ class AuthorizationDatabaseTest {
     @Test
     void restrictsParentDeletionAndKeyUpdatesUntilAssignmentsAreRemoved() {
         for (String sql : new String[] {
-                "DELETE FROM auth_user WHERE username = 'rbac-user'",
+                "DELETE FROM auth_user WHERE user_key = 'rbac-user'",
                 "DELETE FROM auth_role WHERE role_code = 'READER'",
                 "DELETE FROM auth_permission WHERE permission_code = 'dataset:item:read'",
-                "UPDATE auth_user SET username = 'renamed' WHERE username = 'rbac-user'",
+                "UPDATE auth_user SET user_key = 'renamed' WHERE user_key = 'rbac-user'",
                 "UPDATE auth_role SET role_code = 'RENAMED' WHERE role_code = 'READER'",
                 "UPDATE auth_permission SET permission_code = 'renamed:item:read' WHERE permission_code = 'dataset:item:read'"
         }) {
             assertThatThrownBy(() -> jdbc.update(sql)).isInstanceOf(DataIntegrityViolationException.class);
         }
-        jdbc.update("DELETE FROM auth_user_role WHERE username = 'rbac-user'");
-        assertThatCode(() -> jdbc.update("DELETE FROM auth_user WHERE username = 'rbac-user'"))
+        jdbc.update("DELETE FROM auth_user_role WHERE user_key = 'rbac-user'");
+        assertThatCode(() -> jdbc.update("DELETE FROM auth_user WHERE user_key = 'rbac-user'"))
                 .doesNotThrowAnyException();
         jdbc.update("DELETE FROM auth_role_permission WHERE role_code = 'READER'");
         assertThatCode(() -> jdbc.update("DELETE FROM auth_role WHERE role_code = 'READER'"))

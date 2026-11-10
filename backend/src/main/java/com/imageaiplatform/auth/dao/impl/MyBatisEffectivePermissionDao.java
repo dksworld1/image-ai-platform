@@ -15,8 +15,8 @@ public class MyBatisEffectivePermissionDao implements EffectivePermissionDao {
     }
 
     @Override
-    public Set<String> findEffectivePermissionCodesByUsername(String username) {
+    public Set<String> findEffectivePermissionCodesByUserKey(String userKey) {
         return Set.copyOf(sqlSession.<String>selectList(
-                "effectivePermission.findEffectivePermissionCodesByUsername", username));
+                "effectivePermission.findEffectivePermissionCodesByUserKey", userKey));
     }
 }

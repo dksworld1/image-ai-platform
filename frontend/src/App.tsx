@@ -4,6 +4,7 @@ import { clearAuthSession, loadAuthSession, saveAuthSession } from './authSessio
 import AppLayout from './layout/AppLayout'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import DatasetCreatePage from './pages/DatasetCreatePage'
 
 export default function App() {
   const [token, setToken] = useState(loadAuthSession)
@@ -19,15 +20,22 @@ export default function App() {
     return () => window.clearTimeout(timeout)
   }, [token, logout])
 
-  function handleLogin(result: AuthToken, username: string) {
-    setToken(saveAuthSession(result, username))
+  function handleLogin(result: AuthToken) {
+    setToken(saveAuthSession(result))
   }
 
   if (token === null) return <LoginPage onLogin={handleLogin} />
 
+  const path = window.location?.pathname ?? '/'
+
   return (
-    <AppLayout username={token.username} onLogout={logout}>
-      <HomePage />
+    <AppLayout userId={token.userId} username={token.username} onLogout={logout} currentPath={path}>
+      {path === '/' ? <HomePage /> : path === '/datasets/new' ? <DatasetCreatePage accessToken={token.accessToken} /> : (
+        <section>
+          <h1>페이지를 찾을 수 없습니다</h1>
+          <a href="/">시작 화면으로 이동</a>
+        </section>
+      )}
     </AppLayout>
   )
 }

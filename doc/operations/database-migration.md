@@ -1,5 +1,46 @@
 # DB 마이그레이션 설정
 
+## 사용자 식별 체계 V7→V8→V9 — 2026-11-10
+
+현재 사용자 식별은 user_key(내부 키)·user_id(로그인 아이디)·username(실명)입니다. [ADR-031](../decisions/ADR-031-user-identity-fields.md)에 따라 기존 키·역할 FK·감사 값을 보존합니다. 아래 이전 변경의 username 예약값 설명은 당시 구조이며 현재 예약 대상은 user_key='0'입니다.
+
+| 순서 | 위치 | 내용 |
+|---|---|---|
+| V7 | db/migration/app/V7__separate_user_identity.sql | 기존 username과 역할 참조 컬럼을 user_key로 변경, user_id·실명 컬럼 추가 |
+| V8 | db/seed/app/common/identity/V8__backfill_user_ids.sql | 기존 user_key를 초기 user_id로 복사. 실명·과거 감사 정보는 추정하거나 덮어쓰지 않음 |
+| V9 | db/migration/app/V9__require_login_user_id.sql | 로그인 아이디 NOT NULL·UNIQUE 적용 |
+
+app 위치 목록에는 `classpath:db/migration/app`과 `classpath:db/seed/app/common`을 함께 지정해야 합니다. common 하위 identity도 재귀 탐색하므로 V8이 V7과 V9 사이에 버전 순으로 실행됩니다. V8은 버전 DML이며 반복 R__ seed가 아닙니다. DDL 위치만 지정해 V8을 누락한 상태에서 V9를 먼저 적용하지 않습니다. 기존 행이 있으면 NOT NULL 적용에 실패할 수 있으며 빈 DB에서도 V8 이력이 누락됩니다. 기본 local/test 목록은 변경 없이 두 위치를 포함합니다. 외부 YAML로 목록 전체를 덮어쓰는 경우에도 반드시 함께 포함합니다.
+
+V1~V6는 변경하지 않습니다. V9 이후 공통 반복 seed와 local seed가 실행됩니다. local seed는 user_id=admin 계정의 기존 user_key·생성 정보를 보존하고, 새 계정만 UUID 키와 예시 이름 로컬 관리자를 생성합니다. 시스템 작업자 값은 계속 내부 키 문자열 '0'입니다. 실제 DB에 자동 repair·데이터 삭제·키 재발급은 추가하지 않습니다.
+
+검증: Java 21.0.13·Maven 3.10.0에서 전체 61개 테스트 통과. V6 기존 계정 여러 개의 로그인 아이디·비밀번호·역할·데이터셋 감사 값·시각 보존, 실명 NULL, V7→V8→V9 순서와 재적용 0건을 확인했습니다. 실제 로컬·운영 DB에는 적용하지 않았습니다.
+
+최종 관련 5개 테스트 재실행도 통과했습니다. 실명 미상 로그인 응답이 username 필드를 null로 포함하는 것과 local seed가 최초 UUID 키를 재적용 후에도 유지하는 것을 추가 확인했습니다.
+
+## 데이터셋 테이블 V6 — 2026-11-10
+
+app V6에서 dataset 테이블을 생성합니다. 기존 V1~V5는 보존하며 추가 seed는 없습니다. 생성 요청은 모든 공통 컬럼을 명시하고 생성·수정 시각은 TIMESTAMP(6) WITH TIME ZONE에 동일한 UTC 시점으로 기록합니다. 정의는 [dataset 테이블](../db-schema/tables/dataset/dataset.md)을 따릅니다. 실제 로컬·운영 DB에는 적용하지 않았습니다.
+
+## 공통 생성·수정 컬럼 적용 — 2026-11-10
+
+[공통 스키마 생성 규칙](../db-schema/schema-rules.md)과 [ADR-028](../decisions/ADR-028-common-audit-columns.md)에 따라 app V5에서 인증·권한 5개 테이블에 `created_at`, `updated_at`, `created_by`, `updated_by`를 추가합니다. 기존 V1~V4는 변경하지 않으므로 이번 변경 때문에 해당 버전의 repair를 실행할 필요는 없습니다. 신규 DB와 기존 V4 DB 모두 동일한 최종 스키마를 구성합니다.
+
+기존 행의 시각은 컬럼 추가 시각, 작업자는 시스템 예약값 문자열 `'0'`입니다. 과거 실제 작업자를 복원하는 값이 아닙니다. `auth_user.username='0'`은 CHECK 제약으로 금지합니다. 적용 전 DB를 백업하고 예약값 계정이 있으면 해당 계정과 역할 연결을 별도로 정리합니다. 자동 이름 변경이나 삭제는 수행하지 않습니다.
+
+실행 순서는 app V1~V5 DDL → 공통 01 → 공통 02 → local seed입니다. local seed는 생성일·생성자를 보존하고 계정·역할 UPDATE 시 수정일과 수정자 `'0'`을 갱신합니다. 새 연결도 생성·수정 정보를 함께 기록합니다. local seed 체크섬 변경으로 local 환경에서 한 번 재실행됩니다.
+
+legacy catalog/archive의 기존 `foundation_probe`에는 각각 `db/migration/catalog/V1__add_common_audit_columns.sql`, `db/migration/archive/V1__add_common_audit_columns.sql`을 한 번 수동 적용합니다. 이 DB들은 자동 마이그레이션 대상이 아니며 기본 SQL 위치나 서버 설정을 변경하지 않습니다. 신규 테이블 생성 DDL은 [정의서](../db-schema/tables/foundation/foundation-probe.md)를 따릅니다. audit 업무 테이블은 아직 없으며 검증용 fixture만 동일 규칙으로 변경했습니다.
+
+실제 로컬·운영 DB에 대한 SQL 적용은 이번 작업에서 수행하지 않습니다. 아래 기존 날짜의 실행·검증 기록은 당시 이력입니다.
+
+### 공통 컬럼 검증 기록
+
+- 2026-11-10: Java·Maven 모두 Java 21.0.13 사용을 확인한 뒤 Maven 3.10.0에서 전체 `mvn test` 52개 통과, 실패·오류 0개.
+- V4 데이터가 있는 DB의 V5 적용·기존 값 보존·공통 컬럼 보정·NOT NULL·예약 사용자 `'0'` 거부, MyBatis의 시간대 포함 시각과 작업자 매핑, seed 재실행 시 생성 정보 보존과 수정 정보 갱신, legacy DB별 ALTER와 probe INSERT를 검증했습니다.
+- 마지막 인증·audit fixture 갱신 후 `mvn test "-Dtest=ApiAuthorizationHttpTest,AuthorizationDatabaseTest,DatabaseMigrationTest"` 18개를 재실행해 모두 통과했습니다.
+- 두 실행 모두 app·audit·catalog·archive의 기본 URL을 테스트 전용 `jdbc:h2:mem:common-audit-*;DB_CLOSE_DELAY=-1`로 지정했습니다. 개별 테스트의 전용 DB 설정과 `target/dual-db-test-*` 격리 파일 DB도 사용했으며 실제 로컬·운영 DB에는 적용하지 않았습니다.
+
 ## 기존 UI 모듈 철거 적용 — 2026-11-09
 
 [ADR-027](../decisions/ADR-027-remove-ui-module.md)에 따라 V3 적용 이력은 보존하고 V4에서 ui_screen_permission → ui_menu → ui_screen 순서로 삭제합니다. 이 변경은 화면·메뉴 데이터를 영구 삭제하므로 DB 백업 후 적용합니다. 기존 UI 서비스나 프런트 연동과 함께 운영하지 않습니다.

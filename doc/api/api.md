@@ -10,7 +10,7 @@
 갱신일: 2026-11-08
 기본 URL: `http://localhost:8080`
 
-기존 메뉴·화면 API는 제거했습니다. [철거 안내](ui.md)를 참고하세요.
+기존 메뉴·화면 API는 제거했습니다. [철거 안내](../archive/ui/api.md)를 참고하세요.
 
 ## 헬스체크
 
@@ -35,16 +35,22 @@ API 프로세스가 요청을 처리할 수 있는지 확인합니다.
 요청:
 
 ```json
-{ "username": "user-id", "password": "user-password" }
+{ "userId": "hong01", "password": "user-password" }
 ```
 
 성공 응답 `200 OK`:
 
 ```json
-{ "accessToken": "<JWT>", "tokenType": "Bearer", "expiresIn": 900 }
+{
+  "accessToken": "<JWT>", "tokenType": "Bearer", "expiresIn": 900,
+  "userKey": "7c148350-7fe1-43b4-b78e-40ce34cbaf49",
+  "userId": "hong01", "username": "홍길동"
+}
 ```
 
 존재하지 않거나 비활성화된 계정, 잘못된 비밀번호는 동일한 `401 Unauthorized` 응답을 반환합니다. 보호된 API에는 `Authorization: Bearer <JWT>` 헤더를 전달합니다. 토큰은 기본 15분 후 만료되며 refresh token은 발급하지 않습니다. 계정 생성·비밀번호 변경 API는 제공하지 않습니다.
+
+userId는 필수·최대 100자의 로그인 아이디이며 실명 username으로 로그인하지 않습니다. username은 실명 미상일 때 null입니다. JWT sub와 서버 인증 주체는 userKey이며 로그인 아이디·실명을 내부 키로 다시 해석하지 않습니다. 기존 username 로그인 요청은 userId 누락으로 400이며 프런트·백엔드를 함께 전환합니다. [ADR-031](../decisions/ADR-031-user-identity-fields.md)을 따릅니다.
 
 `local`과 `test` 프로파일은 각 YAML의 비운영 전용 JWT 서명 키를 사용합니다. `dev`와 `prod`는 외부 YAML의 `app.auth.jwt.secret`로 UTF-8 기준 32바이트 이상의 키를 주입해야 합니다. 테이블 정의는 [인증 테이블 정의서](../db-schema/tables/auth/auth-user.md)에 있습니다.
 
@@ -58,6 +64,51 @@ API 프로세스가 요청을 처리할 수 있는지 확인합니다.
 - 비동기 재디스패치 자체가 서비스 권한을 재검사하지는 않습니다. 비동기 작업 실행 주체 전달은 별도 미구현 과제입니다.
 ## 변경 원칙
 
+데이터셋 생성의 현재 계약은 아래 절을 따릅니다.
+
 - 새 API는 메서드, 경로, 요청/응답 예시, 오류 응답, 인증 요구 여부를 이 문서에 기록합니다.
 - 호환성에 영향을 주는 변경은 버전 정책과 전환 계획을 먼저 설계합니다.
 - 구현의 실제 계약이 문서와 다르면 둘 중 하나를 변경해 일치시킵니다.
+
+## 데이터셋 생성
+
+갱신일: 2026-11-10
+상태: 구현됨
+
+### POST /api/datasets
+
+인증된 활성 계정이 데이터셋을 생성합니다. `Authorization: Bearer <JWT>`가 필요하며 현재 별도 역할·권한 할당은 요구하지 않습니다. 계정의 현재 존재·활성 상태를 서비스에서 확인합니다.
+
+요청:
+
+```json
+{ "name": "도로 표지판 이미지", "description": "표지판 분류 학습용 이미지" }
+```
+
+name은 필수이며 공백만 있는 값을 허용하지 않고 공백 제거 전 최대 200자입니다. description은 선택이며 최대 2000자, 생략·null·빈 문자열·공백만 입력하면 null로 저장합니다. 두 값의 앞뒤 공백은 제거합니다. 이름 중복은 허용합니다.
+
+성공 응답: 201 Created
+
+```json
+{
+  "datasetId": "16ad971f-74a4-47ba-b451-2dd611e60220",
+  "name": "도로 표지판 이미지",
+  "description": "표지판 분류 학습용 이미지",
+  "createdAt": "2026-11-10T12:00:00.123456Z",
+  "updatedAt": "2026-11-10T12:00:00.123456Z",
+  "createdBy": "7c148350-7fe1-43b4-b78e-40ce34cbaf49",
+  "updatedBy": "7c148350-7fe1-43b4-b78e-40ce34cbaf49"
+}
+```
+
+ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 같은 이름의 필드를 보내도 사용하지 않습니다. 생성일시에는 날짜·시간이 함께 포함됩니다. DB에는 마이크로초 정밀도의 시간대 포함 타임스탬프, 응답에는 ISO 8601 문자열을 사용합니다. 생성 시 두 일시와 두 작업자가 각각 같습니다. Location 헤더나 아직 제공하지 않는 상세 URL을 반환하지 않습니다.
+
+createdBy와 updatedBy는 인증된 사용자의 내부 userKey입니다. userId와 username은 기록하지 않으며 로그인 아이디·실명 변경에도 이 값은 유지됩니다.
+
+| 오류 | 조건 |
+|---|---|
+| 400 | 누락·공백 이름, 길이 초과, 잘못된 JSON·요청 본문 |
+| 401 | 인증 없음·토큰 오류·만료, 계정 없음·비활성 |
+| 500 | DB 저장 등 서버 오류 |
+
+요청 본문 검증은 서비스 인증 판정보다 먼저 실행될 수 있습니다. 클라이언트는 서버 오류 본문을 직접 표시하지 않고 상태에 따라 안내합니다. 생성 요청의 자동 재시도는 하지 않습니다. 목록·상세·수정·삭제 API는 아직 제공하지 않습니다. 저장 구조는 [dataset 테이블](../db-schema/tables/dataset/dataset.md), 결정은 [ADR-030](../decisions/ADR-030-dataset-creation-contract.md)을 참고합니다.

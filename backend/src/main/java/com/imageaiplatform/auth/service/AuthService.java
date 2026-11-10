@@ -18,13 +18,15 @@ public class AuthService {
         this.jwtTokenService = jwtTokenService;
     }
 
-    public IssuedToken login(String username, String password) {
-        AuthUser user = authUserDao.findByUsername(username);
+    public LoginResult login(String userId, String password) {
+        AuthUser user = authUserDao.findByUserId(userId);
         if (user == null || !Boolean.TRUE.equals(user.enabled()) || !passwordEncoder.matches(password, user.passwordHash())) {
-            throw new BadCredentialsException("Invalid username or password.");
+            throw new BadCredentialsException("Invalid user ID or password.");
         }
-        return jwtTokenService.issue(user.username());
+        return new LoginResult(jwtTokenService.issue(user.userKey()), user.userKey(), user.userId(), user.username());
     }
 
     public record IssuedToken(String value, Long expiresIn) {}
+
+    public record LoginResult(IssuedToken token, String userKey, String userId, String username) {}
 }

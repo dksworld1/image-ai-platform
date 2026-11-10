@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dataset">
+  <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.Dataset">
+    INSERT INTO dataset (dataset_id, name, description, created_at, updated_at, created_by, updated_by)
+    VALUES (#{datasetId}, #{name}, #{description,jdbcType=VARCHAR}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+</mapper>

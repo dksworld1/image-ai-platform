@@ -37,6 +37,8 @@ Windows 백엔드 스크립트는 `bin/local.settings.ps1`의 `BackendJavaHome`�
 
 공통 스키마는 기본 역할·권한 할당을 생성하지 않습니다. local 프로파일은 별도 seed로 admin 계정(로컬 비밀번호 admin), admin 역할과 모든 기존 권한 연결을 준비합니다. 자세한 재적용 규칙은 [로컬 seed](doc/operations/database-migration.md#로컬-app-초기-데이터-seedapplocal)를 참고하세요. 권한 판정은 실제 DB와 연결된 `AuthorizationService`를 사용하며 제한이 필요한 서비스 메서드의 `@PreAuthorize`에서 호출합니다. 기존 화면·메뉴 모듈과 프런트 내비게이션 연동은 제거했습니다. [ADR-027](doc/decisions/ADR-027-remove-ui-module.md)에 따라 새 메뉴는 별도 설계합니다. 컨트롤러 정책 선언과 MVC 인가 인터셉터는 제거했으며 선언 없는 서비스는 일괄 거부하지 않습니다. 기동 검사나 권한 자동 등록은 하지 않습니다.
 
+사용자 필드는 user_key(내부 불변 키), user_id(로그인 아이디), username(실명)으로 구분합니다. 로그인 API는 userId·password를 받고 JWT·역할·감사 기록에는 user_key를 사용합니다. 기존 데이터는 V7→V8→V9로 이관하므로 app DDL과 common seed 위치를 함께 지정해야 합니다. [전환·배포 절차](doc/operations/deployment.md#사용자-식별-필드-전환-배포--2026-11-10)를 참고하세요.
+
 로컬과 테스트에서는 Spring이 `app`과 `audit` 데이터소스별로 Flyway를 실행합니다. 업무 스키마는 `db/migration/app`, 두 번째 DB의 스키마는 `db/migration/audit` 클래스패스 경로에서 관리합니다. `@Sql`은 테스트 데이터 준비에 사용합니다.
 
 Vite 핫 리로드를 사용하는 개발 모드는 `cd frontend; npm run dev`로 실행하며 주소는 `http://localhost:5173`입니다.
@@ -94,4 +96,4 @@ Spring 초기화 전 런타임 설정은 `backend/src/main/resources/config/runt
 
 ## 프로젝트 문서
 
-문서 목록과 갱신 방법은 [doc/README.md](doc/README.md)를 참고하세요. 기능 구현 단계와 핵심 개념은 [doc/stages/README.md](doc/stages/README.md)에서 추적합니다. 저장소 루트의 [AGENTS.md](AGENTS.md)에는 프로젝트 구성과 문서 갱신 규칙이 있습니다.
+문서 목록과 갱신 방법은 [doc/README.md](doc/README.md)를 참고하세요. 기능 구현 단계와 핵심 개념은 [doc/plans/README.md](doc/plans/README.md#개발-진척도-현황판)에서 추적합니다. 저장소 루트의 [AGENTS.md](AGENTS.md)에는 프로젝트 구성과 문서 갱신 규칙이 있습니다.

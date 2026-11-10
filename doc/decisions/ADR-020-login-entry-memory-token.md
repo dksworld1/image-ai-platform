@@ -3,7 +3,7 @@
 - 상태: 대체됨
 - 대체 기록: [ADR-025 탭 세션 복원과 헤더 계정 표시](ADR-025-tab-session-and-header-account.md)
 - 날짜: 2026-11-08
-- 관련 기록: [프런트 인증 단계](../stages/front/stage-02-authentication.md)
+- 관련 기록: [프런트 인증 단계](../plans/front/stage-02-authentication.md)
 
 ## 맥락
 

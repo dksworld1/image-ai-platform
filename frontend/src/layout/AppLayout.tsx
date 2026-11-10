@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
 
-export default function AppLayout({ children, username, onLogout }: {
+export default function AppLayout({ children, userId, username, onLogout, currentPath }: {
   children: ReactNode
-  username: string
+  userId: string
+  username: string | null
   onLogout: () => void
+  currentPath: string
 }) {
   return (
     <div className="app-layout">
@@ -12,11 +14,24 @@ export default function AppLayout({ children, username, onLogout }: {
         <div className="header-account">
           <div className="account-info">
             <span className="account-label">로그인 계정</span>
-            <span className="account-username">{username}</span>
+            <span className="account-user-id">{userId}</span>
+            {username && <span className="account-name">{username}</span>}
           </div>
           <button className="logout-button" type="button" onClick={onLogout}>로그아웃</button>
         </div>
       </header>
+      <nav className="app-navigation" aria-label="업무 메뉴">
+        <a className="navigation-link" href="/" aria-current={currentPath === '/' ? 'page' : undefined}>시작 화면</a>
+        <div className="navigation-group">
+          <h2 id="dataset-menu-title">데이터셋</h2>
+          <ul aria-labelledby="dataset-menu-title">
+            <li>
+              <a className="navigation-link" href="/datasets/new"
+                aria-current={currentPath === '/datasets/new' ? 'page' : undefined}>데이터셋 생성</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
       <main className="app-main">{children}</main>
     </div>
   )

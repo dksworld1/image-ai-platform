@@ -2,7 +2,7 @@
 
 ## 권한 검사 경계 변경 — 2026-11-09 확정
 
-다중 권한 업무는 별도 상위 서비스 빈이 각 보호 서비스를 생성자 주입받아 호출합니다. 같은 객체 내부 호출로 프록시를 우회하지 않습니다. [작성 가이드라인](../proposals/authorization-design-proposal.md#다중-권한-서비스-작성-가이드라인)을 따릅니다.
+다중 권한 업무는 별도 상위 서비스 빈이 각 보호 서비스를 생성자 주입받아 호출합니다. 같은 객체 내부 호출로 프록시를 우회하지 않습니다. [작성 가이드라인](../plans/authorization-design-proposal.md#다중-권한-서비스-작성-가이드라인)을 따릅니다.
 
 제한이 필요한 서비스 메서드에만 `@PreAuthorize`를 적용하며 모든 서비스에 강제하지 않습니다. 컨트롤러 퍼미션 체크는 완전히 제거하고 앞으로도 추가하지 않습니다. 서비스는 단일 계층으로 유지하며 여러 서비스 조합은 필요한 경우 업무별 상위 서비스에서 호출합니다. 서비스 Method Security 전환을 구현했으며 기존 관리 API의 필요 권한과 401·403·500 오류 계약은 유지합니다.
 
@@ -13,7 +13,7 @@
 
 ## 개요
 
-단일 저장소 안에 독립 실행 가능한 웹 클라이언트와 REST API를 둡니다. 현재 업무 기능은 정해지지 않아 최소한의 연결 확인 흐름만 구현합니다.
+단일 저장소 안에 독립 실행 가능한 웹 클라이언트와 REST API를 둡니다. 인증과 데이터셋 생성 업무를 구현했으며 목록·상세·이미지 업무는 후속 작업입니다.
 
 ```text
 브라우저 :4173 (정적 미리보기) 또는 :5173 (개발 서버)
@@ -54,6 +54,8 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 
 ## 확장 규칙
 
+- 모든 프로젝트 테이블은 [공통 스키마 생성 규칙](../db-schema/schema-rules.md)과 [ADR-028](../decisions/ADR-028-common-audit-columns.md)에 따라 생성일·수정일·생성자·수정자를 저장합니다. 시스템 작업자 ID는 문자열 `'0'`이며 일반 사용자 아이디로 예약합니다. 모델은 `OffsetDateTime`과 `String`을 사용하고 실제 SQL에서 수정 정보를 갱신합니다.
+
 - 컨트롤러는 HTTP 요청/응답에 집중하고, 업무 규칙은 서비스 계층으로 둡니다.
 - 업무 모듈 내부의 Java 패키지는 `controller`, `service`, `dao`, `domain` 역할로 나눕니다. DAO 계약 인터페이스는 모듈 `dao` 바로 아래에 두고 구현체는 `dao.impl`에 둡니다. `domain`에는 업무 모델, 값 객체, 도메인 규칙과 도메인 업무에 필요한 컴포넌트를 배치하며, 데이터 접근 세부사항은 두지 않습니다.
 - 공통 기반 코드는 `com.imageaiplatform.foundation` 아래 역할별 하위 패키지에 둡니다. 현재 설정은 `foundation.config`, 상태 확인은 `foundation.controller`, 기반 DAO 계약 및 구현은 `foundation.dao`와 `foundation.dao.impl`에 있습니다.
@@ -70,12 +72,16 @@ Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runti
 
 ## 인증
 
-프런트 인덱스는 유효한 탭 세션이 없으면 로그인 화면을 표시합니다. 로그인 토큰·만료 시각·아이디는 sessionStorage에 보관하고 헤더에 아이디와 로그아웃을 표시합니다. 로그인 후 시작 화면만 표시하며 기존 내비게이션 조회·트리 렌더링은 제거했습니다. 새 메뉴는 아직 구현하지 않았습니다.
+사용자 식별은 user_key(변경 불가 내부 키), user_id(로그인 아이디), username(실명)으로 분리합니다. 로그인은 userId 요청으로 계정을 찾고 JWT sub에는 user_key를 넣습니다. 서비스 권한 판정·역할 연결·생성자·수정자는 내부 키만 사용합니다. 헤더는 서버 응답의 로그인 아이디와 존재하는 실명을 표시하고 이전 username 전용 탭 세션은 제거합니다. [ADR-031](../decisions/ADR-031-user-identity-fields.md)을 따릅니다.
+
+프런트는 유효한 탭 세션이 없으면 로그인 화면을 표시합니다. 로그인 토큰·만료 시각·아이디는 sessionStorage에 보관하고 헤더에 아이디와 로그아웃을 표시합니다. 로그인 후 기본 시작 화면과 React 코드로 구성한 데이터셋 > 데이터셋 생성 메뉴를 제공합니다. `/datasets/new`에서 POST /api/datasets로 저장하고 생성 결과를 표시합니다. 일반 링크로 이동하고 기존 내비게이션 조회 API·DB 메뉴 트리는 사용하지 않습니다.
+
+데이터셋 생성은 서비스의 `@PreAuthorize`에서 활성 계정을 확인합니다. app 전용 DAO와 트랜잭션을 사용하며 서버가 데이터셋 UUID·내부 user_key 작업자·동일 생성/수정 타임스탬프를 기록합니다. 생성자와 소유권은 구분하며 소유·공유·조회 정책은 아직 미정입니다. [ADR-030](../decisions/ADR-030-dataset-creation-contract.md)의 작업자 기준은 ADR-031이 대체합니다.
 
 - 인증 모듈은 Spring Security 무상태 필터 체인과 JWT access token을 사용합니다. 로그인은 아이디·BCrypt 비밀번호 해시를 확인하고 HS256 JWT를 발급합니다.
 - 계정 조회는 `app` 데이터소스의 `auth_user` 테이블을 사용합니다. local/test는 YAML의 비운영 전용 키를 쓰고 dev/prod는 외부 YAML의 `app.auth.jwt.secret`에서 읽습니다. 기본 유효기간은 15분입니다.
 - JWT 필터가 인증을 등록하고 `@EnableMethodSecurity`로 활성화한 서비스 메서드의 `@PreAuthorize`가 필요한 권한을 확인합니다. 컨트롤러 정책 어노테이션·MVC 인가 인터셉터는 제거했습니다. URL은 필터 체인에서 통과시키며 선언 없는 서비스나 미등록 경로를 정책 누락으로 일괄 거부하지 않습니다. 상세 HTTP 계약은 [API 계약](../api/api.md)을 참고합니다.
-- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. 서비스의 `@PreAuthorize`에서 `hasPermission`을 호출해 현재 SecurityContext의 인증 주체·활성 계정·명시 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 UI 전용 권한은 app 공통 seed에서 제거합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../proposals/authorization-design-proposal.md)을 참고합니다.
+- `AuthorizationService`는 실제 사용자 DAO와 `MyBatisEffectivePermissionDao`를 통해 계정 상태와 명시 권한을 확인합니다. 서비스의 `@PreAuthorize`에서 `hasPermission`을 호출해 현재 SecurityContext의 인증 주체·활성 계정·명시 권한을 확인합니다. 공통 스키마는 역할·사용자 권한 할당을 생성하지 않습니다. local 프로파일만 별도 app seed로 admin 계정·admin 역할·모든 기존 권한 연결을 준비하며 UI 전용 권한은 app 공통 seed에서 제거합니다. [ADR-022](../decisions/ADR-022-local-app-seed.md)를 따릅니다. 정책과 후속 작업은 [권한 설계 제안](../plans/authorization-design-proposal.md)을 참고합니다.
 
 ## DB 테이블 정의
 

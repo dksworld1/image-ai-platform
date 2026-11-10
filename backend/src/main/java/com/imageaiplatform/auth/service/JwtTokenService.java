@@ -29,11 +29,11 @@ public class JwtTokenService {
         this.ttl = ttl;
     }
 
-    public AuthService.IssuedToken issue(String subject) {
+    public AuthService.IssuedToken issue(String userKey) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(ttl);
         String token = Jwts.builder()
-                .subject(subject)
+                .subject(userKey)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey, Jwts.SIG.HS256)

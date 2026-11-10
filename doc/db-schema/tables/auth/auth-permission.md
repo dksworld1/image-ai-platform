@@ -18,6 +18,12 @@
 | `permission_code` | `VARCHAR(150)` | 아니요 | 없음 | `도메인:리소스:동작` 권한 코드, 기본 키 |
 | `display_name` | `VARCHAR(100)` | 아니요 | 없음 | 화면 표시 이름 |
 | `description` | `VARCHAR(500)` | 예 | 없음 | 허용 작업 설명 |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | 아니요 | `CURRENT_TIMESTAMP` | 생성일 |
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | 아니요 | `CURRENT_TIMESTAMP` | 최종 수정일 |
+| `created_by` | `VARCHAR(100)` | 아니요 | `'0'` | 생성자, 시스템 작업은 문자열 `'0'` |
+| `updated_by` | `VARCHAR(100)` | 아니요 | `'0'` | 최종 수정자, 시스템 작업은 문자열 `'0'` |
+
+[공통 스키마 생성 규칙](../../schema-rules.md)에 따라 생성 정보를 보존하고 수정 정보만 갱신합니다.
 
 ## 제약 및 인덱스
 

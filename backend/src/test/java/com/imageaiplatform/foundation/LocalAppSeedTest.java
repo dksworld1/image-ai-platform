@@ -3,6 +3,7 @@ package com.imageaiplatform.foundation;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
+import java.time.OffsetDateTime;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -22,7 +23,7 @@ class LocalAppSeedTest {
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('reader', 'Reader')");
         jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES "
                 + "('ui:screen:manage', 'Screen'), ('ui:menu:manage', 'Menu'), ('dataset:item:read', 'Read')");
-        jdbc.update("INSERT INTO auth_role_permission VALUES ('reader', 'ui:screen:manage'), "
+        jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('reader', 'ui:screen:manage'), "
                 + "('reader', 'ui:menu:manage'), ('reader', 'dataset:item:read')");
         jdbc.update("INSERT INTO ui_screen (screen_code, display_name, route_path) VALUES ('home', 'Home', '/')");
         jdbc.update("INSERT INTO ui_screen_permission VALUES ('home', 'ui:screen:manage')");
@@ -44,7 +45,7 @@ class LocalAppSeedTest {
     void seedsAdminAndAllExistingPermissionsIdempotently() {
         var flyway = Flyway.configure()
                 .dataSource("jdbc:h2:mem:local-seed-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "")
-                .locations("classpath:db/migration/app").load();
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").load();
         flyway.migrate();
         var source = flyway.getConfiguration().getDataSource();
         var jdbc = new JdbcTemplate(source);
@@ -59,22 +60,46 @@ class LocalAppSeedTest {
                 .locations("classpath:db/migration/app", "classpath:db/seed/app/common", "classpath:db/seed/app/local").load();
         assertThat(withSeed.migrate().migrationsExecuted).isEqualTo(1);
 
-        String hash = jdbc.queryForObject("SELECT password_hash FROM auth_user WHERE username='admin'", String.class);
+        String hash = jdbc.queryForObject("SELECT password_hash FROM auth_user WHERE user_id='admin'", String.class);
+        String userKey = jdbc.queryForObject("SELECT user_key FROM auth_user WHERE user_id='admin'", String.class);
+        assertThat(UUID.fromString(userKey)).isNotNull();
         assertThat(new BCryptPasswordEncoder().matches("admin", hash)).isTrue();
-        assertThat(jdbc.queryForObject("SELECT enabled FROM auth_user WHERE username='admin'", Boolean.class)).isTrue();
-        assertThat(jdbc.queryForList("SELECT role_code FROM auth_user_role WHERE username='admin'", String.class))
+        assertThat(jdbc.queryForObject("SELECT enabled FROM auth_user WHERE user_id='admin'", Boolean.class)).isTrue();
+        assertThat(jdbc.queryForList("SELECT role_code FROM auth_user_role WHERE user_key=(SELECT user_key FROM auth_user WHERE user_id='admin')", String.class))
                 .containsExactly("admin");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_permission p WHERE NOT EXISTS "
                 + "(SELECT 1 FROM auth_role_permission r WHERE r.role_code='admin' AND r.permission_code=p.permission_code)", Integer.class)).isZero();
         assertThat(withSeed.migrate().migrationsExecuted).isZero();
 
         // SQL 자체의 재실행에서도 중복 없이 추가된 권한을 연결합니다.
+        var originalCreated = OffsetDateTime.parse("2025-01-01T00:00:00Z");
+        for (String table : new String[] {"auth_user", "auth_role", "auth_user_role", "auth_role_permission"}) {
+            jdbc.update("UPDATE " + table + " SET created_at=?, updated_at=?, created_by='original', updated_by='original'",
+                    originalCreated, originalCreated);
+        }
         jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:write', 'Write')");
         new ResourceDatabasePopulator(new ClassPathResource("db/seed/app/common/R__01_ui_permissions.sql"),
                 new ClassPathResource("db/seed/app/common/R__02_ui_navigation.sql")).execute(source);
         new ResourceDatabasePopulator(new ClassPathResource("db/seed/app/local/R__local_app_seed.sql")).execute(source);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT user_key FROM auth_user WHERE user_id='admin'", String.class)).isEqualTo(userKey);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user_role", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(2);
+        for (String table : new String[] {"auth_user", "auth_role"}) {
+            var audit = jdbc.queryForMap("SELECT created_at, updated_at, created_by, updated_by FROM " + table);
+            assertThat(((OffsetDateTime) audit.get("CREATED_AT")).toInstant()).isEqualTo(originalCreated.toInstant());
+            assertThat(audit.get("CREATED_BY")).isEqualTo("original");
+            assertThat(((OffsetDateTime) audit.get("UPDATED_AT")).toInstant()).isAfter(originalCreated.toInstant());
+            assertThat(audit.get("UPDATED_BY")).isEqualTo("0");
+        }
+        assertThat(jdbc.queryForObject("SELECT created_by FROM auth_user_role WHERE user_key=(SELECT user_key FROM auth_user WHERE user_id='admin')", String.class))
+                .isEqualTo("original");
+        assertThat(jdbc.queryForObject("SELECT created_by FROM auth_role_permission WHERE permission_code='dataset:item:read'", String.class))
+                .isEqualTo("original");
+        var added = jdbc.queryForMap("SELECT created_at, updated_at, created_by, updated_by FROM auth_role_permission "
+                + "WHERE permission_code='dataset:item:write'");
+        assertThat(added.get("CREATED_AT")).isEqualTo(added.get("UPDATED_AT"));
+        assertThat(added.get("CREATED_BY")).isEqualTo("0");
+        assertThat(added.get("UPDATED_BY")).isEqualTo("0");
     }
 }

@@ -3,15 +3,27 @@
 <mapper namespace="authUser">
   <resultMap id="authUserResult" type="com.imageaiplatform.auth.domain.AuthUser">
     <constructor>
-      <idArg column="username" javaType="string"/>
+      <idArg column="user_key" javaType="string"/>
+      <arg column="user_id" javaType="string"/>
+      <arg column="username" javaType="string"/>
       <arg column="password_hash" javaType="string"/>
-      <arg column="enabled" javaType="boolean"/>
+      <arg column="enabled" javaType="java.lang.Boolean"/>
+      <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="created_by" javaType="string"/>
+      <arg column="updated_by" javaType="string"/>
     </constructor>
   </resultMap>
-  <select id="findByUsername" parameterType="string" resultMap="authUserResult"
+  <select id="findByUserId" parameterType="string" resultMap="authUserResult"
           flushCache="true" useCache="false">
-    SELECT username, password_hash, enabled
+    SELECT user_key, user_id, username, password_hash, enabled, created_at, updated_at, created_by, updated_by
     FROM auth_user
-    WHERE username = #{username}
+    WHERE user_id = #{userId}
+  </select>
+  <select id="findByUserKey" parameterType="string" resultMap="authUserResult"
+          flushCache="true" useCache="false">
+    SELECT user_key, user_id, username, password_hash, enabled, created_at, updated_at, created_by, updated_by
+    FROM auth_user
+    WHERE user_key = #{userKey}
   </select>
 </mapper>

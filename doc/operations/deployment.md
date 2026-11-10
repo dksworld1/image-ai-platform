@@ -1,5 +1,33 @@
 # 배포 및 서버 설정 운영
 
+## 사용자 식별 필드 전환 배포 — 2026-11-10
+
+배포 전 app DB를 백업하고 기존 계정·역할·감사 기록을 확인합니다. 마이그레이션 위치는 app DDL과 app/common seed를 모두 포함해야 합니다. [V7→V8→V9 순서](database-migration.md#사용자-식별-체계-v7v8v9--2026-11-10)로 전체 이관한 뒤 새 백엔드와 프런트를 함께 배포합니다. V8은 common/identity의 버전 DML이므로 common을 누락하지 않습니다. V1~V6의 체크섬은 유지하며 이번 변경 때문에 repair를 실행하지 않습니다.
+
+로그인 요청은 userId·password로 변경됐고 응답은 토큰과 userKey·userId·username을 포함합니다. 기존 프런트의 username 요청은 동작하지 않습니다. 이전 username 전용 탭 세션은 새 프런트가 제거해 재로그인하며, 기존 JWT subject가 보존된 내부 키와 일치하면 서버에서는 같은 계정을 계속 가리킵니다. 로그인 아이디·실명이 바뀌어도 기존 내부 키를 재발급하지 않습니다.
+
+실명은 기존 데이터에서 추정하지 않아 NULL일 수 있습니다. local 신규 admin은 UUID 키·로그인 아이디 admin·예시 이름 로컬 관리자이며 기존 admin의 키는 seed 재적용 시 보존합니다. 시스템 예약값 '0'은 내부 user_key에 적용되며 로그인 가능한 시스템 계정은 없습니다. DB 접속 설정의 datasource.username은 변경 대상이 아닙니다.
+
+실제 로컬·운영 DB 마이그레이션·서버 재시작은 이번 코드 작업에서 수행하지 않았습니다. 아래 기존 날짜의 username 기반 절차·설명은 당시 이력입니다. 상세 식별 규칙은 [ADR-031](../decisions/ADR-031-user-identity-fields.md)을 따릅니다.
+
+## 데이터셋 생성 API 배포 — 2026-11-10
+
+새 백엔드 배포 시 기존 app 마이그레이션 위치에서 V6__create_dataset.sql을 적용해야 합니다. 이전 버전은 변경하지 않았으므로 이번 V6 추가로 repair가 필요하지 않습니다. local/test는 기존 활성 설정, dev/prod는 기존 외부 YAML의 명시적 활성화 절차를 따릅니다. 생성 API를 호출하는 새 프런트와 대응 백엔드를 함께 배포합니다. 테이블과 시각 타입은 H2에서 검증했으며 실제 로컬·운영 DB 적용은 수행하지 않았습니다. 별도 조회·상세 경로는 제공하지 않습니다.
+
+## 생성 화면 경로 — 2026-11-10
+
+데이터셋 생성 입력 화면은 `/datasets/new`에서 제공합니다. 프런트는 일반 링크와 기존 탭 세션으로 페이지를 다시 열며 새 라우터를 도입하지 않았습니다. Vite preview에서 직접 접근·새로고침을 검증했습니다. 정적 호스팅으로 배포할 때는 프런트 화면 경로를 `index.html`로 연결하는 fallback이 필요하며 `/api` 요청의 기존 전달 경계는 유지해야 합니다. 운영 호스팅 설정 변경·검증은 아직 수행하지 않았습니다. 실제 데이터셋 저장은 이번 구현 범위가 아닙니다.
+
+## 공통 생성·수정 컬럼 배포 — 2026-11-10
+
+배포 전 DB 백업과 `auth_user`의 예약값 계정(`username='0'`) 존재 여부를 확인합니다. 존재하면 사용자와 역할 연결을 별도 정리한 뒤 적용합니다. 시스템 ID `'0'`용 로그인 계정은 생성하지 않습니다.
+
+app은 기존 YAML의 마이그레이션 활성화 절차로 V5를 적용한 뒤 새 백엔드를 사용합니다. V1~V4 파일은 유지하므로 이번 변경에 따른 repair는 필요하지 않습니다. 기본 비활성화 상태인 dev/prod는 기존 외부 YAML 방식으로 명시적으로 활성화해야 합니다. V5는 기존 행에 적용 시각과 시스템 ID를 채우며 실제 과거 이력을 복원하지 않습니다. local에서는 이후 반복 seed가 실행되어 생성 정보는 보존하고 수정 정보만 갱신합니다.
+
+catalog/archive는 자동 마이그레이션 대상이 아닙니다. 기존 `foundation_probe`를 사용한다면 각 DB용 `db/migration/catalog/V1__add_common_audit_columns.sql`, `db/migration/archive/V1__add_common_audit_columns.sql`을 사전 프로비저닝에서 한 번 적용한 뒤 새 DAO를 사용합니다. 신규 DB는 [정의서의 생성 DDL](../db-schema/tables/foundation/foundation-probe.md)을 적용합니다. 기존 테이블에 CREATE를 반복하거나 두 DB의 SQL을 app에 적용하지 않습니다.
+
+시간 타입은 현재 H2에서 검증하며 다른 운영 DB를 도입하면 해당 DB의 DDL 호환성을 확인해야 합니다. 실제 로컬·운영 DB 적용은 수행하지 않았습니다. 상세 규칙과 순서는 [공통 스키마 규칙](../db-schema/schema-rules.md)과 [마이그레이션 설정](database-migration.md)을 따릅니다. 아래 이전 날짜의 UI 관련 배포 설명은 과거 이력입니다.
+
 ## 기존 UI 모듈 철거 적용 — 2026-11-09
 
 [ADR-027](../decisions/ADR-027-remove-ui-module.md)에 따라 V3 적용 이력은 보존하고 V4에서 ui_screen_permission → ui_menu → ui_screen 순서로 삭제합니다. 이 변경은 화면·메뉴 데이터를 영구 삭제하므로 DB 백업 후 적용합니다. 기존 UI 서비스나 프런트 연동과 함께 운영하지 않습니다.
@@ -183,7 +211,7 @@ if ($response.StatusCode -ne 200 -or $response.Content -notmatch 'id="root"') {
 2026-11-08 검증: 수정 전 Windows PowerShell에서 빌드 성공 후 `vite preview 4173`과 `dist` 오류를 재현했습니다. 수정 후 동일 프런트 스크립트에서 빌드 성공 및 `http://127.0.0.1:4173/` 기동 출력을 확인했습니다. HTTP 응답 검증은 실행 환경의 소켓 접근 제한·연결 시간 초과로 완료하지 못했습니다. 백엔드 실행과 두 창을 여는 통합 실행 자체는 이번 검증에서 실행하지 않았습니다.
 
 - [아키텍처](../architecture/architecture.md)
-- [애플리케이션 설정 모듈](../stages/backend/stage-application-settings.md)
+- [애플리케이션 설정 모듈](../plans/backend/stage-application-settings.md)
 - [ADR-004 외부 JDBC YAML](../decisions/ADR-004-datasource-config-files.md)
 - [ADR-013 Spring YAML 우선 관리](../decisions/ADR-013-topic-based-spring-yaml.md)
 - [Spring Boot 외부 설정 공식 문서](https://docs.spring.io/spring-boot/reference/features/external-config.html): 추가 위치, 우선순위, 파일 import, 디렉터리와 프로파일별 파일 처리의 기준

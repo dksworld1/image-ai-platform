@@ -58,7 +58,7 @@ class ApiAuthorizationHttpTest {
     void setup() {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilter).build();
         jdbc = new JdbcTemplate(dataSource);
-        jdbc.update("INSERT INTO auth_user (username, password_hash) VALUES ('api-user', 'unused')");
+        jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES ('api-user', 'login-api-user', 'unused')");
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('API_READER', 'Test reader')");
         jdbc.update("INSERT INTO auth_permission (permission_code, display_name) VALUES ('dataset:item:read', 'Read')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('API_READER', 'dataset:item:read')");
@@ -78,7 +78,7 @@ class ApiAuthorizationHttpTest {
         mvc.perform(get("/api/health")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
         mvc.perform(get("/api/test/public")).andExpect(status().isOk());
         mvc.perform(post("/api/auth/token").contentType("application/json")
-                        .content("{\"username\":\"missing\",\"password\":\"wrong\"}"))
+                        .content("{\"userId\":\"missing\",\"password\":\"wrong\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -86,9 +86,9 @@ class ApiAuthorizationHttpTest {
     void authenticationOnlyAllowsActiveAccountWithoutRoles() throws Exception {
         mvc.perform(get("/api/test/auth")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/test/auth").header("Authorization", bearer)).andExpect(status().isOk());
-        jdbc.update("UPDATE auth_user SET enabled = FALSE WHERE username = 'api-user'");
+        jdbc.update("UPDATE auth_user SET enabled = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = '0' WHERE user_key = 'api-user'");
         mvc.perform(get("/api/test/auth").header("Authorization", bearer)).andExpect(status().isUnauthorized());
-        jdbc.update("DELETE FROM auth_user WHERE username = 'api-user'");
+        jdbc.update("DELETE FROM auth_user WHERE user_key = 'api-user'");
         mvc.perform(get("/api/test/auth").header("Authorization", bearer)).andExpect(status().isUnauthorized());
         assertThat(protectedService.executionCount()).isEqualTo(1);
     }
@@ -97,9 +97,9 @@ class ApiAuthorizationHttpTest {
     void permissionRequiresAuthenticationThenExplicitGrantAndReflectsRevocation() throws Exception {
         mvc.perform(get("/api/test/permission")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/test/permission").header("Authorization", bearer)).andExpect(status().isForbidden());
-        jdbc.update("INSERT INTO auth_user_role (username, role_code) VALUES ('api-user', 'API_READER')");
+        jdbc.update("INSERT INTO auth_user_role (user_key, role_code) VALUES ('api-user', 'API_READER')");
         mvc.perform(get("/api/test/permission").header("Authorization", bearer)).andExpect(status().isOk());
-        jdbc.update("DELETE FROM auth_user_role WHERE username = 'api-user'");
+        jdbc.update("DELETE FROM auth_user_role WHERE user_key = 'api-user'");
         mvc.perform(get("/api/test/permission").header("Authorization", bearer)).andExpect(status().isForbidden());
         assertThat(protectedService.executionCount()).isEqualTo(1);
     }
@@ -166,15 +166,15 @@ class ApiAuthorizationHttpTest {
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> compositeService.execute())
                     .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
             assertThat(protectedService.executionCount()).isZero();
-            jdbc.update("INSERT INTO auth_user_role VALUES ('api-user', 'API_READER')");
+            jdbc.update("INSERT INTO auth_user_role (user_key, role_code) VALUES ('api-user', 'API_READER')");
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> compositeService.execute())
                     .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
             assertThat(protectedService.executionCount()).isEqualTo(1);
-            jdbc.update("INSERT INTO auth_permission VALUES ('dataset:item:write', 'Write', NULL)");
-            jdbc.update("INSERT INTO auth_role_permission VALUES ('API_READER', 'dataset:item:write')");
+            jdbc.update("INSERT INTO auth_permission (permission_code, display_name, description) VALUES ('dataset:item:write', 'Write', NULL)");
+            jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('API_READER', 'dataset:item:write')");
             assertThat(compositeService.execute()).isEqualTo("ok");
             assertThat(protectedService.executionCount()).isEqualTo(2);
-            jdbc.update("UPDATE auth_user SET enabled = FALSE WHERE username = 'api-user'");
+            jdbc.update("UPDATE auth_user SET enabled = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = '0' WHERE user_key = 'api-user'");
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> protectedService.permission())
                     .isInstanceOf(org.springframework.security.core.AuthenticationException.class);
         } finally {

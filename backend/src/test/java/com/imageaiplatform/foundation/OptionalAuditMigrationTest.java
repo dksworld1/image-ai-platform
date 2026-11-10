@@ -36,7 +36,7 @@ class OptionalAuditMigrationTest {
                         "jdbc:h2:mem:optional-audit", "sa", ""))
                 .withBean("auditDataSource", DataSource.class, () -> audit)
                 .withPropertyValues("app.migration.enabled=true",
-                        "app.migration.app-locations=classpath:db/migration/app",
+                        "app.migration.app-locations=classpath:db/migration/app,classpath:db/seed/app/common/identity",
                         "datasource.audit.url=jdbc:h2:mem:unused-audit")
                 .run(context -> {
                     assertThat(context).hasNotFailed().hasBean("appFlyway").hasBean("auditFlyway");

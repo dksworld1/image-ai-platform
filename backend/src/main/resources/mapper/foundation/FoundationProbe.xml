@@ -2,7 +2,8 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="foundationProbe">
   <insert id="insert">
-    INSERT INTO foundation_probe (probe_value) VALUES (#{value})
+    INSERT INTO foundation_probe (probe_value, created_at, updated_at, created_by, updated_by)
+    VALUES (#{value}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '0', '0')
   </insert>
   <select id="countByValue" resultType="long">
     SELECT COUNT(*) FROM foundation_probe WHERE probe_value = #{value}

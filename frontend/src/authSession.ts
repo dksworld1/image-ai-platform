@@ -2,10 +2,10 @@ import type { AuthToken } from './api/auth'
 
 const storageKey = 'image-ai-platform.auth'
 
-export type AuthSession = AuthToken & { expiresAt: number; username: string }
+export type AuthSession = AuthToken & { expiresAt: number }
 
-export function saveAuthSession(token: AuthToken, username: string): AuthSession {
-  const session = { ...token, username, expiresAt: Date.now() + token.expiresIn * 1000 }
+export function saveAuthSession(token: AuthToken): AuthSession {
+  const session = { ...token, expiresAt: Date.now() + token.expiresIn * 1000 }
   window.sessionStorage.setItem(storageKey, JSON.stringify(session))
   return session
 }
@@ -21,7 +21,9 @@ export function loadAuthSession(): AuthSession | null {
   try {
     const session = JSON.parse(stored) as AuthSession
     if (session && typeof session.accessToken === 'string' && session.accessToken.length > 0
-      && typeof session.username === 'string' && session.username.trim().length > 0
+      && typeof session.userKey === 'string' && session.userKey.length > 0 && session.userKey !== '0'
+      && typeof session.userId === 'string' && session.userId.trim().length > 0
+      && (session.username === null || typeof session.username === 'string')
       && session.tokenType === 'Bearer' && Number.isFinite(session.expiresIn) && session.expiresIn > 0
       && Number.isFinite(session.expiresAt) && session.expiresAt > Date.now()) return session
   } catch {

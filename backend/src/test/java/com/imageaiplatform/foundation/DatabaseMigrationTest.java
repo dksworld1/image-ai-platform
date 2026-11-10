@@ -23,7 +23,7 @@ class DatabaseMigrationTest {
     @Test
     void appliesOnlyEachDatabasesScriptsAndSkipsAppliedVersions() {
         assertThat(app.info().applied()).anyMatch(migration -> migration.getVersion() != null
-                && migration.getVersion().toString().equals("4"));
+                && migration.getVersion().toString().equals("9"));
         assertThat(new JdbcTemplate(app.getConfiguration().getDataSource()).queryForList(
                 "SELECT permission_code FROM auth_permission ORDER BY permission_code", String.class))
                 .isEmpty();

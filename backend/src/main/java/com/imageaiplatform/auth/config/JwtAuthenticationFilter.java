@@ -30,12 +30,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             try {
-                String subject = jwtTokenService.parseSubject(header.substring(7));
-                if (subject == null || subject.isBlank() || subject.length() > 100) {
+                String userKey = jwtTokenService.parseSubject(header.substring(7));
+                if (userKey == null || userKey.isBlank() || userKey.length() > 100) {
                     throw new IllegalArgumentException("Invalid token subject.");
                 }
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        subject, null, AuthorityUtils.NO_AUTHORITIES);
+                        userKey, null, AuthorityUtils.NO_AUTHORITIES);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JwtException | IllegalArgumentException exception) {
                 SecurityContextHolder.clearContext();

@@ -3,7 +3,7 @@
 - 상태: 채택
 - 날짜: 2026-11-01
 - 대체 대상: [ADR-002의 연결 정보 전달 방식](ADR-002-backend-data-access-and-local-test-database.md)
-- 관련 단계: [1단계 백엔드 프레임워크와 데이터 기반](../stages/backend/stage-01-backend-foundation.md)
+- 관련 단계: [1단계 백엔드 프레임워크와 데이터 기반](../plans/backend/stage-01-backend-foundation.md)
 
 ## 맥락
 

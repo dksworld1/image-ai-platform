@@ -13,12 +13,19 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
 class AuthorizationServiceTest {
+    private static AuthUserDao users(java.util.function.Function<String, AuthUser> lookup) {
+        var dao = org.mockito.Mockito.mock(AuthUserDao.class);
+        org.mockito.Mockito.when(dao.findByUserKey(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(call -> lookup.apply(call.getArgument(0)));
+        return dao;
+    }
+
     private static final String READ = "dataset:item:read";
-    private static final AuthUser ACTIVE = new AuthUser("member", "unused-hash", true);
+    private static final AuthUser ACTIVE = new AuthUser("member", "member", null, "unused-hash", true, null, null, null, null);
 
     @Test
     void allowsOnlyExplicitlyGrantedPermission() {
-        var service = new AuthorizationService(username -> ACTIVE, username -> Set.of(READ));
+        var service = new AuthorizationService(users(userKey -> ACTIVE), userKey -> Set.of(READ));
 
         assertThatCode(() -> service.requirePermission("member", READ)).doesNotThrowAnyException();
         assertThatThrownBy(() -> service.requirePermission("member", "dataset:item:delete"))
@@ -28,7 +35,7 @@ class AuthorizationServiceTest {
     @Test
     void deniesUserWithoutRolesAndDoesNotTreatAdminOrWildcardAsPermission() {
         for (Set<String> permissions : Set.of(Set.<String>of(), Set.of("ADMIN", "dataset:*", "dataset:item:*"))) {
-            var service = new AuthorizationService(username -> ACTIVE, username -> permissions);
+            var service = new AuthorizationService(users(userKey -> ACTIVE), userKey -> permissions);
             assertThatThrownBy(() -> service.requirePermission("member", READ))
                     .isInstanceOf(AccessDeniedException.class);
         }
@@ -36,10 +43,10 @@ class AuthorizationServiceTest {
 
     @Test
     void rejectsMissingAndDisabledAccountsBeforeLoadingPermissions() {
-        EffectivePermissionDao mustNotLoad = username -> { throw new AssertionError("Must not load permissions"); };
-        AuthUserDao missing = username -> null;
-        AuthUserDao disabled = username -> new AuthUser(username, "unused-hash", false);
-        AuthUserDao unknownStatus = username -> new AuthUser(username, "unused-hash", null);
+        EffectivePermissionDao mustNotLoad = userKey -> { throw new AssertionError("Must not load permissions"); };
+        AuthUserDao missing = users(userKey -> null);
+        AuthUserDao disabled = users(userKey -> new AuthUser(userKey, userKey, null, "unused-hash", false, null, null, null, null));
+        AuthUserDao unknownStatus = users(userKey -> new AuthUser(userKey, userKey, null, "unused-hash", null, null, null, null, null));
 
         for (AuthUserDao users : new AuthUserDao[] {missing, disabled, unknownStatus}) {
             var service = new AuthorizationService(users, mustNotLoad);
@@ -51,11 +58,11 @@ class AuthorizationServiceTest {
 
     @Test
     void validatesInputBeforeQueryingStorage() {
-        AuthUserDao mustNotLoad = username -> { throw new AssertionError("Must not query storage"); };
-        var service = new AuthorizationService(mustNotLoad, username -> Set.of(READ));
+        AuthUserDao mustNotLoad = users(userKey -> { throw new AssertionError("Must not query storage"); });
+        var service = new AuthorizationService(mustNotLoad, userKey -> Set.of(READ));
 
-        for (String username : new String[] {null, "", " ", "u".repeat(101)}) {
-            assertThatThrownBy(() -> service.requirePermission(username, READ))
+        for (String userKey : new String[] {null, "", " ", "u".repeat(101)}) {
+            assertThatThrownBy(() -> service.requirePermission(userKey, READ))
                     .isInstanceOf(IllegalArgumentException.class);
         }
         for (String code : new String[] {null, "", "user:manage", "dataset:item:*", "Dataset:item:read",
@@ -68,8 +75,8 @@ class AuthorizationServiceTest {
     @Test
     void propagatesAccountAndPermissionLookupFailures() {
         var failure = new IllegalStateException("Storage unavailable");
-        var accountFailure = new AuthorizationService(username -> { throw failure; }, username -> Set.of(READ));
-        var permissionFailure = new AuthorizationService(username -> ACTIVE, username -> { throw failure; });
+        var accountFailure = new AuthorizationService(users(userKey -> { throw failure; }), userKey -> Set.of(READ));
+        var permissionFailure = new AuthorizationService(users(userKey -> ACTIVE), userKey -> { throw failure; });
 
         for (AuthorizationService service : new AuthorizationService[] {accountFailure, permissionFailure}) {
             assertThatThrownBy(() -> service.requirePermission("member", READ)).isSameAs(failure);
@@ -78,7 +85,7 @@ class AuthorizationServiceTest {
 
     @Test
     void failsClosedWhenDaoViolatesNonNullContract() {
-        var service = new AuthorizationService(username -> ACTIVE, username -> null);
+        var service = new AuthorizationService(users(userKey -> ACTIVE), userKey -> null);
         assertThatThrownBy(() -> service.requirePermission("member", READ))
                 .isInstanceOf(NullPointerException.class);
     }
@@ -87,7 +94,7 @@ class AuthorizationServiceTest {
     void reflectsPermissionRevocationAndAccountDeactivationOnNextCall() {
         var permissions = new HashSet<>(Set.of(READ));
         AuthUser[] account = {ACTIVE};
-        var service = new AuthorizationService(username -> account[0], username -> permissions);
+        var service = new AuthorizationService(users(userKey -> account[0]), userKey -> permissions);
         service.requirePermission("member", READ);
 
         permissions.clear();
@@ -95,7 +102,7 @@ class AuthorizationServiceTest {
                 .isInstanceOf(AccessDeniedException.class);
 
         permissions.add(READ);
-        account[0] = new AuthUser("member", "unused-hash", false);
+        account[0] = new AuthUser("member", "member", null, "unused-hash", false, null, null, null, null);
         assertThatThrownBy(() -> service.requirePermission("member", READ))
                 .isInstanceOf(BadCredentialsException.class);
     }

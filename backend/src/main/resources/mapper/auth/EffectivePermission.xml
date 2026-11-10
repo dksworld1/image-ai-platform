@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="effectivePermission">
-  <select id="findEffectivePermissionCodesByUsername" parameterType="string" resultType="string"
+  <select id="findEffectivePermissionCodesByUserKey" parameterType="string" resultType="string"
           flushCache="true" useCache="false">
     SELECT DISTINCT rp.permission_code
     FROM auth_user_role ur
     INNER JOIN auth_role_permission rp ON rp.role_code = ur.role_code
-    WHERE ur.username = #{username}
+    WHERE ur.user_key = #{userKey}
   </select>
 </mapper>

@@ -1,8 +1,10 @@
 # ADR-009: 아이디·비밀번호 로그인과 JWT
 
+2026-11-10: 사용자 필드와 JWT subject 기준은 [ADR-031](ADR-031-user-identity-fields.md)이 부분 대체합니다. 아래는 채택 당시 기록입니다.
+
 - 상태: 채택
 - 날짜: 2026-11-02
-- 관련 기록: [ADR-007 백엔드 모듈 경계](ADR-007-backend-modules.md), [2단계 인증과 권한](../stages/backend/stage-02-authentication.md)
+- 관련 기록: [ADR-007 백엔드 모듈 경계](ADR-007-backend-modules.md), [2단계 인증과 권한](../plans/backend/stage-02-authentication.md)
 
 ## 맥락
 

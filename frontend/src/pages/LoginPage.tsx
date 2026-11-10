@@ -1,8 +1,8 @@
 import { useRef, useState, type SubmitEvent } from 'react'
 import { login, type AuthToken } from '../api/auth'
 
-export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken, username: string) => void }) {
-  const [username, setUsername] = useState('')
+export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken) => void }) {
+  const [userId, setUserId] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -15,9 +15,9 @@ export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken, use
     setPending(true)
     setError(null)
     try {
-      const token = await login(username.trim(), password)
+      const token = await login(userId.trim(), password)
       setPassword('')
-      onLogin(token, username.trim())
+      onLogin(token)
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : '로그인에 실패했습니다.')
     } finally {
@@ -33,14 +33,14 @@ export default function LoginPage({ onLogin }: { onLogin: (token: AuthToken, use
         <h1 id="login-title">로그인</h1>
         <p className="intro">계정으로 로그인해 작업을 시작하세요.</p>
         <form className="login-form" onSubmit={handleSubmit} aria-busy={pending}>
-          <label htmlFor="username">아이디</label>
-          <input id="username" name="username" autoComplete="username" required
-            value={username} onChange={event => setUsername(event.target.value)} disabled={pending} />
+          <label htmlFor="userId">아이디</label>
+          <input id="userId" name="userId" autoComplete="username" required maxLength={100}
+            value={userId} onChange={event => setUserId(event.target.value)} disabled={pending} />
           <label htmlFor="password">비밀번호</label>
           <input id="password" name="password" type="password" autoComplete="current-password" required
             value={password} onChange={event => setPassword(event.target.value)} disabled={pending} />
           {error && <p className="login-error" role="alert">{error}</p>}
-          <button type="submit" disabled={pending || !username.trim() || !password}>
+          <button type="submit" disabled={pending || !userId.trim() || !password}>
             {pending ? '로그인 중…' : '로그인'}
           </button>
           <span className="login-progress" role="status">{pending ? '로그인을 확인하고 있습니다.' : ''}</span>
