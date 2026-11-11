@@ -22,15 +22,17 @@ export default function AppLayout({ children, userId, username, onLogout, curren
       </header>
       <nav className="app-navigation" aria-label="업무 메뉴">
         <a className="navigation-link" href="/" aria-current={currentPath === '/' ? 'page' : undefined}>시작 화면</a>
-        <div className="navigation-group">
-          <h2 id="dataset-menu-title">데이터셋</h2>
+        <details className="navigation-group" open={currentPath === '/datasets' || currentPath.startsWith('/datasets/')}>
+          <summary><h2 id="dataset-menu-title">데이터셋</h2></summary>
           <ul aria-labelledby="dataset-menu-title">
+            <li><a className="navigation-link" href="/datasets"
+              aria-current={currentPath === '/datasets' ? 'page' : undefined}>데이터셋 목록</a></li>
             <li>
               <a className="navigation-link" href="/datasets/new"
                 aria-current={currentPath === '/datasets/new' ? 'page' : undefined}>데이터셋 생성</a>
             </li>
           </ul>
-        </div>
+        </details>
       </nav>
       <main className="app-main">{children}</main>
     </div>

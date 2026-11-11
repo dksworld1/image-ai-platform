@@ -1,8 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="dataset">
+  <sql id="deleteScope">
+    EXISTS (
+      SELECT 1 FROM workspace space
+      JOIN workspace_member member ON member.workspace_id = space.workspace_id
+      WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
+        AND (space.owner_user_key = #{userKey} OR member.role_code = 'ADMIN' OR dataset.created_by = #{userKey})
+    )
+  </sql>
+  <select id="canDelete" resultType="java.lang.Boolean" useCache="false" flushCache="true">
+    SELECT COUNT(*) > 0 FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="deleteScope"/>
+  </select>
+  <delete id="deleteAllowed">
+    DELETE FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="deleteScope"/>
+  </delete>
+  <resultMap id="listRow" type="com.imageaiplatform.dataset.domain.DatasetListItem">
+    <constructor>
+      <idArg column="dataset_id" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="description" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="workspace_id" javaType="java.lang.String"/>
+      <arg column="workspace_name" javaType="java.lang.String"/>
+      <arg column="creator_user_id" javaType="java.lang.String"/>
+      <arg column="creator_username" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="findVisibleToUser" parameterType="string" resultMap="listRow" useCache="false" flushCache="true">
+    SELECT dataset.dataset_id, dataset.name, dataset.description, dataset.created_at, dataset.updated_at,
+        space.workspace_id, space.name AS workspace_name,
+        creator.user_id AS creator_user_id, creator.username AS creator_username
+    FROM dataset
+    JOIN workspace space ON space.workspace_id = dataset.workspace_id
+    JOIN workspace_member member ON member.workspace_id = space.workspace_id
+    LEFT JOIN auth_user creator ON creator.user_key = dataset.created_by
+    WHERE member.user_key = #{userKey} AND member.status = 'ACTIVE' AND space.status = 'ACTIVE'
+    ORDER BY dataset.created_at DESC, dataset.dataset_id ASC, space.name, space.workspace_id
+  </select>
   <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.Dataset">
-    INSERT INTO dataset (dataset_id, name, description, created_at, updated_at, created_by, updated_by)
-    VALUES (#{datasetId}, #{name}, #{description,jdbcType=VARCHAR}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+    INSERT INTO dataset (dataset_id, name, description, created_at, updated_at, created_by, updated_by, workspace_id)
+    VALUES (#{datasetId}, #{name}, #{description,jdbcType=VARCHAR}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}, #{workspaceId})
   </insert>
 </mapper>

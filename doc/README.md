@@ -18,6 +18,10 @@
 - [개발 로드맵](plans/README.md#개발-로드맵): 현재 상태와 다음 설계 항목
 - [데이터셋 업무 개발 작업계획서](plans/dataset-development-plan.md): 사용자 지시용 작업 ID·상태·선행 조건·완료 기준
 - [워크스페이스 설계 제안](plans/workspace-design-proposal.md): 가입 승인·멤버 역할·공간별 데이터셋 접근 범위 검토
+- [워크스페이스 테이블 설계](db-schema/tables/workspace/README.md): V10·local 초기 공간 구현, 관리 화면·API·실제 DB 적용은 후속
+- [다중 공간 데이터셋 결정](decisions/ADR-033-dataset-multiple-workspaces.md): 가입 공간 통합 목록·다중 공간 생성·local 두 공간, 관리 화면은 후속
+- [공간별 독립 생성 결정](decisions/ADR-034-independent-dataset-creation.md): 현재 계약. 공간별 별도 ID·일괄 트랜잭션·미귀속 local 데이터 공통 공간 배정. ADR-033 공유 방침 대체
+- [데이터셋 삭제 권한](decisions/ADR-035-dataset-deletion-authorization.md): 삭제 기능 권한·활성 멤버십·공간 운영자 또는 데이터셋 생성자 조건. 삭제 UI·이미지 처리는 제외
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의

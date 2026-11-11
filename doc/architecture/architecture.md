@@ -1,5 +1,27 @@
 # 아키텍처
 
+## 데이터셋 삭제 경계 — 2026-11-11
+
+DELETE API는 dataset 서비스의 `@PreAuthorize`에서 dataset:item:delete와 실제 공간 범위를 AND로 검사합니다. 활성 공간·ACTIVE 멤버십을 필수로 하고 OWNER·공간 ADMIN·데이터셋 생성자 중 하나를 허용합니다. MyBatis의 공통 SQL 조건을 사전 판정과 조건부 DELETE에 함께 적용합니다. 새 권한 검사 계층·UI·이미지 처리·배치는 추가하지 않았습니다. [ADR-035](../decisions/ADR-035-dataset-deletion-authorization.md)와 [API](../api/api.md#데이터셋-삭제)가 현재 기준입니다. 아래 삭제 미구현 설명은 이전 단계 이력입니다.
+
+## 현재: 공간별 독립 데이터셋 — 2026-11-11
+
+[ADR-034](../decisions/ADR-034-independent-dataset-creation.md)에 따라 다중 선택은 공간별 별도 ID의 독립 데이터셋 생성입니다. dataset.workspace_id 단일 FK와 한 트랜잭션의 다건 INSERT를 사용하고 다대다 연결·목록 그룹화는 제거했습니다. 목록은 활성 멤버십·공간과 단일 FK를 결합합니다. 생성 응답은 각 workspaceId의 데이터셋 배열이며 목록은 workspaceId·workspaceName을 반환합니다. local 미귀속 과거 데이터만 V17에서 첫 번째 공통 공간으로 배정합니다. 아래 다중 공간 공유 구조는 이전 이력입니다.
+
+## 데이터셋 목록·다중 공간 생성 — 2026-11-11
+
+`workspace` 모듈은 현재 사용자의 활성 가입 공간 조회를 제공하고 `dataset` 모듈은 기능 권한을 명시한 서비스에서 목록·생성을 처리합니다. 생성의 공간 범위 검사는 workspace 서비스의 `isMemberOfAll`을 재사용하며 다른 모듈 DAO를 직접 호출하지 않습니다. 저장은 dataset·dataset_workspace를 하나의 app 트랜잭션으로 수행합니다. 목록 SQL은 활성 공간·멤버십을 결합하고 서비스가 동일 dataset_id의 행을 묶어 접근 가능한 공간 정보만 반환합니다. 계약과 이관은 [ADR-033](../decisions/ADR-033-dataset-multiple-workspaces.md), [API](../api/api.md#데이터셋-목록)를 따릅니다. 아래 단일 공간·생성 전용 설명은 이전 단계 이력입니다.
+
+프런트는 `/datasets` 목록과 `/datasets/new` 생성 페이지를 제공합니다. 생성의 native details 드롭다운에 체크박스를 두어 여러 공간을 선택하며, 서버가 모든 선택 공간의 멤버십을 재확인합니다. 공간 관리 화면과 데이터셋 상세·수정·삭제는 아직 없습니다.
+
+## local H2 콘솔 — 2026-11-11
+
+`spring-boot-h2console` 모듈과 기존 local YAML로 `/h2-console`을 제공합니다. local 전용 우선 보안 체인은 `PathRequest.toH2Console()`에만 적용하고 SAMEORIGIN 프레임을 허용합니다. 일반 API 보안 체인과 서비스 권한 검사는 유지합니다. 접속·검증 내역은 [운영 문서](../operations/deployment.md#local-h2-웹-콘솔--2026-11-11)를 따릅니다.
+
+## 워크스페이스 스키마 기반 — 2026-11-11
+
+app V10에 workspace·workspace_member와 dataset의 전환용 nullable workspace_id FK를 추가했습니다. local seed는 admin을 소유자·ACTIVE ADMIN 멤버로 하는 공통 워크스페이스를 준비합니다. 정의와 적용 범위는 [테이블 문서](../db-schema/tables/workspace/README.md)와 [ADR-032](../decisions/ADR-032-workspace-data-boundary.md)를 따릅니다. 실제 DB 적용·관리 화면·가입 승인·데이터셋 공간별 접근 검사는 아직 수행·구현하지 않았습니다. 기존 생성 API는 계속 공간 없이 저장하므로 공간 격리가 이미 적용된 상태가 아닙니다.
+
 ## 권한 검사 경계 변경 — 2026-11-09 확정
 
 다중 권한 업무는 별도 상위 서비스 빈이 각 보호 서비스를 생성자 주입받아 호출합니다. 같은 객체 내부 호출로 프록시를 우회하지 않습니다. [작성 가이드라인](../plans/authorization-design-proposal.md#다중-권한-서비스-작성-가이드라인)을 따릅니다.

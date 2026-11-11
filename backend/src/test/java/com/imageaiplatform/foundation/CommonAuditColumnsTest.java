@@ -51,9 +51,9 @@ class CommonAuditColumnsTest {
         jdbc.update("INSERT INTO auth_user_role (username, role_code) VALUES ('member', 'READER')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('READER', 'dataset:item:read')");
 
-        var current = Flyway.configure().dataSource(source).locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").load();
+        var current = Flyway.configure().dataSource(source).locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").target("10").load();
         var before = OffsetDateTime.now().minusSeconds(1).toInstant();
-        assertThat(current.migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(current.migrate().migrationsExecuted).isEqualTo(6);
         var after = OffsetDateTime.now().plusSeconds(1).toInstant();
         for (String table : new String[] {"auth_user", "auth_role", "auth_permission", "auth_user_role", "auth_role_permission"}) {
             var audit = jdbc.queryForMap("SELECT created_at, updated_at, created_by, updated_by FROM " + table);

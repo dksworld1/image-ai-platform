@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="workspace">
+  <resultMap id="summary" type="com.imageaiplatform.workspace.domain.WorkspaceSummary">
+    <constructor>
+      <idArg column="workspace_id" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="findActiveByUserKey" parameterType="string" resultMap="summary" useCache="false" flushCache="true">
+    SELECT space.workspace_id, space.name
+    FROM workspace space
+    JOIN workspace_member member ON member.workspace_id = space.workspace_id
+    WHERE member.user_key = #{userKey} AND member.status = 'ACTIVE' AND space.status = 'ACTIVE'
+    ORDER BY space.name, space.workspace_id
+  </select>
+</mapper>

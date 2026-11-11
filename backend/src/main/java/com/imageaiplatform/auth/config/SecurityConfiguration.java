@@ -1,8 +1,12 @@
 package com.imageaiplatform.auth.config;
 
 import com.imageaiplatform.auth.service.JwtTokenService;
+import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,6 +20,18 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration(proxyBeanMethods = false)
 @EnableMethodSecurity
 public class SecurityConfiguration {
+    @Bean
+    @Profile("local")
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    SecurityFilterChain h2ConsoleSecurityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher(PathRequest.toH2Console())
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .csrf(AbstractHttpConfigurer::disable)
+                .headers(headers -> headers.frameOptions(frames -> frames.sameOrigin()))
+                .build();
+    }
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

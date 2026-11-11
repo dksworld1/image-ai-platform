@@ -8,6 +8,7 @@
 
 - [인증·권한](auth/README.md): 기존 사용자 인증 정보 및 신규 RBAC 테이블 설계 초안
 - [데이터셋](dataset/README.md): 데이터셋 기본 정보와 생성·최종 수정 타임스탬프
+- [워크스페이스](workspace/README.md): V10 공간·멤버십과 데이터셋 nullable 공간 FK, local 초기 데이터. 업무 API·실제 DB 미적용
 - [기반](foundation): 기반 동작 확인용 테이블
 
 ## 폐기 이력

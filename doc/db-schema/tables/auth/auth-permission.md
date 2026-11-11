@@ -35,6 +35,8 @@
 
 ## 데이터셋 권한 카탈로그
 
+현재 사용(2026-11-11): dataset:item:delete도 삭제 서비스에서 명시적으로 검사합니다. local 공간 seed는 admin 역할에 read·create·delete를 연결합니다. 운영·일반 사용자 역할은 자동 생성·할당하지 않으며 사용하려는 역할에 해당 기능 권한을 명시적으로 부여해야 합니다. 공간 내 ADMIN·OWNER 또는 생성자 지위만으로 기능 권한을 대체하지 않습니다. 아래 카탈로그 등록 당시의 미연결 기록과 구분합니다.
+
 2026-11-10: 사용자 요청에 따라 공통 seed `db/seed/app/common/R__03_dataset_permissions.sql`에 다음 권한을 등록합니다. DML이므로 `db/migration/`에 넣지 않으며 기존 app 공통 위치에서 Flyway가 읽습니다.
 
 | 코드 | 표시 이름 | 의미 |

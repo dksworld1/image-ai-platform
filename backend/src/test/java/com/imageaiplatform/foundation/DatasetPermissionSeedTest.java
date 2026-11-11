@@ -15,7 +15,7 @@ class DatasetPermissionSeedTest {
     void addsMissingPermissionsWithoutChangingExistingDefinitionsGrantsOrAuditValues() {
         var schema = Flyway.configure()
                 .dataSource("jdbc:h2:mem:dataset-permissions-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "")
-                .locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").load();
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").target("10").load();
         schema.migrate();
         var source = schema.getConfiguration().getDataSource();
         var jdbc = new JdbcTemplate(source);

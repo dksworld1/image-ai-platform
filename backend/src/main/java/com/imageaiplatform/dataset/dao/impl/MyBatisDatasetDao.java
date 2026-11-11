@@ -2,6 +2,9 @@ package com.imageaiplatform.dataset.dao.impl;
 
 import com.imageaiplatform.dataset.dao.DatasetDao;
 import com.imageaiplatform.dataset.domain.Dataset;
+import com.imageaiplatform.dataset.domain.DatasetListItem;
+import java.util.List;
+import java.util.Map;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -17,5 +20,20 @@ public class MyBatisDatasetDao implements DatasetDao {
     @Override
     public void insert(Dataset dataset) {
         sqlSession.insert("dataset.insert", dataset);
+    }
+
+    @Override
+    public List<DatasetListItem> findVisibleToUser(String userKey) {
+        return sqlSession.selectList("dataset.findVisibleToUser", userKey);
+    }
+
+    @Override
+    public Boolean canDelete(String datasetId, String userKey) {
+        return sqlSession.selectOne("dataset.canDelete", Map.of("datasetId", datasetId, "userKey", userKey));
+    }
+
+    @Override
+    public Integer deleteAllowed(String datasetId, String userKey) {
+        return sqlSession.delete("dataset.deleteAllowed", Map.of("datasetId", datasetId, "userKey", userKey));
     }
 }

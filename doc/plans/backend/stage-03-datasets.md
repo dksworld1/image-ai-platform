@@ -1,6 +1,6 @@
 # 3단계: 데이터셋과 메타데이터
 
-- 상태: 구현 중 — 생성 API·화면 저장 연동 완료, 조회·소유·공유는 미구현
+- 상태: 구현 중 — 목록·공간별 독립 생성·데이터셋 삭제 API 구현, 삭제 UI·이미지·상세·수정·공간 관리 후속
 - 선행 단계: 1, 2단계
 - 관련 문서: [제품 개요](../../product/project-overview.md), [API 계약](../../api/api.md)
 - 관련 결정: [ADR-007 백엔드 모듈 경계](../../decisions/ADR-007-backend-modules.md)
@@ -25,6 +25,12 @@
 데이터셋·이미지 메타데이터 기능은 `com.imageaiplatform.dataset` 모듈이 소유합니다. 인증·권한이 필요한 작업은 `auth` 모듈의 서비스 경계를 통해 판정하며, 모듈 간 DAO 직접 호출은 하지 않습니다.
 
 ## 결정 기록
+
+- 2026-11-11 삭제: [ADR-035](../../decisions/ADR-035-dataset-deletion-authorization.md)에 따라 dataset:item:delete와 ACTIVE 공간·멤버십을 필수로 하고 공간 OWNER/ADMIN 또는 데이터셋 생성자에게 삭제를 허용합니다. 생성자라도 탈퇴·제거·승인 대기면 거부합니다. Method Security와 실제 DELETE의 SQL 범위 조건을 함께 적용합니다. 삭제 HTTP·직접 서비스 경계와 local admin 권한 연결에 필요한 테스트 3개만 실행해 통과했습니다. 사용자 요청대로 UI·이미지·배치는 구현하지 않았습니다.
+
+- 2026-11-11 후속: [ADR-034](../../decisions/ADR-034-independent-dataset-creation.md)로 공유 방식에서 공간별 독립 생성으로 변경했습니다. 생성 응답은 각 단일 workspaceId의 데이터셋 배열, 목록은 단일 workspaceId·workspaceName입니다. V14~V16은 기존 공유 데이터의 독립 분리와 연결 테이블 제거, local V17은 미귀속 데이터만 첫 번째 공통 공간으로 배정합니다. 기존 지정 공간은 유지합니다. 변경 관련 테스트 10개 통과 후 V17 추가에 해당하는 이관·seed 테스트 3개만 재실행해 통과했습니다. 실제 DB 미적용입니다.
+
+- 2026-11-11: [ADR-033](../../decisions/ADR-033-dataset-multiple-workspaces.md)에 따라 목록·가입 공간 조회와 다중 공간 생성을 구현했습니다. 생성은 create 권한과 선택 공간 전체 멤버십, 목록은 read 권한과 SQL의 활성 멤버십 조건을 적용합니다. V11·V12·V13으로 다대다 연결을 도입하며 local 두 공간 모두 admin 소유·관리로 준비합니다. 변경 관련 테스트 10개만 실행해 통과했습니다. 실제 DB 적용·관리 화면은 후속입니다. 아래 생성 전용 기록은 이전 단계 이력입니다.
 
 - 구현(2026-11-10): POST /api/datasets와 app V6를 추가했습니다. 활성 로그인 사용자 생성, UUID 발급, 이름 필수·설명 선택, 서버 타임스탬프·작업자 기록은 [ADR-030](../../decisions/ADR-030-dataset-creation-contract.md)을 따릅니다. 데이터 계약은 [dataset 정의서](../../db-schema/tables/dataset/dataset.md), HTTP 계약은 [API 문서](../../api/api.md#데이터셋-생성)에서 관리합니다.
 

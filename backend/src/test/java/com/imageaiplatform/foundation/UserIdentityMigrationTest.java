@@ -22,8 +22,8 @@ class UserIdentityMigrationTest {
         jdbc.update("INSERT INTO dataset (dataset_id, name, created_by, updated_by) VALUES ('old-dataset', 'old', 'legacy-login', '0')");
         var before = jdbc.queryForMap("SELECT created_at, updated_at FROM auth_user WHERE username='legacy-login'");
         var current = Flyway.configure().dataSource(source)
-                .locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").load();
-        assertThat(current.migrate().migrationsExecuted).isEqualTo(3);
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common/identity").target("10").load();
+        assertThat(current.migrate().migrationsExecuted).isEqualTo(4);
         var user = jdbc.queryForMap("SELECT * FROM auth_user WHERE user_key='legacy-login'");
         assertThat(user.get("USER_ID")).isEqualTo("legacy-login");
         assertThat(user.get("USERNAME")).isNull();

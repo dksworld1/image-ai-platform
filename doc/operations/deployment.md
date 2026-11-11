@@ -1,5 +1,52 @@
 # 배포 및 서버 설정 운영
 
+## 데이터셋 삭제 백엔드 배포 — 2026-11-11
+
+DELETE /api/datasets/{datasetId}를 추가했습니다. 신규 DDL·API 입력 화면은 없습니다. 기존 dataset:item:delete 권한을 사용하며 local 공간 seed 체크섬 변경 시 admin 역할에 삭제 기능 권한도 명시적으로 연결합니다. 생성자·공간 관리자 모두 삭제 기능 권한과 해당 공간의 ACTIVE 멤버십을 충족해야 합니다. 운영의 일반 사용자·관리자 역할에 대한 자동 권한 부여는 하지 않습니다. 운영에서 사용할 역할에는 기존 RBAC 방식으로 해당 권한을 부여해야 합니다.
+
+실제 DB 삭제·마이그레이션 적용·사용자 서버 재시작은 하지 않았습니다. 관련 삭제 테스트 2개와 local seed 테스트 1개만 메모리 DB에서 실행해 통과했습니다. UI·이미지·배치는 이번 배포 범위가 아닙니다. [삭제 API 계약](../api/api.md#데이터셋-삭제)을 따릅니다.
+
+## local 미귀속 데이터의 공통 공간 배정 — 2026-11-11
+
+local에서는 V16 후 일회성 V17 DML이 workspace_id NULL인 데이터셋만 첫 번째 공통 공간으로 배정합니다. 기존 공간이 지정된 데이터는 이동하지 않습니다. [V17 조건과 실행 순서](database-migration.md#local-미귀속-데이터-이관-v17--2026-11-11)를 따릅니다. 기존 local DB에 admin 계정 또는 대상 공통 공간이 준비되어 있어야 하며, 미귀속 데이터만 있는 상태에서 둘 다 없는 환경을 임의 사용자 소유로 추정하지 않습니다. 실제 DB 적용·서버 재시작은 이번 작업에서 수행하지 않았습니다.
+
+## 공간별 독립 데이터셋 배포 — 2026-11-11
+
+현재 생성은 다중 공간 공유 대신 공간마다 다른 dataset_id를 발급합니다. app DB 백업 후 app DDL·common 위치를 모두 포함해 V14→V15→V16을 적용하고 프런트·백엔드를 함께 배포합니다. 생성 요청 workspaceIds는 유지하지만 응답은 단일 객체에서 각 workspaceId의 독립 데이터셋 배열로 바뀝니다. 이전 클라이언트는 호환되지 않습니다. [SQL 이관](database-migration.md#공간별-독립-데이터셋-v14v15v16--2026-11-11)을 따르며 과거 스크립트 repair는 하지 않습니다.
+
+관리 화면·상세·수정·삭제는 후속입니다. 현재 실제 DB 적용·서버 재시작은 하지 않았습니다. 아래 공유 생성 배포 설명은 이전 계약 이력입니다.
+
+## 데이터셋 목록·다중 공간 생성 배포 — 2026-11-11
+
+app DB 백업 후 기존 설정의 app DDL·common seed를 모두 포함하여 V11→V12→V13을 적용합니다. [이관 순서](database-migration.md#다중-공간-데이터셋-v11v12v13--2026-11-11)를 따르며 기존 스크립트 repair는 필요하지 않습니다. 새 생성 API는 workspaceIds를 필수로 요구하므로 새 프런트·백엔드를 함께 배포합니다. 이전 클라이언트의 공간 없는 생성은 400이며 과거 미귀속 데이터는 목록에서 제외합니다.
+
+local 공간 seed가 재실행되어 admin 소유의 두 번째 공통 공간을 추가합니다. 이미 초기화된 local DB에서도 목록·생성이 가능하도록 해당 seed가 admin 역할에 dataset:item:read·dataset:item:create를 명시적으로 연결합니다. 기존 연결·감사 값은 보존하며 운영 역할에는 자동 부여하지 않습니다. 서비스는 역할 이름으로 우회하지 않고 이 기능 권한을 검사합니다.
+
+프런트 `/datasets`, `/datasets/new` 직접 접근은 index.html fallback을 유지합니다. 생성은 다중 공간 선택, 목록은 가입 공간 통합 조회입니다. 가입·공간 관리·상세·수정·삭제 화면은 후속입니다. 이전 서버로 단순 복귀해 공간 없는 생성을 재개하지 않도록 합니다. 실제 local·운영 DB 적용·서버 재시작은 이번 작업에서 하지 않았습니다.
+
+## local H2 웹 콘솔 — 2026-11-11
+
+local 프로파일의 기존 `spring.h2.console.enabled: true`, `path: /h2-console` 설정을 사용합니다. Spring Boot 4의 콘솔 자동 구성을 제공하는 `spring-boot-h2console` 의존성을 추가했습니다. local 전용 보안 필터 체인은 콘솔 경로에만 SAMEORIGIN 프레임과 콘솔 폼 요청을 허용하며 일반 API의 기존 보안 체인은 유지합니다. 별도 콘솔 서버·포트는 만들지 않습니다. [Spring Boot 공식 H2 콘솔 안내](https://docs.spring.io/spring-boot/reference/data/sql.html#data.sql.h2-web-console)를 참고합니다.
+
+백엔드를 새 코드로 재시작한 뒤 기본 주소 `http://localhost:8080/h2-console/`로 접속합니다. 포트를 변경한 환경은 `bin/local.settings.ps1`의 BackendPort를 사용합니다. JDBC URL은 콘솔 기본 예시 대신 접속할 데이터소스의 실제 값을 입력합니다. backend 디렉터리에서 실행한 기본 local app DB는 다음과 같습니다.
+
+| 항목 | 기본 local 값 |
+|---|---|
+| Driver Class | `org.h2.Driver` |
+| JDBC URL | `jdbc:h2:file:./data/image-ai-app;DB_CLOSE_ON_EXIT=FALSE` |
+| User Name | `sa` |
+| Password | 빈 값 |
+
+외부 YAML로 연결 설정을 바꿨다면 해당 실제 설정을 사용합니다. 콘솔은 앱 로그인 admin 계정이 아닌 DB 접속 정보로 로그인합니다. 다른 데이터소스는 각각의 `datasource.<이름>.url`을 사용합니다. 콘솔 활성화 설정과 전용 보안 체인은 local에 한정되며 외부 접속 허용 설정은 추가하지 않았습니다.
+
+검증은 메모리 DB·임의 테스트 포트에서 `mvn test "-Dtest=H2ConsoleTest"` 1개만 실행해 통과했습니다. 콘솔 HTTP 200·HTML·SAMEORIGIN과 일반 헬스 경로의 DENY 헤더를 확인했습니다. 실제 local DB 연결·사용자 서버 재시작은 하지 않았습니다.
+
+## 워크스페이스 기반 스키마 배포 — 2026-11-11
+
+기존 app Flyway 활성화·위치 설정으로 V10을 적용하면 workspace·workspace_member와 dataset의 nullable 공간 FK가 추가됩니다. 과거 SQL·YAML은 변경하지 않았고 repair는 필요하지 않습니다. local에서만 admin 초기 데이터 다음에 공통 워크스페이스와 admin의 소유자·ADMIN 멤버십을 등록합니다. 재실행은 기존 공간·멤버십·감사 정보를 보존합니다. [SQL 순서와 전환 제약](database-migration.md#워크스페이스-v10local-초기-공간--2026-11-11)을 따릅니다.
+
+이 배포는 스키마 기반만 추가합니다. 관리 화면·가입 승인·서비스 접근 검사·기존 데이터 귀속·공간 필수값 전환은 후속 작업이며 기존 데이터셋 생성 API의 동작은 유지합니다. 실제 로컬·운영 DB에 적용하거나 서버를 재시작하지 않았습니다. 격리된 테스트 DB에서 관련 테스트 3개를 통과했습니다.
+
 ## 데이터셋 권한 카탈로그 배포 — 2026-11-10
 
 새 공통 반복 seed `db/seed/app/common/R__03_dataset_permissions.sql`을 추가했습니다. 기존 app 마이그레이션 활성화·위치 설정에서 `classpath:db/seed/app/common`을 포함하면 다음 마이그레이션 실행 시 데이터셋 조회·생성·사용·수정·삭제 권한을 등록합니다. YAML 변경과 과거 이력 repair는 필요하지 않습니다. [실행 순서와 보존 정책](database-migration.md#데이터셋-권한-공통-seed--2026-11-10)을 따릅니다.

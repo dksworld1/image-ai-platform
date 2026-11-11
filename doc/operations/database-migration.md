@@ -1,5 +1,41 @@
 # DB 마이그레이션 설정
 
+## local 데이터셋 삭제 권한 — 2026-11-11
+
+삭제 API는 기존 dataset:item:delete 카탈로그를 재사용하여 추가 DDL이나 버전 마이그레이션이 없습니다. R__local_workspace_seed.sql은 admin 역할에 read·create·delete를 명시적으로 연결하며 기존 연결·감사 값은 보존합니다. 체크섬 변경으로 다음 local 마이그레이션 때 재실행됩니다. common·운영 역할에는 자동 연결하지 않습니다. 관련 삭제·local seed 테스트 3개 통과, 실제 DB 적용·삭제는 하지 않았습니다.
+
+## local 미귀속 데이터 이관 V17 — 2026-11-11
+
+사용자 확인에 따라 공간이 NULL인 기존 데이터셋만 첫 번째 `공통 워크스페이스`(고정 UUID 끝자리 001)로 이관합니다. 이미 공간이 지정된 데이터는 변경하지 않습니다. `db/seed/app/local/V17__assign_unassigned_datasets.sql`은 일회성 DML이므로 반복 seed에 넣지 않았습니다. 생성일·생성자는 보존하고 수정일·수정자는 이관 시각·시스템 `'0'`으로 기록합니다. 초기화된 local DB의 admin 계정을 사용하며 공간이 아직 없고 미귀속 데이터가 있으면 공간·admin 멤버십부터 준비합니다. 기존 공간·멤버십은 덮어쓰지 않습니다. 이관 대상이 없는 새 DB는 이후 반복 local seed가 admin·공간을 정상 생성합니다.
+
+V14→common V15→V16→local V17의 버전 순서 뒤에 반복 common·local seed가 실행됩니다. V17은 local 위치에만 있으므로 dev·prod에는 자동 적용하지 않습니다. 실제 DB 적용은 하지 않았습니다. 아래 V14~V16의 미귀속 보존은 공통 단계이며 local에서는 V17이 추가 배정합니다.
+
+## 공간별 독립 데이터셋 V14→V15→V16 — 2026-11-11
+
+V14 DDL은 dataset.workspace_id FK·인덱스와 공유 연결의 이관용 임시 컬럼을 준비합니다. common V15 DML은 기존 공유 데이터의 첫 공간(공간 ID 오름차순)에 원래 ID를 유지하고 나머지 공간은 UUID를 발급해 이름·설명·감사 값을 보존한 독립 행으로 분리합니다. V16은 공유 연결 테이블을 제거합니다. 기존 V1~V13은 변경하지 않으며 app DDL과 common을 함께 읽어 V15 이관을 누락하지 않습니다.
+
+현재 생성 API는 모든 공간의 멤버십·create 권한을 확인한 뒤 공간별 독립 데이터셋을 한 트랜잭션으로 저장합니다. 변경 관련 백엔드 테스트 10개·프런트 선별 3개·빌드·격리 브라우저 흐름 검증을 통과했습니다. 실제 DB 적용·서버 재시작은 하지 않았습니다. 아래 공유 방식 V11~V13은 이전 이력이며 현재 결정은 [ADR-034](../decisions/ADR-034-independent-dataset-creation.md)입니다.
+
+## 다중 공간 데이터셋 V11→V12→V13 — 2026-11-11
+
+V11(`db/migration/app/V11__create_dataset_workspaces.sql`)에서 연결 테이블을 만들고 V12(`db/seed/app/common/V12__backfill_dataset_workspaces.sql`)에서 기존 단일 공간·감사 정보를 이관한 뒤 V13(`db/migration/app/V13__remove_dataset_workspace_column.sql`)에서 기존 컬럼·FK·인덱스를 제거합니다. DML은 common seed에 분리했습니다. app DDL과 common을 함께 읽어 V12가 누락되지 않게 합니다. 기존 YAML 목록은 이미 두 위치를 포함합니다. 과거 V1~V10을 변경하거나 repair하지 않습니다. 아래 V10 단일 공간 설명은 도입 이력이며 현재 관계는 [다대다 연결](../archive/dataset-sharing/dataset-workspace.md)입니다.
+
+local 반복 공간 seed는 고정 UUID 끝자리 001·002의 공통 공간 두 개를 준비합니다. 둘 다 admin 소유·ACTIVE ADMIN 멤버십이며 기존 공간·가입·감사 값은 보존합니다. 이번 공간 seed 체크섬 변경으로 local에서 다시 실행되어 두 번째 공간만 추가할 수 있습니다. common·test·dev·prod에는 local 공간 데이터를 적용하지 않습니다. 공통 권한 카탈로그는 기존 다섯 권한을 재사용합니다.
+
+해당 local seed는 기존 admin 역할에도 read·create 두 기능 권한을 명시적으로 연결합니다. 과거 local app seed가 이미 적용되어 새 카탈로그 권한을 받지 못했던 DB를 지원하며, 다른 역할·운영 환경의 권한을 추가하지 않습니다.
+
+local 권한 연결 보완 후 해당 seed 테스트 1개만 다시 실행해 통과했습니다. 누락된 read·create 연결 등록과 기존 공간·멤버십·감사 값 보존을 확인했습니다.
+
+관련 `DatasetListTest,DatasetCreationTest,WorkspaceMigrationTest,LocalAppSeedTest`의 10개 테스트를 Java 21 메모리 DB에서 실행해 통과했습니다. V10 단일 귀속의 감사 값 보존 이관과 재적용 0건, 두 공간 seed의 중복 없음, 다중 공간 생성·범위 검사·중복 없는 조회를 확인했습니다. 실제 local·운영 DB 적용·서버 재시작은 하지 않았습니다.
+
+## 워크스페이스 V10·local 초기 공간 — 2026-11-11
+
+`db/migration/app/V10__create_workspaces.sql`은 workspace·workspace_member와 dataset.workspace_id nullable FK·인덱스를 생성합니다. 기존 V1~V9는 변경하지 않았습니다. 현재 순서는 버전 V1~V10(common/identity의 V8 포함) → 공통 반복 01·02·03 → local의 R__local_app_seed.sql → R__local_workspace_seed.sql입니다. 기존 YAML 위치와 활성화 정책을 유지하며 repair는 필요하지 않습니다.
+
+local 공간 seed는 앞선 admin 초기 데이터에 의존하며 admin의 내부 user_key를 조회해 `공통 워크스페이스`의 소유자와 ACTIVE·ADMIN 멤버로 등록합니다. UUID·재실행 정책은 [테이블 문서](../db-schema/tables/workspace/README.md#sql과-초기-데이터-구현)를 따릅니다. 기존 반복 app seed는 변경하지 않았습니다. 이번 파일 추가로 local에는 공간 seed만 새로 실행되며 common에는 공간·멤버 데이터가 없습니다.
+
+기존 데이터셋은 workspace_id NULL로 보존합니다. 기존 데이터 매핑·생성 API 공간 전환·NOT NULL 적용은 후속 작업이며 현재 데이터 접근 정책도 변경하지 않았습니다. 실제 로컬·운영 DB 적용·재시작은 하지 않았습니다. 관련 3개 테스트만 Java 21의 메모리 DB에서 실행해 통과했습니다.
+
 ## 데이터셋 권한 공통 seed — 2026-11-10
 
 `db/seed/app/common/R__03_dataset_permissions.sql`은 데이터셋 조회·생성·사용·수정·삭제의 다섯 권한을 `auth_permission`에 등록합니다. 전체 코드는 [권한 테이블 정의서](../db-schema/tables/auth/auth-permission.md#데이터셋-권한-카탈로그)를 따릅니다. DML이므로 공통 seed에 배치하며 기존 SQL과 YAML은 변경하지 않습니다. 현재 실행 순서는 app 버전 스크립트(V1~V9, common/identity의 V8 포함) → 공통 반복 01 → 02 → 03 → local 반복 seed(해당 프로파일에서 미적용 또는 체크섬 변경 시)입니다.

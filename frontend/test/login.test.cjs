@@ -132,7 +132,7 @@ test('로그인 세션으로 생성 주소에 직접 접근하면 생성 페이�
   assert.match(html, /id="dataset-name"[^>]*required=""[^>]*maxLength="200"/)
   assert.match(html, /name="description"[^>]*maxLength="2000"/)
   assert.match(html, /<button[^>]*type="submit"[^>]*disabled=""[^>]*>데이터셋 생성<\/button>/)
-  assert.match(html, /href="\/">취소<\/a>/)
+  assert.match(html, /href="\/datasets">취소<\/a>/)
   assert.doesNotMatch(html, /프로젝트 시작 화면|role="dialog"/)
 })
 
@@ -174,18 +174,19 @@ test('이전 username 전용 세션은 재사용하지 않고 실명 미입력 �
 test('데이터셋 생성은 입력값과 Bearer 토큰을 보내고 서버 생성 정보를 반환한다', async t => {
   const dataset = { datasetId: 'generated-id', name: '학습 이미지', description: null,
     createdAt: '2026-11-10T10:00:00.123456Z', updatedAt: '2026-11-10T10:00:00.123456Z', createdBy: 'admin-key', updatedBy: 'admin-key' }
-  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(dataset, { status: 201 }))
-  assert.deepEqual(await createDataset({ name: '학습 이미지', description: null }, 'access-token'), dataset)
+  const copies = [{ ...dataset, workspaceId: 'space-a' }, { ...dataset, datasetId: 'second-id', workspaceId: 'space-b' }]
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(copies, { status: 201 }))
+  assert.deepEqual(await createDataset({ name: '학습 이미지', description: null, workspaceIds: ['space-a', 'space-b'] }, 'access-token'), copies)
   const [url, options] = request.mock.calls[0].arguments
   assert.equal(url, '/api/datasets')
   assert.equal(options.method, 'POST')
   assert.equal(options.headers.Authorization, 'Bearer access-token')
-  assert.deepEqual(JSON.parse(options.body), { name: '학습 이미지', description: null })
+  assert.deepEqual(JSON.parse(options.body), { name: '학습 이미지', description: null, workspaceIds: ['space-a', 'space-b'] })
 })
 
 test('데이터셋 생성 실패는 상태별로 안내하고 내부 오류 본문을 노출하지 않는다', async t => {
   const messages = new Map([
-    [400, /이름은 1~200자/], [401, /다시 로그인/], [403, /권한이 없습니다/], [500, /생성하지 못했습니다/],
+    [400, /워크스페이스를 선택/], [401, /다시 로그인/], [403, /생성 권한이 없거나/], [500, /생성하지 못했습니다/],
   ])
   const response = t.mock.method(globalThis, 'fetch', async () => new Response('private details', { status: 400 }))
   for (const [status, message] of messages) {

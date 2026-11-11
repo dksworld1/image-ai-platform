@@ -1,6 +1,11 @@
 spring:
   config:
     import: classpath:config/datasource/jdbc-local.yaml
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
 app:
   migration:
     enabled: true
