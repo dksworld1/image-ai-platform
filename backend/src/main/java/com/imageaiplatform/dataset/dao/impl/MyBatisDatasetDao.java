@@ -28,6 +28,11 @@ public class MyBatisDatasetDao implements DatasetDao {
     }
 
     @Override
+    public DatasetListItem findVisibleById(String datasetId, String userKey) {
+        return sqlSession.selectOne("dataset.findVisibleById", Map.of("datasetId", datasetId, "userKey", userKey));
+    }
+
+    @Override
     public Boolean canDelete(String datasetId, String userKey) {
         return sqlSession.selectOne("dataset.canDelete", Map.of("datasetId", datasetId, "userKey", userKey));
     }

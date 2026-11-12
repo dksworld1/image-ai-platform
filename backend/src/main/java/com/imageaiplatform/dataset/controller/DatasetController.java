@@ -29,6 +29,11 @@ public class DatasetController {
         return datasetService.list();
     }
 
+    @GetMapping("/{datasetId}")
+    public DatasetDetailResponse detail(@PathVariable String datasetId) {
+        return DatasetDetailResponse.from(datasetService.detail(datasetId));
+    }
+
     @DeleteMapping("/{datasetId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String datasetId) {

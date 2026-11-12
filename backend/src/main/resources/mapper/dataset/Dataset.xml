@@ -29,7 +29,7 @@
       <arg column="creator_username" javaType="java.lang.String"/>
     </constructor>
   </resultMap>
-  <select id="findVisibleToUser" parameterType="string" resultMap="listRow" useCache="false" flushCache="true">
+  <sql id="visibleRows">
     SELECT dataset.dataset_id, dataset.name, dataset.description, dataset.created_at, dataset.updated_at,
         space.workspace_id, space.name AS workspace_name,
         creator.user_id AS creator_user_id, creator.username AS creator_username
@@ -38,7 +38,13 @@
     JOIN workspace_member member ON member.workspace_id = space.workspace_id
     LEFT JOIN auth_user creator ON creator.user_key = dataset.created_by
     WHERE member.user_key = #{userKey} AND member.status = 'ACTIVE' AND space.status = 'ACTIVE'
+  </sql>
+  <select id="findVisibleToUser" parameterType="string" resultMap="listRow" useCache="false" flushCache="true">
+    <include refid="visibleRows"/>
     ORDER BY dataset.created_at DESC, dataset.dataset_id ASC, space.name, space.workspace_id
+  </select>
+  <select id="findVisibleById" resultMap="listRow" useCache="false" flushCache="true">
+    <include refid="visibleRows"/> AND dataset.dataset_id = #{datasetId}
   </select>
   <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.Dataset">
     INSERT INTO dataset (dataset_id, name, description, created_at, updated_at, created_by, updated_by, workspace_id)

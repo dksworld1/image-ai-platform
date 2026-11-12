@@ -33,6 +33,22 @@ export async function fetchDatasets(accessToken: string, signal?: AbortSignal): 
   return response.json() as Promise<DatasetListItem[]>
 }
 
+export async function fetchDatasetDetail(datasetId: string, accessToken: string, signal?: AbortSignal): Promise<DatasetListItem> {
+  let response: Response
+  try {
+    response = await fetch(`/api/datasets/${encodeURIComponent(datasetId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }, signal,
+    })
+  } catch (reason) {
+    if (signal?.aborted) throw reason
+    throw new Error('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.')
+  }
+  if (response.status === 401) throw new Error('로그인이 만료되었거나 계정을 사용할 수 없습니다. 다시 로그인해 주세요.')
+  if (response.status === 403) throw new Error('상세 조회 권한이 없거나 활성 워크스페이스 멤버가 아니거나 조회할 수 없는 데이터셋입니다.')
+  if (!response.ok) throw new Error('데이터셋 상세를 불러오지 못했습니다. 다시 시도해 주세요.')
+  return response.json() as Promise<DatasetListItem>
+}
+
 export async function deleteDataset(datasetId: string, accessToken: string): Promise<void> {
   let response: Response
   try {

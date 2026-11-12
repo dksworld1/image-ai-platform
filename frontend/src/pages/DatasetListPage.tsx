@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { deleteDataset, fetchDatasets, type DatasetListItem } from '../api/datasets'
+import DatasetDetailModal from './DatasetDetailModal'
 
 const dateTime = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -9,6 +10,7 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
   const [attempt, setAttempt] = useState(0)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [detailId, setDetailId] = useState<string | null>(null)
   const [deleteResult, setDeleteResult] = useState<{ deleted: number; failures: string[] } | null>(null)
   const selectAll = useRef<HTMLInputElement>(null)
   const submitting = useRef(false)
@@ -25,6 +27,7 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
     setError(null)
     setSelectedIds([])
     setDeleteResult(null)
+    setDetailId(null)
     fetchDatasets(accessToken, controller.signal).then(result => {
       if (!controller.signal.aborted) setDatasets(result)
     }).catch((reason: unknown) => {
@@ -101,7 +104,9 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
                 const checked = event.target.checked
                 setSelectedIds(current => checked ? [...current, dataset.datasetId] : current.filter(id => id !== dataset.datasetId))
               }} /></td>
-            <th scope="row">{dataset.name}</th><td>{dataset.description ?? '설명 없음'}</td>
+            <th scope="row"><button type="button" className="dataset-name-button" disabled={deleting}
+              aria-haspopup="dialog" aria-label={`${dataset.name} 상세 보기`}
+              onClick={() => setDetailId(dataset.datasetId)}>{dataset.name}</button></th><td>{dataset.description ?? '설명 없음'}</td>
             <td title={dataset.workspaceId}>{dataset.workspaceName}</td>
             <td>{dataset.creatorUserId ?? '-'}</td><td>{dataset.creatorUsername ?? '-'}</td>
             <td><time dateTime={dataset.createdAt}>{dateTime.format(new Date(dataset.createdAt))}</time></td>
@@ -109,5 +114,7 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
           </tr>)}</tbody>
         </table>
       </div>}
+    {detailId !== null && <DatasetDetailModal key={detailId} datasetId={detailId} accessToken={accessToken}
+      onClose={() => setDetailId(null)} />}
   </section>
 }

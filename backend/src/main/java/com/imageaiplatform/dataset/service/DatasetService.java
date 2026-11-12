@@ -44,6 +44,17 @@ public class DatasetService {
         return datasetDao.findVisibleToUser(actor);
     }
 
+    @PreAuthorize("@authorizationService.hasPermission('dataset:item:read')")
+    @Transactional(value = "appTransactionManager", readOnly = true)
+    public DatasetListItem detail(String datasetId) {
+        String actor = SecurityContextHolder.getContext().getAuthentication().getName();
+        var dataset = datasetDao.findVisibleById(datasetId, actor);
+        if (dataset == null) {
+            throw new AccessDeniedException("Dataset is unavailable or active workspace membership is required.");
+        }
+        return dataset;
+    }
+
     public boolean canDelete(String datasetId) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && Boolean.TRUE.equals(datasetDao.canDelete(datasetId, authentication.getName()));

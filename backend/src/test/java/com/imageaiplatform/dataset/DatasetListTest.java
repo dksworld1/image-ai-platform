@@ -50,6 +50,35 @@ class DatasetListTest {
     }
 
     @Test
+    void detailRequiresReadPermissionAndCurrentActiveMembership() throws Exception {
+        jdbc.update("INSERT INTO dataset (dataset_id, name, description, created_by, workspace_id) VALUES ('detail-a', '상세 데이터', '상세 설명', 'other', 'a')");
+        mvc.perform(get("/api/datasets/detail-a")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/datasets/detail-a").header("Authorization", bearer))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.datasetId").value("detail-a"))
+                .andExpect(jsonPath("$.description").value("상세 설명"))
+                .andExpect(jsonPath("$.workspaceName").value("공간 A"))
+                .andExpect(jsonPath("$.creatorUserId").value("other-login"))
+                .andExpect(jsonPath("$.creatorUsername").value("등록 담당자"));
+        jdbc.update("DELETE FROM auth_role_permission WHERE role_code='dataset-reader' AND permission_code='dataset:item:read'");
+        mvc.perform(get("/api/datasets/detail-a").header("Authorization", bearer)).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void detailRejectsNonMembersInactiveMembershipsArchivedSpacesAndUnknownIds() throws Exception {
+        jdbc.update("INSERT INTO dataset (dataset_id, name, created_by, workspace_id) VALUES ('detail-a', '상세', 'viewer', 'a'), ('hidden-detail', '숨김', 'viewer', 'hidden'), ('archived-detail', '보관', 'viewer', 'archived'), ('no-space', '미귀속', 'viewer', NULL)");
+        for (String id : new String[] {"hidden-detail", "archived-detail", "no-space", "missing"}) {
+            mvc.perform(get("/api/datasets/" + id).param("userKey", "other").header("Authorization", bearer))
+                    .andExpect(status().isForbidden());
+        }
+        for (String state : new String[] {"PENDING", "LEFT", "REMOVED"}) {
+            jdbc.update("UPDATE workspace_member SET status=?, requested_at=CURRENT_TIMESTAMP, joined_at=CASE WHEN ?='PENDING' THEN NULL ELSE CURRENT_TIMESTAMP END WHERE user_key='viewer' AND workspace_id='a'", state, state);
+            mvc.perform(get("/api/datasets/detail-a").header("Authorization", bearer)).andExpect(status().isForbidden());
+        }
+        jdbc.update("DELETE FROM workspace_member WHERE user_key='viewer' AND workspace_id='a'");
+        mvc.perform(get("/api/datasets/detail-a").header("Authorization", bearer)).andExpect(status().isForbidden());
+    }
+
+    @Test
     void createsIndependentDatasetsPerSpaceAndListsOnlyCurrentMemberships() throws Exception {
         mvc.perform(get("/api/workspaces").header("Authorization", bearer))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));

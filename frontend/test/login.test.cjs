@@ -14,9 +14,33 @@ for (const extension of ['.ts', '.tsx']) {
   }
 }
 const { login } = require('../src/api/auth.ts')
-const { createDataset } = require('../src/api/datasets.ts')
+const { createDataset, fetchDatasetDetail } = require('../src/api/datasets.ts')
 const App = require('../src/App.tsx').default
 const { saveAuthSession, loadAuthSession, clearAuthSession } = require('../src/authSession.ts')
+
+test('상세 조회는 선택 ID를 인코딩하고 현재 토큰과 취소 신호로 서버 정보를 조회한다', async t => {
+  const dataset = { datasetId: 'dataset/a', name: '서버 상세' }
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(dataset))
+  const controller = new AbortController()
+  assert.deepEqual(await fetchDatasetDetail('dataset/a', 'token', controller.signal), dataset)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.equal(options.signal, controller.signal)
+})
+
+test('상세 접근 거부는 멤버십 안내를 표시하고 요청 취소는 그대로 전달한다', async t => {
+  const request = t.mock.method(globalThis, 'fetch', async () => new Response('private server details', { status: 403 }))
+  await assert.rejects(fetchDatasetDetail('dataset', 'token'), error => {
+    assert.match(error.message, /권한.*멤버/)
+    assert.doesNotMatch(error.message, /private server/)
+    return true
+  })
+  const controller = new AbortController()
+  controller.abort()
+  request.mock.mockImplementation(async () => { throw controller.signal.reason })
+  await assert.rejects(fetchDatasetDetail('dataset', 'token', controller.signal), error => error === controller.signal.reason)
+})
 
 function sessionStorageForTest(t) {
   const entries = new Map()
