@@ -63,7 +63,7 @@ class WorkspaceMigrationTest {
         jdbc.update("INSERT INTO dataset_workspace (dataset_id, workspace_id) VALUES ('legacy', 'space-b')");
         jdbc.update("INSERT INTO dataset (dataset_id, name) VALUES ('unassigned', '미귀속')");
         var independent = Flyway.configure().dataSource(source)
-                .locations("classpath:db/migration/app", "classpath:db/seed/app/common").load();
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common").target("16").load();
         assertThat(independent.migrate().migrationsExecuted).isEqualTo(3);
         var split = jdbc.queryForList("SELECT * FROM dataset WHERE workspace_id IS NOT NULL ORDER BY workspace_id");
         assertThat(split).hasSize(2);

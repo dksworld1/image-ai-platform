@@ -22,6 +22,8 @@
 - [다중 공간 데이터셋 결정](decisions/ADR-033-dataset-multiple-workspaces.md): 가입 공간 통합 목록·다중 공간 생성·local 두 공간, 관리 화면은 후속
 - [공간별 독립 생성 결정](decisions/ADR-034-independent-dataset-creation.md): 현재 계약. 공간별 별도 ID·일괄 트랜잭션·미귀속 local 데이터 공통 공간 배정. ADR-033 공유 방침 대체
 - [데이터셋 삭제 권한](decisions/ADR-035-dataset-deletion-authorization.md): 삭제 기능 권한·활성 멤버십·공간 운영자 또는 데이터셋 생성자 조건. 삭제 UI·이미지 처리는 제외
+- [데이터셋 이미지 업로드](decisions/ADR-036-dataset-image-upload.md): 로컬 파일·원본명 DB 저장·데이터셋 내 중복 409·업로드 권한. 백엔드 구현, 프런트 취소
+- [일반 설정 직접 관리](decisions/ADR-037-application-yaml-settings.md): DB 외 일반 설정은 application.yaml에 직접 작성, DB 접속 import 유지
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의

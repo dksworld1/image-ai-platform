@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="datasetImage">
+  <resultMap id="image" type="com.imageaiplatform.dataset.domain.DatasetImage">
+    <constructor>
+      <idArg column="image_id" javaType="java.lang.String"/>
+      <arg column="dataset_id" javaType="java.lang.String"/>
+      <arg column="original_filename" javaType="java.lang.String"/>
+      <arg column="storage_path" javaType="java.lang.String"/>
+      <arg column="media_type" javaType="java.lang.String"/>
+      <arg column="size_bytes" javaType="java.lang.Long"/>
+      <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="created_by" javaType="java.lang.String"/>
+      <arg column="updated_by" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="existsByOriginalFilename" resultType="java.lang.Boolean" useCache="false" flushCache="true">
+    SELECT COUNT(*) > 0 FROM dataset_image WHERE dataset_id = #{datasetId} AND original_filename = #{originalFilename}
+  </select>
+  <select id="findByDatasetId" resultMap="image" useCache="false" flushCache="true">
+    SELECT * FROM dataset_image WHERE dataset_id = #{datasetId} ORDER BY created_at DESC, image_id
+  </select>
+  <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.DatasetImage">
+    <bind name="userKey" value="createdBy"/>
+    INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes,
+        created_at, updated_at, created_by, updated_by)
+    SELECT #{imageId}, #{datasetId}, #{originalFilename}, #{storagePath}, #{mediaType}, #{sizeBytes},
+        #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}
+    FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="dataset.deleteScope"/>
+  </insert>
+</mapper>

@@ -8,7 +8,7 @@ export default function AppLayout({ children, userId, username, onLogout, curren
   currentPath: string
 }) {
   return (
-    <div className="app-layout">
+    <div className={`app-layout${currentPath === '/datasets' ? ' dataset-list-layout' : ''}`}>
       <header className="app-header">
         <a className="brand" href="/">Image AI Platform</a>
         <div className="header-account">

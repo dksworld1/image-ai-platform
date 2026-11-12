@@ -1,6 +1,7 @@
 # ADR-013: Spring YAML 우선 및 주제별 설정 관리
 
 - 상태: 채택
+- 부분 대체(2026-11-12): [ADR-037](ADR-037-application-yaml-settings.md)에 따라 DB 외 일반 설정은 application.yaml 직접 작성으로 변경합니다. DB 접속 분리·외부 비밀정보 정책은 유지하며 아래 주제별 import 설명은 당시 결정 이력입니다.
 - 날짜: 2026-11-07
 - 대체/관련 기록: ADR-004, ADR-009 (환경 변수 사용 원칙 보완)
 

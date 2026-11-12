@@ -26,7 +26,7 @@ class DatabaseMigrationTest {
                 && migration.getVersion().toString().equals("9"));
         assertThat(new JdbcTemplate(app.getConfiguration().getDataSource()).queryForList(
                 "SELECT permission_code FROM auth_permission ORDER BY permission_code", String.class))
-                .containsExactly("dataset:item:create", "dataset:item:delete", "dataset:item:read",
+                .containsExactly("dataset:image:upload", "dataset:item:create", "dataset:item:delete", "dataset:item:read",
                         "dataset:item:update", "dataset:item:use");
         assertThat(audit.info().current().getVersion().toString()).isEqualTo("1");
         String sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'PUBLIC'";

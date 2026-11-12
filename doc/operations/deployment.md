@@ -1,5 +1,31 @@
 # 배포 및 서버 설정 운영
 
+## 이미지 업로드 저장소 — 2026-11-12
+
+app V18을 기존 마이그레이션 활성화·DDL/common 위치 설정으로 적용합니다. common 반복 R__04_image_permissions.sql은 dataset:image:upload를 등록하고 local의 R__local_image_permissions.sql은 기존 admin 역할에만 부여합니다. 실행 순서는 버전 마이그레이션 → 공통 반복 01~04 → local app → local image permissions → local workspace입니다. 운영 역할은 자동 부여하지 않습니다.
+
+이미지 저장·용량과 multipart 설정은 application.yaml에 직접 작성하며 별도 YAML import를 사용하지 않습니다. DB 접속 YAML import만 기존 방식을 유지합니다. 프로파일별 차이는 application-{profile}.yaml에서 재정의합니다. 다음 값은 외부 YAML로 덮어쓸 수 있으며 환경 변수·시작 스크립트에서 중복 설정하지 않습니다.
+
+```yaml
+app:
+  storage:
+    images:
+      directory: /srv/image-ai/images
+      max-file-size: 10MB
+spring:
+  servlet:
+    multipart:
+      max-request-size: 11MB
+```
+
+기본 directory는 backend 실행 디렉터리 기준 `./data/images`입니다. 서비스 계정에 저장·조회·실패 정리 권한이 있어야 합니다. 디렉터리는 업로드 시 생성하며 실제 파일명은 UUID.형식확장자입니다. DB storage_path는 상대 경로이므로 루트를 바꿀 때 기존 파일도 새 루트로 함께 이동해야 합니다. DB와 이미지 디렉터리를 함께 백업해야 원본명·파일 관계를 복원할 수 있습니다.
+
+파일당 최대 용량은 app.storage.images.max-file-size 한 값으로 서비스와 spring.servlet.multipart.max-file-size를 맞춥니다. 요청 전체 제한에는 multipart 부가 데이터가 포함되므로 파일당 용량을 늘릴 때 max-request-size도 여유 있게 조정해야 합니다. 허용 형식 4종·최대 4천만 화소는 현재 코드 정책이며 설정화 후보는 agent-suggestions에서 별도로 검토합니다.
+
+업로드 DB 실패 시 rollback 콜백이 작성 파일을 제거합니다. 정리 실패는 서버 로그에서 확인하며 별도 재시도 배치는 없습니다. 프로세스 중단이나 데이터셋 삭제 후 남은 실제 파일의 배치 정리는 후속 작업입니다. 데이터셋 삭제 시 메타데이터는 FK CASCADE로 제거하며 파일 삭제는 하지 않습니다. DB·파일 시스템이 하나의 분산 트랜잭션으로 묶인 것은 아닙니다.
+
+이번 작업은 격리된 메모리 DB·target 테스트 폴더에서 업로드·원본명 중복·권한·DB 실패 파일 정리와 local 권한 연결을 검증했습니다. 실제 사용자 DB 적용·서버 재시작·운영 저장소 접근은 하지 않았습니다. 프런트 업로드 구현은 사용자 요청으로 취소했으며 기존 화면으로 다시 빌드했습니다.
+
 ## 데이터셋 삭제 백엔드 배포 — 2026-11-11
 
 DELETE /api/datasets/{datasetId}를 추가했습니다. 신규 DDL·API 입력 화면은 없습니다. 기존 dataset:item:delete 권한을 사용하며 local 공간 seed 체크섬 변경 시 admin 역할에 삭제 기능 권한도 명시적으로 연결합니다. 생성자·공간 관리자 모두 삭제 기능 권한과 해당 공간의 ACTIVE 멤버십을 충족해야 합니다. 운영의 일반 사용자·관리자 역할에 대한 자동 권한 부여는 하지 않습니다. 운영에서 사용할 역할에는 기존 RBAC 방식으로 해당 권한을 부여해야 합니다.

@@ -56,6 +56,10 @@ public class DatasetService {
     }
 
     public boolean canDelete(String datasetId) {
+        return canManage(datasetId);
+    }
+
+    public boolean canManage(String datasetId) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && Boolean.TRUE.equals(datasetDao.canDelete(datasetId, authentication.getName()));
     }

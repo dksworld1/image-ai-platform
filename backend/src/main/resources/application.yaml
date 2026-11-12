@@ -3,11 +3,19 @@ spring:
     name: image-ai-platform-api
   profiles:
     default: local
+  servlet:
+    multipart:
+      max-file-size: ${app.storage.images.max-file-size}
+      max-request-size: 11MB
 
 server:
   port: 8080
 
 app:
+  storage:
+    images:
+      directory: ./data/images
+      max-file-size: 10MB
   migration:
     enabled: false
     app-locations:

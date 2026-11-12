@@ -1,6 +1,7 @@
 # dataset 테이블 정의
 
 - 상태: 생성 구현
+- 하위 이미지(2026-11-12): [dataset_image](dataset-image.md) 업로드·메타데이터 조회 구현. dataset 삭제 시 메타데이터는 CASCADE, 실제 파일 삭제는 후속.
 - 현재 공간 관계(2026-11-11): V14~V16으로 dataset.workspace_id 단일 FK 복원·공유 연결 제거. 여러 공간 선택 시 ID가 다른 독립 데이터셋을 각각 생성합니다. [ADR-034](../../../decisions/ADR-034-independent-dataset-creation.md)를 따릅니다.
 - 과거 local 데이터: 공간 미지정 행만 V17에서 첫 번째 공통 공간으로 배정하며 기존 귀속은 유지합니다. 생성 정보 보존·수정 정보 시스템 이관 기록. 실제 DB 미적용.
 - 갱신일: 2026-11-10

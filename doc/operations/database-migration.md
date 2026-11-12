@@ -1,5 +1,11 @@
 # DB 마이그레이션 설정
 
+## 데이터셋 이미지 V18 — 2026-11-12
+
+V18은 dataset_image와 데이터셋별 원본명 UNIQUE·저장 경로 UNIQUE·FK CASCADE를 정의합니다. 과거 SQL은 변경하지 않습니다. common R__04_image_permissions.sql은 업로드 기능 권한을 등록하고 local R__local_image_permissions.sql은 admin 역할에 해당 권한만 명시적으로 부여합니다. 공통에는 local 역할 부여가 없습니다. 기본 locations는 이미 필요한 경로를 포함하므로 수정하지 않습니다.
+
+버전 SQL(V17은 local에만 포함) 뒤에 공통 반복 01~04, local app → local image permissions → local workspace 순으로 실행합니다. 새 파일이므로 기존 이력 repair는 필요하지 않습니다. 데이터셋 삭제 시 이미지 메타데이터는 함께 삭제되지만 파일 삭제·배치는 후속입니다. [테이블](../db-schema/tables/dataset/dataset-image.md)과 [저장 운영](deployment.md#이미지-업로드-저장소--2026-11-12)을 따릅니다. 실제 DB에는 아직 적용하지 않았습니다.
+
 ## local 데이터셋 삭제 권한 — 2026-11-11
 
 삭제 API는 기존 dataset:item:delete 카탈로그를 재사용하여 추가 DDL이나 버전 마이그레이션이 없습니다. R__local_workspace_seed.sql은 admin 역할에 read·create·delete를 명시적으로 연결하며 기존 연결·감사 값은 보존합니다. 체크섬 변경으로 다음 local 마이그레이션 때 재실행됩니다. common·운영 역할에는 자동 연결하지 않습니다. 관련 삭제·local seed 테스트 3개 통과, 실제 DB 적용·삭제는 하지 않았습니다.

@@ -1,5 +1,11 @@
 # 아키텍처
 
+## 데이터셋 이미지 저장 — 2026-11-12
+
+dataset 모듈의 DatasetImageController는 multipart HTTP 경계만 처리하고 DatasetImageService가 권한·원본명 중복·콘텐츠 검증·파일 저장과 DB 등록을 담당합니다. MyBatis DAO는 app V18의 dataset_image를 사용합니다. 로컬 파일의 UUID 상대 경로와 사용자 표시용 원본명을 분리하며 저장·업로드 일반 설정은 application.yaml에 직접 작성합니다. 실제 INSERT에도 데이터셋 관리 범위를 확인하고 DB 실패 시 파일을 정리합니다. 목록은 기존 데이터셋 읽기 범위를 재사용합니다. [ADR-036](../decisions/ADR-036-dataset-image-upload.md), [API](../api/api.md#데이터셋-이미지-업로드), [테이블](../db-schema/tables/dataset/dataset-image.md)을 따릅니다.
+
+사용자 요청으로 이미지 업로드의 프런트 화면 구현은 취소했습니다. 백엔드 단건 업로드·메타데이터 목록만 제공하며 이미지 다운로드·파일 삭제·배치·외부 저장소 추상화는 추가하지 않았습니다. 데이터셋 삭제는 DB 이미지 메타데이터를 함께 제거하지만 실제 파일 정리는 후속입니다.
+
 ## 데이터셋 삭제 경계 — 2026-11-11
 
 DELETE API는 dataset 서비스의 `@PreAuthorize`에서 dataset:item:delete와 실제 공간 범위를 AND로 검사합니다. 활성 공간·ACTIVE 멤버십을 필수로 하고 OWNER·공간 ADMIN·데이터셋 생성자 중 하나를 허용합니다. MyBatis의 공통 SQL 조건을 사전 판정과 조건부 DELETE에 함께 적용합니다. 새 권한 검사 계층·UI·이미지 처리·배치는 추가하지 않았습니다. [ADR-035](../decisions/ADR-035-dataset-deletion-authorization.md)와 [API](../api/api.md#데이터셋-삭제)가 현재 기준입니다. 아래 삭제 미구현 설명은 이전 단계 이력입니다.
@@ -70,7 +76,7 @@ local/test는 `app`과 별도 H2 파일을 사용하는 `audit` 데이터소스�
 
 Spring 초기화 전 필요한 런타임 설정은 클래스패스 `config/runtime/` 바로 아래의 주제별 UTF-8 `.properties` 파일과 중앙 로더로 관리합니다. `foundation.config`의 `RuntimeSettingsLoader`가 파일을 읽고 불변 `RuntimeSettings`를 `RuntimeConfig`의 정적 필드 초기화 시 생성해 정적 `settings()`로 제공합니다. `main()`의 초기화 호출은 사용하지 않습니다. 실제 설정 항목은 아직 없어 현재 설정 객체는 필드 없는 record입니다. 새 항목은 명시적 필드와 중앙 로더 매핑을 함께 추가합니다. 상세 설계는 [ADR-014](../decisions/ADR-014-static-runtime-settings.md)를 따릅니다.
 
-백엔드 애플리케이션 설정은 Spring YAML을 우선 사용합니다. 프로젝트 설정에 환경 변수 사용을 금지합니다. YAML은 가능한 한 주제별로 분리해 `spring.config.import`로 조합하며 비밀값이 포함된 파일은 저장소 밖에서 관리합니다. [ADR-013](../decisions/ADR-013-topic-based-spring-yaml.md)을 따릅니다.
+백엔드의 DB 외 일반 설정은 application.yaml에 직접 작성하고 프로파일 차이만 application-{profile}.yaml에서 재정의합니다. DB 접속 설정은 기존 YAML import를 유지합니다. 프로젝트 설정에 환경 변수 사용을 금지하며 비밀값은 저장소 밖의 YAML을 additional-location으로 읽습니다. [ADR-037](../decisions/ADR-037-application-yaml-settings.md)이 ADR-013의 일반 설정 주제별 import 방침을 대체합니다.
 
 현재 배포 설정은 [배포 및 서버 설정 운영](../operations/deployment.md)을 따릅니다.
 

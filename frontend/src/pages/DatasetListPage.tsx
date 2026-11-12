@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { deleteDataset, fetchDatasets, type DatasetListItem } from '../api/datasets'
 import DatasetDetailModal from './DatasetDetailModal'
 
 const dateTime = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
+const columnLabels = ['선택', '이름', '설명', '워크스페이스', '생성자 ID', '생성자 이름', '생성일시', '수정일시']
 
 export default function DatasetListPage({ accessToken }: { accessToken: string }) {
   const [datasets, setDatasets] = useState<DatasetListItem[] | null>(null)
@@ -14,6 +15,46 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
   const [deleteResult, setDeleteResult] = useState<{ deleted: number; failures: string[] } | null>(null)
   const selectAll = useRef<HTMLInputElement>(null)
   const submitting = useRef(false)
+  const [columnWidths, setColumnWidths] = useState([52, 150, 150, 150, 150, 150, 149, 149].map(width => width / 11))
+  const resizing = useRef<{ index: number; startX: number; widths: number[] } | null>(null)
+
+  function resizeColumns(index: number, delta: number, widths: number[]) {
+    const total = widths.reduce((sum, width) => sum + width, 0)
+    const minimum = Math.min(index === 0 ? 44 : 80, widths[index])
+    const nextMinimum = Math.min(80, widths[index + 1])
+    const change = Math.max(minimum - widths[index], Math.min(delta, widths[index + 1] - nextMinimum))
+    setColumnWidths(widths.map((width, position) =>
+      (width + (position === index ? change : position === index + 1 ? -change : 0)) / total * 100))
+  }
+
+  function startResize(event: PointerEvent<HTMLSpanElement>, index: number) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    const widths = Array.from(event.currentTarget.closest('tr')!.querySelectorAll('th'), header => header.getBoundingClientRect().width)
+    resizing.current = { index, startX: event.clientX, widths }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function resizeHandle(index: number) {
+    return <span className="column-resize-handle" role="separator" aria-orientation="vertical" tabIndex={0}
+      aria-label={`${columnLabels[index]} 컬럼 너비 조절`}
+      onPointerDown={event => startResize(event, index)}
+      onPointerMove={event => {
+        const drag = resizing.current
+        if (drag?.index === index) resizeColumns(index, event.clientX - drag.startX, drag.widths)
+      }}
+      onPointerUp={event => {
+        resizing.current = null
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+      }}
+      onLostPointerCapture={() => { resizing.current = null }}
+      onKeyDown={event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+        event.preventDefault()
+        const widths = Array.from(event.currentTarget.closest('tr')!.querySelectorAll('th'), header => header.getBoundingClientRect().width)
+        resizeColumns(index, event.key === 'ArrowRight' ? 16 : -16, widths)
+      }} />
+  }
 
   useEffect(() => {
     if (selectAll.current) {
@@ -90,13 +131,13 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
       </div> : <div className="dataset-table-scroll" role="region" aria-label="데이터셋 목록 표" tabIndex={0}>
         <table className="dataset-table">
           <caption>데이터셋 {datasets.length}개 · 최신 생성순 · 일시는 현지 시간 기준</caption>
+          <colgroup>{columnWidths.map((width, index) => <col key={columnLabels[index]} style={{ width: `${width}%` }} />)}</colgroup>
           <thead><tr><th scope="col" className="selection-column"><input ref={selectAll} type="checkbox"
             aria-label="데이터셋 전체 선택" disabled={deleting}
             checked={datasets.length > 0 && selectedIds.length === datasets.length}
-            onChange={event => setSelectedIds(event.target.checked ? datasets.map(dataset => dataset.datasetId) : [])} /></th>
-            <th scope="col">이름</th><th scope="col">설명</th><th scope="col">워크스페이스</th>
-            <th scope="col">생성자 ID</th><th scope="col">생성자 이름</th>
-            <th scope="col">생성일시</th><th scope="col">수정일시</th></tr></thead>
+            onChange={event => setSelectedIds(event.target.checked ? datasets.map(dataset => dataset.datasetId) : [])} />{resizeHandle(0)}</th>
+            {columnLabels.slice(1).map((label, index) => <th key={label} scope="col">{label}
+              {index + 1 < columnLabels.length - 1 && resizeHandle(index + 1)}</th>)}</tr></thead>
           <tbody>{datasets.map(dataset => <tr key={dataset.datasetId}>
             <td className="selection-column"><input type="checkbox" disabled={deleting}
               aria-label={`${dataset.name} · ${dataset.workspaceName} 선택`}
