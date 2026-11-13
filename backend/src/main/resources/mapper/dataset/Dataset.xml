@@ -31,13 +31,15 @@
       <arg column="creator_user_id" javaType="java.lang.String"/>
       <arg column="creator_username" javaType="java.lang.String"/>
       <arg column="image_count" javaType="java.lang.Long"/>
+      <arg column="file_count" javaType="java.lang.Long"/>
     </constructor>
   </resultMap>
   <sql id="visibleRows">
     SELECT dataset.dataset_id, dataset.name, dataset.description, dataset.created_at, dataset.updated_at,
         space.workspace_id, space.name AS workspace_name,
         creator.user_id AS creator_user_id, creator.username AS creator_username,
-        (SELECT COUNT(*) FROM dataset_image image WHERE image.dataset_id = dataset.dataset_id AND image.is_deleted = FALSE) AS image_count
+        (SELECT COUNT(*) FROM dataset_image image WHERE image.dataset_id = dataset.dataset_id AND image.is_deleted = FALSE) AS image_count,
+        (SELECT COUNT(*) FROM dataset_file data_file WHERE data_file.dataset_id = dataset.dataset_id AND data_file.is_deleted = FALSE) AS file_count
     FROM dataset
     JOIN workspace space ON space.workspace_id = dataset.workspace_id
     JOIN workspace_member member ON member.workspace_id = space.workspace_id

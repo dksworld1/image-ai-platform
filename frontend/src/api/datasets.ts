@@ -18,6 +18,7 @@ export type DatasetListItem = Pick<Dataset, 'datasetId' | 'name' | 'description'
   creatorUserId: string | null
   creatorUsername: string | null
   imageCount: number
+  fileCount: number
 }
 
 export async function fetchDatasets(accessToken: string, signal?: AbortSignal): Promise<DatasetListItem[]> {

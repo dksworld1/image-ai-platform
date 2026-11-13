@@ -3,7 +3,7 @@ import { deleteDataset, fetchDatasets, type DatasetListItem } from '../api/datas
 import DatasetDetailModal from './DatasetDetailModal'
 
 const dateTime = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
-const columnLabels = ['선택', '이름', '설명', '워크스페이스', '이미지 개수', '생성자 ID', '생성자 이름', '생성일시', '수정일시']
+const columnLabels = ['선택', '이름', '설명', '워크스페이스', '이미지 개수', '데이터 파일 개수', '생성자 ID', '생성자 이름', '생성일시', '수정일시']
 
 function DatasetContextMenu({ target, onClose, onDetail }: {
   target: { dataset: DatasetListItem; x: number; y: number; trigger: HTMLElement }
@@ -62,7 +62,7 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
   const selectAll = useRef<HTMLInputElement>(null)
   const submitting = useRef(false)
   const [columnWidths, setColumnWidths] = useState(() => {
-    const widths = [52, 150, 150, 150, 100, 150, 150, 149, 149]
+    const widths = [52, 150, 150, 150, 100, 120, 150, 150, 149, 149]
     const total = widths.reduce((sum, width) => sum + width, 0)
     return widths.map(width => width / total * 100)
   })
@@ -210,6 +210,7 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
               onClick={() => setDetailId(dataset.datasetId)}>{dataset.name}</button></th><td>{dataset.description ?? '설명 없음'}</td>
             <td title={dataset.workspaceId}>{dataset.workspaceName}</td>
             <td>{new Intl.NumberFormat('ko-KR').format(dataset.imageCount)}개</td>
+            <td>{new Intl.NumberFormat('ko-KR').format(dataset.fileCount)}개</td>
             <td>{dataset.creatorUserId ?? '-'}</td><td>{dataset.creatorUsername ?? '-'}</td>
             <td><time dateTime={dataset.createdAt}>{dateTime.format(new Date(dataset.createdAt))}</time></td>
             <td><time dateTime={dataset.updatedAt}>{dateTime.format(new Date(dataset.updatedAt))}</time></td>

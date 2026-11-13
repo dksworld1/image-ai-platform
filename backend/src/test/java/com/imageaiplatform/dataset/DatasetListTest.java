@@ -50,16 +50,20 @@ class DatasetListTest {
     }
 
     @Test
-    void listsImageCountsPerDatasetIncludingEmptyAndLegacyImages() throws Exception {
+    void listsActiveImageAndFileCountsPerDatasetIncludingEmptyDatasets() throws Exception {
         jdbc.update("INSERT INTO dataset (dataset_id, name, workspace_id) VALUES ('count-a', '이미지 둘', 'a'), ('count-b', '이미지 없음', 'b'), ('count-hidden', '숨김', 'hidden')");
         jdbc.update("INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes) VALUES ('image-a', 'count-a', 'a.png', 'a.png', 'image/png', 1), ('image-b', 'count-a', 'b.png', 'b.png', 'image/png', 1), ('image-hidden', 'count-hidden', 'c.png', 'c.png', 'image/png', 1)");
+        jdbc.update("INSERT INTO dataset_file (file_id, dataset_id, original_filename, storage_path, media_type, size_bytes, is_deleted) VALUES ('file-a', 'count-a', '자료/a.csv', 'a.csv', 'application/octet-stream', 1, FALSE), ('file-b', 'count-a', 'b.png', 'file-b.png', 'application/octet-stream', 1, FALSE), ('file-old', 'count-a', '자료/a.csv', 'old.csv', 'application/octet-stream', 1, TRUE), ('file-hidden', 'count-hidden', 'hidden.csv', 'hidden.csv', 'application/octet-stream', 1, FALSE)");
         mvc.perform(get("/api/datasets").header("Authorization", bearer))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[?(@.datasetId == 'count-a')].imageCount").value(org.hamcrest.Matchers.contains(2)))
-                .andExpect(jsonPath("$[?(@.datasetId == 'count-b')].imageCount").value(org.hamcrest.Matchers.contains(0)));
+                .andExpect(jsonPath("$[?(@.datasetId == 'count-b')].imageCount").value(org.hamcrest.Matchers.contains(0)))
+                .andExpect(jsonPath("$[?(@.datasetId == 'count-a')].fileCount").value(org.hamcrest.Matchers.contains(2)))
+                .andExpect(jsonPath("$[?(@.datasetId == 'count-b')].fileCount").value(org.hamcrest.Matchers.contains(0)));
         jdbc.update("DELETE FROM dataset_image WHERE image_id='image-a'");
+        jdbc.update("UPDATE dataset_file SET is_deleted=TRUE WHERE file_id='file-b'");
         mvc.perform(get("/api/datasets/count-a").header("Authorization", bearer))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.imageCount").value(1));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.imageCount").value(1)).andExpect(jsonPath("$.fileCount").value(1));
     }
 
     @Test
