@@ -49,6 +49,11 @@ public class MyBatisDatasetImageDao implements DatasetImageDao {
     }
 
     @Override
+    public Integer updateDescription(DatasetImage image) {
+        return sqlSession.update("datasetImage.updateDescription", image);
+    }
+
+    @Override
     public Integer insertHistory(DatasetImageHistory history) {
         return sqlSession.insert("datasetImage.insertHistory", history);
     }

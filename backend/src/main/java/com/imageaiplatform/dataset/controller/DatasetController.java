@@ -3,6 +3,8 @@ package com.imageaiplatform.dataset.controller;
 import com.imageaiplatform.dataset.domain.DatasetListItem;
 import com.imageaiplatform.dataset.domain.DatasetImageTarget;
 import com.imageaiplatform.dataset.service.DatasetImageService;
+import com.imageaiplatform.dataset.service.DatasetFileService;
+import com.imageaiplatform.dataset.domain.DatasetFileTarget;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,10 +24,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class DatasetController {
     private final DatasetService datasetService;
     private final DatasetImageService imageService;
+    private final DatasetFileService fileService;
 
-    public DatasetController(DatasetService datasetService, DatasetImageService imageService) {
+    public DatasetController(DatasetService datasetService, DatasetImageService imageService, DatasetFileService fileService) {
         this.datasetService = datasetService;
         this.imageService = imageService;
+        this.fileService = fileService;
     }
 
     @GetMapping
@@ -41,6 +45,11 @@ public class DatasetController {
     @GetMapping("/image-targets")
     public List<DatasetImageTarget> imageTargets() {
         return imageService.targets();
+    }
+
+    @GetMapping("/file-targets")
+    public List<DatasetFileTarget> fileTargets() {
+        return fileService.targets();
     }
 
     @DeleteMapping("/{datasetId}")

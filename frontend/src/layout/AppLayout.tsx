@@ -8,7 +8,7 @@ export default function AppLayout({ children, userId, username, onLogout, curren
   currentPath: string
 }) {
   return (
-    <div className={`app-layout${currentPath === '/datasets' || currentPath === '/datasets/images' ? ' dataset-list-layout' : ''}`}>
+    <div className={`app-layout${['/datasets', '/datasets/manage', '/datasets/images'].includes(currentPath) ? ' dataset-list-layout' : ''}`}>
       <header className="app-header">
         <a className="brand" href="/">Image AI Platform</a>
         <div className="header-account">
@@ -31,8 +31,8 @@ export default function AppLayout({ children, userId, username, onLogout, curren
               <a className="navigation-link" href="/datasets/new"
                 aria-current={currentPath === '/datasets/new' ? 'page' : undefined}>데이터셋 생성</a>
             </li>
-            <li><a className="navigation-link" href="/datasets/images"
-              aria-current={currentPath === '/datasets/images' ? 'page' : undefined}>이미지 관리</a></li>
+            <li><a className="navigation-link" href="/datasets/manage"
+              aria-current={['/datasets/manage', '/datasets/images'].includes(currentPath) ? 'page' : undefined}>데이터셋 관리</a></li>
           </ul>
         </details>
       </nav>

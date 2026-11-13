@@ -58,12 +58,23 @@
       <arg column="creator_username" javaType="java.lang.String"/>
       <arg column="updater_user_id" javaType="java.lang.String"/>
       <arg column="updater_username" javaType="java.lang.String"/>
+      <arg column="first_registered_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="description" javaType="java.lang.String"/>
     </constructor>
   </resultMap>
   <sql id="imageRows">
+    WITH RECURSIVE image_lineage(image_id, first_registered_at) AS (
+      SELECT image_id, created_at FROM dataset_image
+      WHERE dataset_id = #{datasetId} AND version_count = 1 AND previous_image_id IS NULL
+      UNION ALL
+      SELECT next_image.image_id, lineage.first_registered_at
+      FROM dataset_image next_image JOIN image_lineage lineage ON next_image.previous_image_id = lineage.image_id
+      WHERE next_image.dataset_id = #{datasetId}
+    )
     SELECT image.*, creator.user_id AS creator_user_id, creator.username AS creator_username,
-        updater.user_id AS updater_user_id, updater.username AS updater_username
+        updater.user_id AS updater_user_id, updater.username AS updater_username, lineage.first_registered_at
     FROM dataset_image image
+    LEFT JOIN image_lineage lineage ON lineage.image_id = image.image_id
     LEFT JOIN auth_user creator ON creator.user_key = image.created_by
     LEFT JOIN auth_user updater ON updater.user_key = image.updated_by
     WHERE image.is_deleted = FALSE
@@ -89,19 +100,25 @@
   <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.DatasetImage">
     <bind name="userKey" value="createdBy"/>
     INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes,
-        created_at, updated_at, created_by, updated_by, thumbnail_path, is_deleted, version_count, previous_image_id)
+        created_at, updated_at, created_by, updated_by, thumbnail_path, is_deleted, version_count, previous_image_id, description)
     SELECT #{imageId}, #{datasetId}, #{originalFilename}, #{storagePath}, #{mediaType}, #{sizeBytes},
-        #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}, #{thumbnailPath}, #{deleted}, #{versionCount}, #{previousImageId}
+        #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}, #{thumbnailPath}, #{deleted}, #{versionCount}, #{previousImageId}, #{description}
     FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>
   </insert>
+  <update id="updateDescription" parameterType="com.imageaiplatform.dataset.domain.DatasetImage">
+    <bind name="userKey" value="updatedBy"/>
+    UPDATE dataset_image SET description = #{description,jdbcType=VARCHAR}, updated_at = #{updatedAt}, updated_by = #{updatedBy}
+    WHERE image_id = #{imageId} AND dataset_id = #{datasetId} AND is_deleted = FALSE
+      AND EXISTS (SELECT 1 FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>)
+  </update>
   <insert id="insertHistory" parameterType="com.imageaiplatform.dataset.domain.DatasetImageHistory">
     INSERT INTO dataset_image_history (history_id, image_id, dataset_id, action, version_count, previous_image_id,
         original_filename, storage_path, thumbnail_path, media_type, size_bytes,
         image_created_at, image_updated_at, image_created_by, image_updated_by,
-        created_at, updated_at, created_by, updated_by)
+        created_at, updated_at, created_by, updated_by, description)
     VALUES (#{historyId}, #{image.imageId}, #{image.datasetId}, #{action}, #{image.versionCount}, #{image.previousImageId},
         #{image.originalFilename}, #{image.storagePath}, #{image.thumbnailPath}, #{image.mediaType}, #{image.sizeBytes},
         #{image.createdAt}, #{image.updatedAt}, #{image.createdBy}, #{image.updatedBy},
-        #{createdAt}, #{createdAt}, #{createdBy}, #{createdBy})
+        #{createdAt}, #{createdAt}, #{createdBy}, #{createdBy}, #{image.description})
   </insert>
 </mapper>

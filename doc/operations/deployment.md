@@ -1,5 +1,19 @@
 # 배포 및 서버 설정 운영
 
+## 로컬 백엔드 재실행 확인 — 2026-11-13
+
+사용자 후속 지시에 따라 백엔드 서버 소스코드를 수정한 경우에만 구현 완료 후 8080 바인딩 프로세스를 확인·종료하고 기존 bin/start-local-backend.ps1을 숨김 창으로 재실행합니다. 프런트엔드·문서만 수정한 경우에는 재시작하지 않습니다. 포트·Java 경로는 bin/local.settings.ps1을 사용합니다. 시작 후 GET http://127.0.0.1:8080/api/health의 정상 응답을 확인하고 재시작 완료를 알립니다.
+
+이번 실행 직전에는 8080 리스닝 프로세스가 없었습니다. 스크립트 실행 후 Tomcat 8080 기동과 GET /api/health의 HTTP 200·{"status":"UP"} 응답을 확인했습니다. app Flyway 로그는 현재 버전 22가 최신이며 추가 마이그레이션이 없음을 확인했습니다. 이는 앞선 작업 기록의 서버 미재시작 상태 이후 실제 수행 기록입니다. 이 API는 애플리케이션 HTTP 응답 확인용이며 DB·저장소 전체 정상 여부를 보장하지 않습니다.
+
+## 이미지 설명·일괄 저장 배포 — 2026-11-13
+
+app V22 DDL을 적용하는 서버와 파일별 설명·목록 편집 프런트를 함께 배포합니다. 업로드 multipart의 선택 description 필드와 설명 일괄 PATCH API를 추가했으며 기존 image:update 권한을 재사용합니다. 실행 설정·역할 자동 부여 변경은 없습니다. 설명과 이력은 같은 트랜잭션이며 일괄 실패 시 전부 롤백합니다. 원본 파일·버전은 바꾸지 않습니다. 기존 DB·이력의 설명은 NULL이고 새 이력부터 설명을 기록합니다. 실제 사용자 DB 적용·서버 재시작은 하지 않았습니다.
+
+## 개별 이미지 선택 삭제 — 2026-11-13
+
+서버 DELETE API와 이미지 목록 체크박스·선택 삭제 UI를 함께 배포합니다. 기존 V20·V21·dataset:image:delete 권한을 사용하므로 새 DDL·권한 등록은 없습니다. 역할에 image delete가 있어도 대상 공간 활성 멤버십·공간 운영자/데이터셋 생성자 조건이 필요합니다. 서버 설정 변경·실제 사용자 DB 적용·서버 재시작은 하지 않았습니다. 삭제 표시된 행·원본·썸네일·이력은 계속 보관하므로 일반 목록에 없다는 이유로 파일을 정리하지 않습니다. [API](../api/api.md#delete-apidatasetsdatasetidimagesimageid)를 따릅니다.
+
 ## 이미지 권한 분리 배포 — 2026-11-13
 
 이미지 조회·수정의 권한 코드가 변경되어 서버·프런트와 수정된 common/local 반복 seed를 함께 배포합니다. [seed 적용](database-migration.md#이미지-기능-권한-분리-seed--2026-11-13)을 따릅니다. 기존 dataset:item:read와 dataset:image:upload만 가진 운영 역할에 read·update가 자동 부여되지는 않습니다. 해당 사용자에게 허용할 이미지 read·upload·update·delete를 역할별로 명시해야 합니다. local admin에는 네 권한을 자동 연결합니다. 이미지 관리 화면은 별도 image-targets API를 사용하므로 기존 프런트와 서버를 함께 갱신합니다.
@@ -325,3 +339,19 @@ local YAML의 app.cors.allowed-origin은 localhost와 127.0.0.1 각각의 5173·
 2026-11-09 수정 전 실제 미리보기 프록시에 Origin=http://127.0.0.1:4173을 포함한 admin 로그인이 HTTP 403과 Invalid CORS request로 거부되는 것을 재현했습니다. Origin 없는 동일 요청은 HTTP 200이었습니다. 설정 변경 후 실행 중인 백엔드를 재시작해야 적용됩니다.
 
 수정 후 Java 21.0.13·Maven 3.10.0에서 전체 60개 테스트가 통과했습니다. local 프로파일로 네 출처의 preflight와 admin 로그인 성공·토큰 발급을 MockMvc에서 확인하고 미허용 출처 거부 검증을 유지했습니다. 실행 중인 서버 DB를 사용하지 않도록 mvn test에 검증 전용 datasource.app.url=jdbc:h2:mem:loopback-login-app;DB_CLOSE_DELAY=-1 및 datasource.audit.url=jdbc:h2:mem:loopback-login-audit;DB_CLOSE_DELAY=-1을 지정했습니다. 실제 서버 재시작과 재시작 후 브라우저 조작은 수행하지 않았습니다.
+
+## 데이터 파일 저장 설정 — 2026-11-13
+
+폴더 업로드(ADR-046)는 선택 폴더부터의 상대 경로를 DB 원본명에만 저장하며 서버 디스크에 사용자 폴더 구조를 생성하지 않습니다. 데이터 파일의 UUID + 확장자는 마지막 파일명에서 확장자를 추출합니다. 이미지의 UUID 원본·썸네일 저장은 유지합니다. V25가 두 유형의 원본 경로 길이를 확장하며 별도 런타임 설정은 추가하지 않습니다.
+
+2026-11-13 21:22(KST) 적용: 기존 8080 바인딩 프로세스를 종료하고 bin/start-local-backend.ps1을 숨김 창으로 재실행했습니다. local app DB에 V25 적용 및 /api/health HTTP 200, {"status":"UP"}를 확인했습니다. V24는 앞선 21:15 재시작에서 이미 적용했습니다. 브라우저 실제 폴더 선택 조작은 검증하지 않았습니다.
+
+데이터 파일은 application.yaml의 app.storage.files.directory(기본 ./data/files), app.storage.files.max-file-size(기본 10MB)로 관리합니다. 상대 루트는 백엔드 실행 작업 디렉터리를 기준으로 해석합니다. DB에는 루트 아래 UUID + 원본 확장자 상대 경로와 원본명을 기록합니다. 확장자의 대소문자는 유지하며 마지막 확장자만 사용합니다. 확장자가 없는 파일은 UUID로 저장하고 기존 UUID.bin 파일은 DB 경로로 계속 조회합니다(ADR-045). 외부 YAML이 필요하면 기존 Spring 표준 spring.config.additional-location으로 덮어쓰며 주제별 import·환경 변수는 추가하지 않습니다.
+
+현재 servlet multipart 파일 한도는 app.storage.images.max-file-size를 참조하고 요청 한도는 11MB입니다. 이미지·데이터 파일 모두 기본 10MB이며, 데이터 파일 최대값만 올려도 multipart 공통 한도가 먼저 적용됩니다. 운영에서 한도를 변경할 때 공통 multipart 파일/요청 한도와 두 유형별 한도를 함께 확인합니다. 유형별 실제 검증은 각 서비스가 수행합니다.
+
+데이터 파일은 다운로드 전용 application/octet-stream이며 내용을 실행·파싱하거나 썸네일을 만들지 않습니다. 교체·삭제된 파일도 디스크에 보존합니다. 백업·복구 시 app DB와 이미지 루트 및 데이터 파일 루트를 함께 관리합니다. 물리 삭제 배치는 이번 구현 범위에 없습니다.
+
+로컬 검증: 2026-11-13 20:54(KST), 8080 바인딩 프로세스를 종료한 뒤 bin/start-local-backend.ps1을 숨김 창으로 재실행했습니다. V23와 파일 권한 seed 적용 및 8080 기동 후 http://127.0.0.1:8080/api/health에서 HTTP 200과 {"status":"UP"}를 확인했습니다. 프런트 빌드와 선별 테스트는 통과했으며 브라우저 실제 조작은 검증하지 않았습니다.
+
+2026-11-13 21:03(KST) 후속: ADR-044의 이미지 포함 바이너리 업로드를 반영해 같은 스크립트로 백엔드를 재시작했습니다. /api/health HTTP 200, {"status":"UP"} 확인. DB·설정 변경은 없으며 데이터 파일은 이미지여도 썸네일을 생성하지 않습니다.

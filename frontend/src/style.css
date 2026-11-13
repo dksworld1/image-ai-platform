@@ -95,7 +95,24 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 .image-list-filters select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #65718b; border-radius: 8px; color: #eef1f7; background: #171c26; font: inherit; }
 .image-list-filters select:focus-visible { outline: 2px solid #b9c5ff; }
 .image-list-filters button:disabled { opacity: .55; }
-.image-table { min-width: 1400px; }
+.image-table { min-width: 1600px; }
+.image-summary-row { cursor: pointer; }
+.image-summary-row[aria-disabled="true"] { cursor: default; }
+.image-description-row > td { background: #202736; }
+.image-description-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.image-description-heading small { color: #aab2c2; }
+.image-description-input, .upload-file-description textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid #65718b; border-radius: 6px; background: #10131a; color: #eef1f7; font: inherit; resize: vertical; }
+.image-description-input:focus-visible, .upload-file-description textarea:focus-visible { outline: 2px solid #b9c5ff; outline-offset: 2px; }
+.image-table .image-row-edited > :is(td, th) { background: #343124; border-bottom-color: #9b844f; }
+.upload-file-description { display: grid; gap: 8px; flex-basis: 100%; min-width: 0; }
+.upload-file-description[hidden] { display: none; }
+.management-tabs { display: flex; gap: 8px; border-bottom: 1px solid #475268; margin-top: 16px; padding-bottom: 8px; }
+.management-tabs button { padding: 10px 20px; border: 1px solid #65718b; border-radius: 8px; color: #eef1f7; background: #202736; cursor: pointer; font: inherit; }
+.management-tabs button[aria-selected="true"] { background: #91a6ff; color: #10131a; border-color: #91a6ff; font-weight: 700; }
+.management-tabs button:focus-visible { outline: 2px solid #b9c5ff; outline-offset: 3px; }
+.management-tabs button:disabled { opacity: .6; cursor: not-allowed; }
+.dataset-list-layout .dataset-list > .dataset-tab-panel { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.dataset-tab-panel > * { flex-shrink: 0; }
 .image-thumbnail { display: block; width: 64px; height: 64px; object-fit: contain; }
 .thumbnail-state { display: inline-grid; gap: 8px; font-size: 12px; color: #aab2c2; }
 .thumbnail-state button { border: 1px solid #65718b; border-radius: 4px; background: #202736; color: #eef1f7; cursor: pointer; padding: 4px; }
@@ -110,12 +127,14 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 .image-upload-modal button:disabled { opacity: .55; cursor: not-allowed; }
 .upload-target { display: grid; gap: 6px; overflow-wrap: anywhere; }
 .upload-target span, .upload-target small { color: #aab2c2; }
-.image-upload-dropzone { position: relative; border: 1px dashed #91a6ff; border-radius: 8px; background: #202736; }
-.image-upload-dropzone label { display: block; padding: 28px 16px; text-align: center; cursor: pointer; }
-.image-upload-dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.image-upload-dropzone:focus-within { outline: 2px solid #b9c5ff; outline-offset: 3px; }
+.upload-pick-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 12px; }
+.image-upload-modal input[type="file"][hidden] { display: none; }
+.upload-pick-actions button { min-width: 140px; min-height: 44px; font-weight: 700; }
+.image-upload-dropzone { display: grid; gap: 8px; padding: 30px 16px; border: 2px dashed #788dc8; border-radius: 10px; background: #202736; text-align: center; }
+.image-upload-dropzone strong { color: #eef1ff; font-size: 16px; }
+.image-upload-dropzone span { color: #aab2c2; font-size: 13px; }
+.image-upload-dropzone.upload-dragging { border-color: #becbff; background: #303e60; }
 .image-upload-dropzone.upload-disabled { opacity: .55; }
-.image-upload-dropzone.upload-disabled label { cursor: not-allowed; }
 .image-upload-files { padding: 0; margin: 0 0 20px; list-style: none; max-height: min(36dvh, 360px); overflow: auto; }
 .image-upload-files li { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid #2b3241; }
 .image-upload-files li > div { display: grid; gap: 6px; flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }

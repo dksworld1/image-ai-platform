@@ -3,6 +3,8 @@ package com.imageaiplatform.dataset.service;
 import com.imageaiplatform.dataset.dao.DatasetDao;
 import com.imageaiplatform.dataset.dao.DatasetImageDao;
 import com.imageaiplatform.dataset.domain.DatasetImageHistory;
+import com.imageaiplatform.dataset.dao.DatasetFileDao;
+import com.imageaiplatform.dataset.domain.DatasetFileHistory;
 import com.imageaiplatform.dataset.domain.Dataset;
 import com.imageaiplatform.dataset.domain.DatasetListItem;
 import java.util.ArrayList;
@@ -21,10 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class DatasetService {
     private final DatasetDao datasetDao;
     private final DatasetImageDao imageDao;
+    private final DatasetFileDao fileDao;
 
-    public DatasetService(DatasetDao datasetDao, DatasetImageDao imageDao) {
+    public DatasetService(DatasetDao datasetDao, DatasetImageDao imageDao, DatasetFileDao fileDao) {
         this.datasetDao = datasetDao;
         this.imageDao = imageDao;
+        this.fileDao = fileDao;
     }
 
     @PreAuthorize("@authorizationService.hasPermission('dataset:item:create') and @workspaceService.isMemberOfAll(#workspaceIds)")
@@ -80,6 +84,12 @@ public class DatasetService {
             if (!Integer.valueOf(1).equals(imageDao.insertHistory(new DatasetImageHistory(UUID.randomUUID().toString(),
                     "DELETE", image.withDeletion(now, actor), now, actor)))) {
                 throw new IllegalStateException("Could not record image deletion history.");
+            }
+        }
+        for (var file : fileDao.findByDatasetId(datasetId)) {
+            if (!Integer.valueOf(1).equals(fileDao.insertHistory(new DatasetFileHistory(UUID.randomUUID().toString(),
+                    "DELETE", file.withDeletion(now, actor), now, actor)))) {
+                throw new IllegalStateException("Could not record data file deletion history.");
             }
         }
         if (!Integer.valueOf(1).equals(datasetDao.deleteAllowed(datasetId, actor))) {

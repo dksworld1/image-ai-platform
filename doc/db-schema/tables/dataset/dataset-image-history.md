@@ -1,7 +1,7 @@
 # dataset_image_history 테이블 정의
 
 - 종류: 현재 데이터 계약
-- 상태: V20 DDL·공통 V21 이관·서비스 이벤트 저장 구현, 실제 DB 미적용
+- 상태: V20·V22 DDL·공통 V21 이관·설명 포함 서비스 이벤트 저장 구현, 실제 DB 미적용
 - 기준일: 2026-11-13
 - 데이터소스: app
 - 결정: [ADR-039](../../../decisions/ADR-039-image-version-history.md)
@@ -18,7 +18,8 @@
 | action | VARCHAR(10) | 불가 | CREATE·UPDATE·DELETE·BASELINE CHECK |
 | version_count | INTEGER | 불가 | 해당 버전 번호, 양수 CHECK |
 | previous_image_id | VARCHAR(36) | 허용 | 교체 전 버전 ID |
-| original_filename | VARCHAR(255) | 불가 | 원본명 스냅샷 |
+| original_filename | VARCHAR(1024) | 불가 | 원본명 스냅샷 |
+| description | VARCHAR(2000) | 허용 | V22 추가, 이벤트 시점의 설명 스냅샷. 기존 이력은 NULL |
 | storage_path | VARCHAR(100) | 불가 | 해당 버전 원본 상대 경로 |
 | thumbnail_path | VARCHAR(100) | 허용 | 해당 버전 썸네일 상대 경로 |
 | media_type | VARCHAR(100) | 불가 | 원본 콘텐츠 형식 |
@@ -33,11 +34,16 @@
 ## 이벤트와 적용 순서
 
 - 신규 파일: CREATE 1건.
+- 설명 편집: 같은 image_id·version_count로 변경 후 설명과 수정 감사 값을 담은 UPDATE 1건. 이전 설명은 기존 이벤트에 보존하며 이력 추가 실패 시 일괄 설명 수정 전체를 롤백합니다.
 - 수정 업로드의 일치 파일: 기존 버전 삭제 표시와 DELETE 1건, 새 버전 생성과 UPDATE 1건. previous_image_id와 version_count로 연결합니다.
 - 수정 업로드의 불일치 파일: 신규 CREATE, 버전 1.
 - 데이터셋 삭제: 활성 이미지 각각 DELETE 스냅샷 후 기존 FK CASCADE. 이력·실제 파일은 보존합니다.
+- 개별 이미지 삭제: 기존 행 삭제 표시와 DELETE 스냅샷 1건. 버전·생성 감사 값·파일은 보존하고 이력 실패 시 표시 변경도 롤백합니다. 이미 삭제된 ID의 재요청은 404이며 중복 이벤트를 추가하지 않습니다.
 - 기존 V19 이미지: 공통 seed V21에서 BASELINE. 이미지의 과거 감사 값은 image_* 필드에 보존하고 이벤트 기록자는 시스템 '0'입니다. 과거 CREATE·UPDATE를 추정해 만들지 않습니다.
 
 이벤트는 원래 작업과 같은 app 트랜잭션으로 저장합니다. 실패 시 삭제 표시·새 버전·이력 모두 롤백합니다. 직접 SQL 변경의 자동 추적 트리거와 이력 API·화면은 없습니다.
 
 인덱스는 `(image_id, created_at)`, `(dataset_id, original_filename, version_count)`입니다. 동시 버전 변경은 데이터셋 행 잠금과 활성 이름 UNIQUE로 제어합니다.
+
+
+V25·ADR-046: 원본명과 활성 중복 키에 전체 상대 경로를 보존합니다. 각 요소 최대 255자, 전체 최대 1,024자입니다. 다른 하위 폴더의 동일 파일명은 별개이며 동일 경로만 중복·교체 대상으로 처리합니다. 이력에도 상대 경로를 그대로 기록합니다. 기존 파일명과 디스크 경로는 변경하지 않습니다.

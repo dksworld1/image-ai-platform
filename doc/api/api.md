@@ -192,7 +192,7 @@ ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 �
 | 관리 대상 목록·이미지 목록·원본·썸네일 | dataset:image:read | 활성 공간의 ACTIVE 멤버 |
 | 일반 신규 업로드 | dataset:image:upload | 활성 멤버이며 공간 OWNER·ADMIN 또는 데이터셋 생성자 |
 | 수정 업로드 | dataset:image:update | 위와 동일. 이름 미일치로 신규 등록 시 upload도 필요 |
-| 개별 이미지 삭제 | dataset:image:delete | API 미구현. 구현 시 위 쓰기 조건을 기본으로 적용 |
+| 개별 이미지 삭제 | dataset:image:delete | 활성 멤버이며 공간 OWNER·ADMIN 또는 데이터셋 생성자 |
 
 운영자도 기능 권한을 가져야 합니다. 이미지 조회에서 dataset:item:read를 요구하거나 dataset 상세 서비스를 호출하지 않습니다. 데이터셋 삭제에 따른 하위 이미지 처리는 dataset:item:delete로 승인된 작업이며 이미지 delete를 추가 요구하지 않습니다.
 
@@ -206,6 +206,8 @@ ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 �
 
 `multipart/form-data`의 `file` 필드로 이미지 한 개를 보냅니다. 일반 모드는 dataset:image:upload, 수정 모드는 dataset:image:update를 서비스 @PreAuthorize에 명시하며 이미지 대상 판정을 AND로 검사합니다. 활성 공간·ACTIVE 멤버십과 공간 OWNER·ADMIN 또는 dataset.created_by 일치 조건을 적용하고 실제 이미지 INSERT·삭제 표시 SQL에서도 범위를 확인합니다. 데이터셋 읽기·수정·삭제 기능 권한을 재사용하지 않습니다.
 
+선택 텍스트 필드 description은 파일별 설명이며 최대 2,000자입니다. 생략·빈 값·공백만 있는 값은 NULL로 저장하고 그 외 값은 원문을 보존합니다. 수정 업로드도 새 버전에 입력 설명을 저장하며 비워 두면 새 버전의 설명은 NULL입니다. 이전 버전의 설명은 보존됩니다. 길이 초과는 400이며 해당 업로드를 저장하지 않습니다.
+
 이미지는 로컬 파일, 원본명·저장 상대 경로 등 메타데이터는 DB에 저장합니다. 기본 파일당 제한은 10MB이며 YAML에서 변경할 수 있습니다. 실제 콘텐츠를 판독한 PNG·JPEG·GIF·BMP와 첫 이미지 4천만 화소 이하를 허용합니다. 클라이언트 MIME·확장자는 검증 근거가 아닙니다. 클라이언트 경로를 제외한 원본 파일명은 공백을 임의로 제거하지 않고 최대 255자로 보존합니다. 서버 UUID·형식 확장자를 실제 저장 이름으로 사용합니다.
 
 같은 데이터셋의 원본명이 같으면 409이며 대소문자는 구분합니다. 다른 데이터셋에는 동일 이름을 허용합니다. DB UNIQUE도 적용하므로 동시에 전송해도 중복 저장되지 않습니다. 각 요청은 독립 트랜잭션입니다. 2026-11-13 사용자 후속 요청으로 이미지 관리의 업로드 모달을 구현했으며 여러 파일을 단건 순차 전송해 파일별 결과를 표시합니다.
@@ -217,9 +219,11 @@ ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 �
   "imageId": "f037b045-1051-43cc-92cc-974047965854",
   "datasetId": "16ad971f-74a4-47ba-b451-2dd611e60220",
   "originalFilename": "도로표지판.png",
+  "description": "교차로 진입 방향의 표지판",
   "mediaType": "image/png",
   "sizeBytes": 51200,
   "createdAt": "2026-11-12T12:00:00.123456Z",
+  "firstRegisteredAt": "2026-11-12T12:00:00.123456Z",
   "createdBy": "7c148350-7fe1-43b4-b78e-40ce34cbaf49",
   "updatedAt": "2026-11-12T12:00:00.123456Z",
   "updatedBy": "7c148350-7fe1-43b4-b78e-40ce34cbaf49",
@@ -246,6 +250,8 @@ ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 �
 
 ### GET /api/datasets/{datasetId}/images
 
+응답의 firstRegisteredAt은 previous_image_id 연결을 따라 찾은 같은 이미지 계열의 버전 1 created_at입니다. 첫 등록 시 createdAt과 같고 교체 후에도 유지됩니다. createdAt은 현재 버전 자체의 등록일시이며 목록에서 「현재 버전 등록일시」로 표시합니다. 파일명이 같더라도 삭제 후 새로 등록한 별도 계열이나 다른 데이터셋의 시각을 섞지 않습니다. 보존된 이전 버전 행에서 조회 시 계산하므로 신규 저장 컬럼·이관은 없습니다. 기존 연결이 손상되어 버전 1을 찾지 못하면 null이며 화면은 `-`로 표시합니다.
+
 활성 계정 JWT와 dataset:image:read 및 대상 데이터셋의 활성 공간·ACTIVE 멤버십이 필요합니다. 데이터셋 상세 서비스의 dataset:item:read 검사를 경유하지 않습니다. 200은 위 메타데이터 객체의 배열이며 삭제 표시 버전을 제외하고 createdAt DESC·imageId ASC입니다. 없으면 `[]`, 인증 오류는 401, 기능 권한 또는 공간 접근 불가는 403, 장애는 500입니다. 일반 활성 멤버도 이미지 읽기 권한이 있으면 조회할 수 있습니다. 기존 썸네일 미생성 이미지의 thumbnailUrl은 null입니다. 등록자·수정자 ID/이름은 각 감사 user_key로 LEFT JOIN한 현재 로그인 ID·실명이며 미등록·삭제 계정은 null입니다. createdBy·updatedBy는 내부 키입니다. 새 버전 행의 생성 감사 정보는 해당 버전 업로더이며 최초 업로더는 보존된 이전 버전·이력에서 추적합니다.
 
 ### GET /api/datasets/{datasetId}/images/{imageId}/thumbnail
@@ -256,10 +262,72 @@ ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 �
 
 현재 활성 버전의 원본 바이트를 반환합니다. JWT·dataset:image:read·대상 공간 접근 범위는 썸네일과 동일하며 이전 삭제 표시 버전은 조회할 수 없습니다. 성공은 200, 검증된 원본 mediaType(PNG·JPEG·GIF·BMP)의 Content-Type과 `Cache-Control: no-store`입니다. 인증 오류 401, 기능 권한 또는 공간 접근 불가 403, 이미지 없음·다른 데이터셋 이미지·삭제 표시·파일 없음 404, 파일 읽기 장애 500입니다. 저장 경로·공개 URL을 제공하지 않습니다. 프런트는 인증된 응답을 object URL로 표시하고 상세 모달 종료 시 해제합니다.
 
-생성·교체·데이터셋 삭제 이력은 같은 app 트랜잭션에서 dataset_image_history에 저장합니다. 데이터셋 삭제 시 현재 이미지 DELETE 스냅샷을 남긴 뒤 기존 FK CASCADE로 버전 행을 제거하며 이력·실제 파일은 유지합니다. 개별 이미지 삭제 API와 이력 조회 API는 이번 범위에 포함하지 않습니다.
+생성·교체·이미지 삭제·데이터셋 삭제 이력은 같은 app 트랜잭션에서 dataset_image_history에 저장합니다. 데이터셋 삭제 시 현재 이미지 DELETE 스냅샷을 남긴 뒤 기존 FK CASCADE로 버전 행을 제거하며 이력·실제 파일은 유지합니다. 이력 조회 API는 아직 제공하지 않습니다.
+
+### DELETE /api/datasets/{datasetId}/images/{imageId}
+
+현재 활성 이미지 한 개를 삭제 표시합니다. 활성 계정 JWT와 dataset:image:delete, 대상 데이터셋의 활성 공간·ACTIVE 멤버십 및 공간 OWNER·ADMIN 또는 데이터셋 생성자 조건이 필요합니다. 서비스 @PreAuthorize에 기능 권한과 canDelete를 AND로 선언하며 실제 변경 SQL도 같은 대상 조건을 검사합니다. 이미지 read·upload·update나 데이터셋 기능 권한을 대신 사용하지 않습니다.
+
+성공은 204 No Content입니다. DB 행·원본·썸네일은 보존하고 is_deleted=true 및 수정 시각·작업자만 변경합니다. 생성 감사 값과 버전 번호는 유지하며 같은 트랜잭션에 DELETE 이력을 저장합니다. 목록·개수·원본/썸네일 조회에서 제외됩니다. 삭제 후 같은 이름의 신규 업로드는 새 ID·버전 1입니다.
+
+| 응답 | 조건 |
+|---|---|
+| 204 | 삭제 표시·이력 저장 성공 |
+| 401 | 미인증·토큰 오류·계정 없음/비활성 |
+| 403 | delete 권한 또는 대상 조건 불충족, 없는 데이터셋 |
+| 404 | 접근 가능한 데이터셋 안의 이미지 없음·다른 데이터셋 이미지·이미 삭제되거나 교체된 ID |
+| 500 | DB·이력 저장 장애. 트랜잭션 롤백 |
+
+현재 imageId만 처리하므로 오래된 목록의 삭제 요청이 같은 원본명의 새 버전을 삭제하지 않습니다. 프런트 선택 삭제는 확인 후 단건 순차 호출하고 성공 행만 제거하며 실패 행·선택·사유를 보존합니다. 항목별 독립 트랜잭션이며 자동 재시도하지 않습니다. 통신 단절은 결과를 확정할 수 없어 목록 새로고침을 안내합니다. [ADR-041](../decisions/ADR-041-image-logical-deletion.md)을 따릅니다.
+
+### PATCH /api/datasets/{datasetId}/images/descriptions
+
+선택한 이미지 설명들을 하나의 트랜잭션으로 저장합니다. 활성 계정 JWT와 dataset:image:update, 대상 데이터셋의 활성 공간·ACTIVE 멤버십·공간 OWNER/ADMIN 또는 데이터셋 생성자 조건이 필요합니다. 서비스 @PreAuthorize와 실제 수정 SQL에서 범위를 확인합니다.
+
+```json
+{"items":[{"imageId":"f037b045-1051-43cc-92cc-974047965854","description":"변경한 설명"},{"imageId":"79eced1a-2aca-4ac3-8ab5-71b89276598d","description":null}]}
+```
+
+items는 필수·1건 이상이며 중복 imageId는 400입니다. imageId는 필수·최대 36자, description은 최대 2,000자입니다. null·생략·빈 값·공백만 있는 설명은 삭제를 뜻합니다. 현재 활성 이미지 ID만 처리하므로 삭제·교체된 행이나 다른 데이터셋 이미지가 있으면 404로 전체 롤백합니다. 성공 200은 요청 순서대로 저장한 이미지 메타데이터 배열이며 description·수정자 표시·updatedAt을 포함합니다.
+
+변경 시 설명과 수정 감사 값만 갱신하고 같은 트랜잭션에 UPDATE 이력을 추가합니다. 버전 번호·생성 감사 값·원본·썸네일은 유지합니다. 401은 인증 오류, 403은 기능 권한/대상 조건 미충족, 400은 입력 오류, 404는 대상 이미지 없음, 500은 DB·이력 저장 장애입니다. 하나라도 실패하면 전부 롤백하며 부분 성공 응답은 없습니다. 통신 단절은 결과가 불명확하므로 자동 재시도하지 않습니다.
+
+프런트는 선택된 실제 변경 행만 전송합니다. 저장 확인창에는 미선택된 변경 행 수와 성공 후 편집 내용 초기화만 안내합니다. 성공 시 미선택 편집은 원본으로 초기화하고 실패 시 편집·선택을 유지합니다. 선택된 변경 행이 0이면 확인 후 프런트 편집만 초기화하며 빈 PATCH를 보내지 않습니다. [ADR-042](../decisions/ADR-042-image-descriptions.md)를 따릅니다.
 
 ## 가입 워크스페이스 목록
 
 ### GET /api/workspaces
 
 활성 계정 JWT가 필요하며 별도 기능 권한은 요구하지 않습니다. 현재 사용자가 ACTIVE 멤버인 ACTIVE 공간의 `[{"workspaceId":"...","name":"..."}]`를 이름·ID 오름차순으로 반환합니다. 없으면 `[]`입니다. 생성 화면에서 선택할 공간을 제공하며 전체 공간 탐색·관리 API가 아닙니다. 미인증·비활성 계정은 401, 조회 장애는 500입니다.
+
+## 데이터 파일 API — 2026-11-13
+
+현재 데이터셋 관리 화면은 이미지 파일과 데이터 파일 탭을 제공합니다. 이미지 API는 유지하며 데이터 파일은 다음의 독립 계약을 사용합니다.
+
+| 메서드·경로 | 기능 | 기능 권한 |
+|---|---|---|
+| GET /api/datasets/file-targets | 접근 가능한 데이터셋·워크스페이스 선택 목록 | dataset:file:read |
+| GET /api/datasets/{datasetId}/files | 활성 파일 목록 | dataset:file:read |
+| POST /api/datasets/{datasetId}/files | multipart 단건 등록 | dataset:file:upload |
+| POST /api/datasets/{datasetId}/files?replaceExisting=true | 같은 원본명 파일 교체 | dataset:file:update |
+| PATCH /api/datasets/{datasetId}/files/descriptions | 설명 일괄 저장 | dataset:file:update |
+| DELETE /api/datasets/{datasetId}/files/{fileId} | 삭제 표시, 성공 204 | dataset:file:delete |
+| GET /api/datasets/{datasetId}/files/{fileId}/content | 원본 다운로드 | dataset:file:read |
+
+모든 요청은 인증이 필요합니다(미인증 401). 조회는 활성 공간의 활성 멤버, 쓰기는 추가로 공간 OWNER/ADMIN 또는 데이터셋 생성자여야 합니다. 이미지·데이터셋 권한으로 대신 허용하지 않습니다. 수정 업로드에서 원본명이 없는 신규 파일을 만들려면 upload 권한도 필요합니다. 대상 조건·권한 불충족은 403, 접근 가능한 데이터셋에서 파일 부재·삭제·다른 데이터셋 파일은 404입니다.
+
+POST는 file과 선택 description(최대 2,000자)을 받습니다. 정상 201이며 동일 데이터셋의 활성 원본명 중복은 409입니다. 다른 데이터셋의 같은 이름은 허용합니다. 원본명은 단일 파일명 또는 선택 폴더부터의 상대 경로로, 전체 1~1,024자·요소별 최대 255자이며 빈 파일·파일별 제한 초과·잘못된 설명은 400입니다. 서버 multipart 한도 초과는 파일별 서비스 검증 전에 거부될 수 있습니다. ADR-044에 따라 이미지도 허용하며 확장자·파일 시그니처로 유형을 판별하거나 거부하지 않습니다. 모든 파일을 원본 바이너리로 보관하고 썸네일은 생성·관리하지 않습니다. 이미지 탭과 데이터 파일 탭의 원본명 중복 검사는 서로 독립적입니다.
+
+목록·등록 응답은 fileId, datasetId, originalFilename, description, mediaType, sizeBytes, createdAt, updatedAt, createdBy, updatedBy, versionCount, firstRegisteredAt, creatorUserId, creatorUsername, updaterUserId, updaterUsername입니다. 데이터 파일은 파싱하지 않는 원본 바이너리이며 mediaType은 application/octet-stream입니다. 콘텐츠는 이 형식과 UTF-8 원본명 Content-Disposition: attachment, Cache-Control: no-store로 반환합니다. 썸네일·인라인 미리보기는 제공하지 않습니다.
+
+설명 PATCH 요청은 {"items":[{"fileId":"UUID","description":"설명 또는 null"}]}이며 변경된 파일 배열을 반환합니다. 빈 설명은 NULL, 선택 행 전체를 단일 트랜잭션으로 저장하며 하나라도 실패하면 이력까지 롤백합니다. 설명 변경은 버전을 올리지 않습니다.
+
+수정 업로드는 기존 행에 삭제 표시하고 새 fileId·버전+1·previousFileId를 생성하며 새 설명은 업로드 입력을 사용합니다. 이전 파일과 이력은 보존합니다. 일반 삭제도 파일을 지우지 않으며 현재 목록·다운로드에서 제외합니다. 최초 등록 시각은 이전 버전 연결에서 계산합니다. 별도 이력 조회 API는 아직 없습니다. 데이터셋 삭제는 기존 dataset:item:delete 조건으로 하위 파일 DELETE 이력을 남기고 메타데이터를 FK CASCADE로 제거하되 물리 파일·이력은 보존합니다.
+
+## 이미지·데이터 파일 폴더 업로드 — 2026-11-13
+
+두 POST 업로드 API에 선택 multipart 필드 relativePath를 추가했습니다. 예: file=sample.png, relativePath=선택폴더/하위/sample.png. 응답·목록 originalFilename과 이력에 이 경로를 보존합니다. 일반·수정 업로드 모두 동일합니다. relativePath 생략 시 기존처럼 multipart 파일명에서 마지막 파일명만 저장합니다.
+
+서버는 구분자를 /로 통일하며 전체 1,024자·각 요소 255자 제한, 빈 요소·절대 경로·드라이브 표기·. 또는 ..·제어 문자 금지를 적용합니다. 잘못된 경로는 400입니다. 동일 데이터셋·동일 유형 내 전체 경로를 기준으로 중복 409와 교체를 판정합니다. 선택폴더/a/image.png와 선택폴더/b/image.png는 별개입니다. 폴더 업로드는 기존 단건 API 순차 호출이며 파일별 성공·실패가 독립적입니다. 빈 폴더는 등록하지 않습니다.
+
+개별 데이터 파일의 Content-Disposition 다운로드명은 전체 경로의 마지막 파일명입니다. 디스크 저장명은 원본 상대 경로와 분리해 기존 UUID 규칙을 사용합니다. 데이터 파일의 확장자도 경로의 마지막 파일명에서만 추출합니다. 권한·형식별 썸네일 정책은 유지합니다. [ADR-046](../decisions/ADR-046-folder-upload-original-paths.md)을 따릅니다.

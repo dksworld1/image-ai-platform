@@ -28,6 +28,12 @@
 - [이미지 썸네일](decisions/ADR-038-image-thumbnails.md): 업로드 시 동기 생성·권한 조회, 기존 이미지 소급 생성 제외
 - [이미지 버전·작업 이력](decisions/ADR-039-image-version-history.md): 명시적 수정 업로드·기존 버전 삭제 표시·파일 보존·작업자 추적
 - [이미지 기능 권한 분리](decisions/ADR-040-image-permissions.md): 이미지 read·upload·update·delete와 대상 접근 조건을 분리, 데이터셋 권한과 독립
+- [이미지 선택 삭제](decisions/ADR-041-image-logical-deletion.md): 체크박스 선택·삭제 표시·파일 및 작업 이력 보존
+- [이미지 설명 편집](decisions/ADR-042-image-descriptions.md): 파일별 설명 입력·변경 강조와 자동 선택·선택 변경 행 일괄 저장
+- [데이터셋 관리 파일 탭](decisions/ADR-043-dataset-file-tabs.md): 이미지·데이터 파일 분리, 독립 권한·저장소와 수명 주기
+- [데이터 파일 바이너리 업로드](decisions/ADR-044-data-file-binary-upload.md): 이미지 포함 모든 형식 허용, 썸네일 미관리
+- [데이터 파일 저장명](decisions/ADR-045-data-file-storage-extension.md): UUID와 원본 확장자 보존, 기존 파일 경로 유지
+- [폴더 업로드](decisions/ADR-046-folder-upload-original-paths.md): 이미지·데이터 파일의 선택 폴더부터 원본 상대 경로 보존
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의

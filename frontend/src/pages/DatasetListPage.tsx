@@ -45,7 +45,7 @@ function DatasetContextMenu({ target, onClose, onDetail }: {
     }}>
     <div className="dataset-context-info" role="presentation"><strong>{target.dataset.name}</strong>
       <span>{target.dataset.workspaceName}</span><small>{target.dataset.datasetId}</small></div>
-    <a role="menuitem" href={`/datasets/images?datasetId=${encodeURIComponent(target.dataset.datasetId)}`}>이미지 관리</a>
+    <a role="menuitem" href={`/datasets/manage?datasetId=${encodeURIComponent(target.dataset.datasetId)}`}>데이터셋 관리</a>
     <button role="menuitem" type="button" onClick={onDetail}>상세보기</button>
   </div>
 }

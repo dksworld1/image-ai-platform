@@ -7,6 +7,9 @@ import com.imageaiplatform.dataset.domain.DatasetImageContent;
 import com.imageaiplatform.dataset.domain.DatasetImageTarget;
 import com.imageaiplatform.auth.service.AuthorizationService;
 import com.imageaiplatform.dataset.domain.ImageStorageProperties;
+import com.imageaiplatform.dataset.domain.ImageDescriptionChange;
+import com.imageaiplatform.dataset.domain.UploadFilename;
+import java.util.ArrayList;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -60,22 +63,19 @@ public class DatasetImageService {
 
     @PreAuthorize("@authorizationService.hasPermission('dataset:image:upload') and @datasetImageService.canUpload(#datasetId)")
     @Transactional("appTransactionManager")
-    public DatasetImage upload(String datasetId, String originalFilename, byte[] contents) {
-        return store(datasetId, originalFilename, contents, false);
+    public DatasetImage upload(String datasetId, String originalFilename, byte[] contents, String description, String relativePath) {
+        return store(datasetId, originalFilename, contents, description, relativePath, false);
     }
 
     @PreAuthorize("@authorizationService.hasPermission('dataset:image:update') and @datasetImageService.canUpdate(#datasetId)")
     @Transactional("appTransactionManager")
-    public DatasetImage replace(String datasetId, String originalFilename, byte[] contents) {
-        return store(datasetId, originalFilename, contents, true);
+    public DatasetImage replace(String datasetId, String originalFilename, byte[] contents, String description, String relativePath) {
+        return store(datasetId, originalFilename, contents, description, relativePath, true);
     }
 
-    private DatasetImage store(String datasetId, String originalFilename, byte[] contents, boolean replaceExisting) {
-        String filename = originalFilename == null ? "" : originalFilename.replace('\\', '/');
-        filename = filename.substring(filename.lastIndexOf('/') + 1);
-        if (filename.isBlank() || filename.length() > 255 || filename.indexOf('\0') >= 0) {
-            throw new IllegalArgumentException("Original filename must contain 1 to 255 characters.");
-        }
+    private DatasetImage store(String datasetId, String originalFilename, byte[] contents, String description, String relativePath, boolean replaceExisting) {
+        description = normalizeDescription(description);
+        String filename = UploadFilename.resolve(originalFilename, relativePath);
         String actor = SecurityContextHolder.getContext().getAuthentication().getName();
         if (imageDao.lockDataset(datasetId, actor) == null) {
             throw new AccessDeniedException("Dataset is unavailable or upload is not allowed.");
@@ -109,7 +109,8 @@ public class DatasetImageService {
         var image = new DatasetImage(imageId, datasetId, filename, storagePath, MEDIA_TYPES.get(format),
                 Long.valueOf(contents.length), now, now, actor, actor, thumbnailPath, Boolean.FALSE,
                 previous == null ? Integer.valueOf(1) : Integer.valueOf(Math.addExact(previous.versionCount(), 1)),
-                previous == null ? null : previous.imageId(), null, null, null, null);
+                previous == null ? null : previous.imageId(), null, null, null, null,
+                previous == null ? now : previous.firstRegisteredAt(), description);
         if (!Integer.valueOf(1).equals(imageDao.insert(image))) {
             throw new AccessDeniedException("Dataset access changed before the image could be stored.");
         }
@@ -123,6 +124,32 @@ public class DatasetImageService {
         }
     }
 
+    private String normalizeDescription(String description) {
+        if (description != null && description.length() > 2000) throw new IllegalArgumentException("Description must not exceed 2000 characters.");
+        return description == null || description.isBlank() ? null : description;
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:update') and @datasetImageService.canUpdate(#datasetId)")
+    @Transactional("appTransactionManager")
+    public List<DatasetImage> updateDescriptions(String datasetId, List<ImageDescriptionChange> changes) {
+        if (changes == null || changes.isEmpty() || changes.stream().map(ImageDescriptionChange::imageId).distinct().count() != changes.size()) {
+            throw new IllegalArgumentException("Distinct image IDs are required.");
+        }
+        String actor = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (imageDao.lockDataset(datasetId, actor) == null) throw new AccessDeniedException("Image update is not allowed.");
+        var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
+        var result = new ArrayList<DatasetImage>();
+        for (var change : changes) {
+            var image = imageDao.findById(datasetId, change.imageId());
+            if (image == null) throw new NoSuchElementException("Image is unavailable.");
+            var updated = image.withDescription(normalizeDescription(change.description()), now, actor);
+            if (!Integer.valueOf(1).equals(imageDao.updateDescription(updated))) throw new AccessDeniedException("Image update is no longer allowed.");
+            recordHistory("UPDATE", updated, now, actor);
+            result.add(imageDao.findById(datasetId, image.imageId()));
+        }
+        return List.copyOf(result);
+    }
+
     public boolean canRead(String datasetId) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && Boolean.TRUE.equals(imageDao.canRead(datasetId, authentication.getName()));
@@ -134,6 +161,27 @@ public class DatasetImageService {
 
     public boolean canUpdate(String datasetId) {
         return canManage(datasetId);
+    }
+
+    public boolean canDelete(String datasetId) {
+        return canManage(datasetId);
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:delete') and @datasetImageService.canDelete(#datasetId)")
+    @Transactional("appTransactionManager")
+    public void delete(String datasetId, String imageId) {
+        String actor = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (imageDao.lockDataset(datasetId, actor) == null) {
+            throw new AccessDeniedException("Dataset is unavailable or image deletion is not allowed.");
+        }
+        var image = imageDao.findById(datasetId, imageId);
+        if (image == null) throw new NoSuchElementException("Image is unavailable.");
+        var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
+        var removed = image.withDeletion(now, actor);
+        if (!Integer.valueOf(1).equals(imageDao.markDeleted(removed))) {
+            throw new AccessDeniedException("Dataset access changed before the image could be deleted.");
+        }
+        recordHistory("DELETE", removed, now, actor);
     }
 
     private boolean canManage(String datasetId) {

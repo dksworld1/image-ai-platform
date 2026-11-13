@@ -12,6 +12,7 @@ public interface DatasetImageDao {
     String lockDataset(String datasetId, String userKey);
     DatasetImage findActiveByFilename(String datasetId, String originalFilename);
     Integer markDeleted(DatasetImage image);
+    Integer updateDescription(DatasetImage image);
     Integer insertHistory(DatasetImageHistory history);
     Boolean canRead(String datasetId, String userKey);
     Boolean canManage(String datasetId, String userKey);

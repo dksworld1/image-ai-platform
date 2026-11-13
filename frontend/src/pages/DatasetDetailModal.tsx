@@ -47,5 +47,8 @@ export default function DatasetDetailModal({ datasetId, accessToken, onClose }: 
         <dt>생성일시</dt><dd><time dateTime={dataset.createdAt}>{dateTime.format(new Date(dataset.createdAt))}</time></dd>
         <dt>수정일시</dt><dd><time dateTime={dataset.updatedAt}>{dateTime.format(new Date(dataset.updatedAt))}</time></dd>
       </dl>}
+    {dataset && !error && <div className="form-actions">
+      <a className="primary-action" href={`/datasets/manage?datasetId=${encodeURIComponent(dataset.datasetId)}`}>데이터셋 관리</a>
+    </div>}
   </dialog>
 }

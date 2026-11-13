@@ -1,5 +1,9 @@
 # DB 마이그레이션 설정
 
+## 이미지 설명 V22 — 2026-11-13
+
+`db/migration/app/V22__add_image_descriptions.sql`은 dataset_image와 dataset_image_history에 nullable VARCHAR(2000) description을 추가합니다. 기존 행·이력의 설명은 NULL이며 기존 파일·시각·작업자·버전은 변경하지 않습니다. DDL만 있고 이관 DML·새 seed는 없습니다. 기존 app migration 위치에서 V21 이후 적용하며 repair는 필요하지 않습니다. 실제 사용자 DB 적용·서버 재시작은 하지 않았습니다. [설명 계약](../api/api.md#patch-apidatasetsdatasetidimagesdescriptions)을 사용하는 서버·프런트와 함께 배포합니다.
+
 ## 이미지 기능 권한 분리 seed — 2026-11-13
 
 새 DDL 없이 common R__04_image_permissions.sql에 이미지 read·update·delete 카탈로그를 추가했습니다. 기존 upload를 보존하며 공통에서 역할을 자동 부여하지 않습니다. local R__local_image_permissions.sql은 admin 역할에 read·upload·update·delete를 명시적으로 부여하고 기존 정의·역할 연결·감사 값은 보존합니다. 반복 seed 체크섬 변경으로 기존 DB에서도 다음 Flyway 적용 시 재실행되며 repair는 필요하지 않습니다. 기존 migration/common/local 위치·실행 순서는 유지합니다. 사용자 DB 적용·서버 재시작은 하지 않았습니다.
@@ -304,3 +308,17 @@ java -jar backend-0.1.0-SNAPSHOT.jar --spring.profiles.active=prod "--spring.con
 - 프런트: `node --test frontend/test/*.test.cjs` 9개 통과, `npm --prefix frontend run build` 성공. 로그인·세션 복원·로그아웃·만료 처리는 유지하고 로그인 후 메뉴를 렌더링하지 않는 것을 확인했습니다.
 - 백엔드: Java 21.0.13·Maven 3.10.0 확인 후 `mvn clean test`를 별도 메모리 DB에서 실행해 삭제 리소스를 정리했고, 최종 추가 검증을 포함한 `mvn test "-Ddatasource.app.url=jdbc:h2:mem:remove-ui-app;DB_CLOSE_DELAY=-1" "-Ddatasource.audit.url=jdbc:h2:mem:remove-ui-audit;DB_CLOSE_DELAY=-1"`에서 49개 통과, 실패·오류 0개.
 - 신규 DB의 최종 UI 테이블 부재, 기존 V3 데이터의 V4 제거, UI 권한·역할 연결만 정리, 다른 권한 보존, 재적용 0건과 제거 API의 404 응답을 검증했습니다. 실제 로컬·운영 DB 마이그레이션이나 브라우저 검증은 실행하지 않았습니다.
+
+## 데이터 파일 마이그레이션 — 2026-11-13
+
+V25__expand_original_file_paths.sql은 이미지·데이터 파일과 두 이력의 원본명을 VARCHAR(1024)로 확장합니다. 활성 이름 생성 컬럼은 생성식을 유지해 재생성하고 UNIQUE를 복원합니다. 파일·버전 행과 이력, 디스크 파일은 삭제하지 않습니다. 기존 경로 없는 원본명은 그대로 유지합니다.
+
+실제 local 적용: V24는 2026-11-13 21:15, V25는 21:22(KST) 백엔드 재시작에서 성공했습니다. 최종 app DB 버전은 25이며 /api/health HTTP 200, {"status":"UP"} 확인. 다른 환경 DB에는 적용하지 않았습니다.
+
+후속 V24__expand_dataset_file_storage_paths.sql은 UUID + 원본 확장자 저장명을 위해 dataset_file·dataset_file_history의 storage_path를 VARCHAR(300)으로 확장합니다. 기존 데이터와 .bin 경로는 그대로 유지합니다(ADR-045).
+
+V23__create_dataset_files.sql은 dataset_file과 dataset_file_history의 구조·제약·인덱스만 생성합니다. 공통 R__05_file_permissions.sql은 dataset:file:read/upload/update/delete 카탈로그를 멱등 등록하며 역할에는 부여하지 않습니다. local R__local_file_permissions.sql은 local app seed 다음에 실행되어 admin 역할에만 네 권한을 부여합니다. 기본 common 위치와 local 추가 위치 구분을 유지합니다.
+
+새 DB 및 기존 버전에서 V23 적용과 repeatable seed 재실행은 선별 테스트에서 확인했습니다. 실제 로컬 실행 DB 적용 여부는 아래 실행 결과로 구분합니다. 기존 이미지 데이터·파일을 데이터 파일로 이관하지 않습니다.
+
+실행 결과: 2026-11-13 20:54(KST), 기존 8080 서버를 종료하고 bin/start-local-backend.ps1을 재실행했습니다. local app 파일 DB에 V23 및 공통·local 파일 권한 seed를 적용하고 서버 기동을 확인했습니다. /api/health는 HTTP 200, {"status":"UP"}를 반환했습니다. 다른 환경 DB에는 적용하지 않았습니다.

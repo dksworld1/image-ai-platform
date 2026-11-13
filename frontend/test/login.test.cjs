@@ -15,9 +15,142 @@ for (const extension of ['.ts', '.tsx']) {
 }
 const { login } = require('../src/api/auth.ts')
 const { createDataset, fetchDatasetDetail } = require('../src/api/datasets.ts')
-const { fetchImageDatasetTargets, fetchImages, fetchThumbnail, fetchImageContent, uploadImage, ImageUploadError } = require('../src/api/images.ts')
+const { fetchImageDatasetTargets, fetchImages, fetchThumbnail, fetchImageContent, uploadImage, ImageUploadError, deleteImage, saveImageDescriptions } = require('../src/api/images.ts')
+const { getEntryDescriptionChanges } = require('../src/pages/DatasetManagePage.tsx')
+const { entryApis } = require('../src/api/datasetEntries.ts')
+const { uploadFile } = require('../src/api/files.ts')
+const DatasetUploadModal = require('../src/pages/DatasetUploadModal.tsx').default
+const { droppedUploadFiles } = require('../src/pages/droppedUploadFiles.ts')
+const DatasetManagePage = require('../src/pages/DatasetManagePage.tsx').default
 const App = require('../src/App.tsx').default
 const { saveAuthSession, loadAuthSession, clearAuthSession } = require('../src/authSession.ts')
+
+test('폴더 드롭은 여러 차례 읽은 하위 파일의 전체 경로를 보존한다', async () => {
+  const fileEntry = name => ({ name, isFile: true, isDirectory: false, file: resolve => resolve(new File(['bytes'], name)) })
+  const folderEntry = (name, batches) => ({ name, isFile: false, isDirectory: true, createReader: () => {
+    let index = 0
+    return { readEntries: resolve => resolve(batches[index++] ?? []) }
+  } })
+  const folder = folderEntry('선택폴더', [[fileEntry('a.png')], [folderEntry('하위', [[fileEntry('a.png')]])]])
+  const loose = fileEntry('별도.csv')
+  const files = await droppedUploadFiles({ items: [folder, loose].map(entry => ({ kind: 'file', webkitGetAsEntry: () => entry })), files: [] })
+  assert.deepEqual(files.map(file => file.webkitRelativePath || file.name), ['선택폴더/a.png', '선택폴더/하위/a.png', '별도.csv'])
+  assert.equal(await files[1].text(), 'bytes')
+  const fallback = new File(['x'], '단일.txt')
+  assert.deepEqual(await droppedUploadFiles({ items: [], files: [fallback] }), [fallback])
+})
+
+test('폴더 드롭은 읽기 실패를 알리고 빈 폴더는 파일을 추가하지 않는다', async () => {
+  const directory = reader => ({ kind: 'file', webkitGetAsEntry: () => ({ name: '폴더', isDirectory: true, createReader: () => reader }) })
+  assert.deepEqual(await droppedUploadFiles({ items: [directory({ readEntries: resolve => resolve([]) })], files: [] }), [])
+  await assert.rejects(droppedUploadFiles({ items: [directory({ readEntries: (_, reject) => reject(new Error('접근 실패')) })], files: [] }), /접근 실패/)
+})
+
+test('폴더 업로드는 두 파일 API 모두 선택 폴더부터의 상대 경로를 보낸다', async t => {
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json({}))
+  for (const upload of [uploadImage, uploadFile]) {
+    const file = new File(['content'], 'sample.png')
+    Object.defineProperty(file, 'webkitRelativePath', { value: '선택폴더/하위/sample.png' })
+    await upload('dataset', file, 'token')
+    const body = request.mock.calls.at(-1).arguments[1].body
+    assert.equal(body.get('relativePath'), '선택폴더/하위/sample.png')
+    assert.equal(body.get('file').name, 'sample.png')
+  }
+  for (const kind of ['images', 'files']) {
+    const markup = renderToStaticMarkup(React.createElement(DatasetUploadModal, { dataset: {}, accessToken: 'token', kind }))
+    assert.match(markup, /업로드할 폴더 선택/)
+    assert.match(markup, /선택한 폴더 이름부터의 경로/)
+    assert.match(markup, /<button[^>]*>파일 선택<\/button>/)
+    assert.match(markup, /<button[^>]*>폴더 선택<\/button>/)
+    assert.match(markup, /파일 또는 폴더를 여기에 놓으세요/)
+    assert.equal((markup.match(/type="file" hidden=""/g) ?? []).length, 2)
+  }
+})
+
+test('데이터 파일 탭은 파일 전용 경로와 fileId를 사용하고 공통 목록 ID로 변환한다', async t => {
+  const target = { datasetId: 'dataset/a', name: '공통', workspaceId: 'space', workspaceName: '공간' }
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json([target]))
+  assert.deepEqual(await entryApis.files.targets('token'), [target])
+  assert.equal(request.mock.calls[0].arguments[0], '/api/datasets/file-targets')
+  const file = { fileId: 'file/1', datasetId: 'dataset/a', originalFilename: '자료.csv', description: null }
+  request.mock.mockImplementation(async () => Response.json([file]))
+  const list = await entryApis.files.list('dataset/a', 'token')
+  assert.equal(list[0].entryId, 'file/1')
+  assert.equal(list[0].thumbnailUrl, null)
+  assert.equal(request.mock.calls[1].arguments[0], '/api/datasets/dataset%2Fa/files')
+  await entryApis.files.save('dataset/a', [{ entryId: 'file/1', description: '편집' }], 'token')
+  const [, options] = request.mock.calls[2].arguments
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.deepEqual(JSON.parse(options.body), { items: [{ fileId: 'file/1', description: '편집' }] })
+  request.mock.mockImplementation(async () => new Response(null, { status: 204 }))
+  await entryApis.files.remove('dataset/a', 'file/1', 'token')
+  assert.equal(request.mock.calls[3].arguments[0], '/api/datasets/dataset%2Fa/files/file%2F1')
+})
+
+test('데이터 파일 업로드는 파일별 설명과 수정 모드를 별도 files API로 전송한다', async t => {
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json({ fileId: 'file' }, { status: 201 }))
+  const file = new File(['a,b'], '자료.csv')
+  await uploadFile('dataset', file, 'token', undefined, true, '설명')
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/dataset/files?replaceExisting=true')
+  assert.equal(options.body.get('file').name, '자료.csv')
+  assert.equal(options.body.get('description'), '설명')
+  request.mock.mockImplementation(async () => new Response('', { status: 403 }))
+  await assert.rejects(uploadFile('dataset', file, 'token'), /권한/)
+})
+
+test('데이터셋 관리 화면은 두 파일 탭과 직접 진입한 데이터 파일 선택 상태를 제공한다', t => {
+  const previous = globalThis.window
+  globalThis.window = { location: { search: '?tab=files' } }
+  t.after(() => { if (previous === undefined) delete globalThis.window; else globalThis.window = previous })
+  const markup = renderToStaticMarkup(React.createElement(DatasetManagePage, { accessToken: 'token' }))
+  assert.match(markup, /데이터셋 관리/)
+  assert.match(markup, /id="dataset-tab-files"[^>]*aria-selected="true"/)
+  assert.match(markup, /이미지 파일/)
+  assert.match(markup, /데이터 파일/)
+})
+
+test('이미지 설명 저장 대상은 선택된 실제 변경 행만 포함하고 공백 설명은 지운다', () => {
+  const images = [{ entryId: 'a', description: '원래' }, { entryId: 'b', description: '그대로' }, { entryId: 'c', description: '미선택' }, { entryId: 'd', description: '삭제' }]
+  const drafts = { a: '변경', b: '그대로', c: '선택 해제한 변경', d: '  ' }
+  const changes = getEntryDescriptionChanges(images, drafts, ['a', 'b', 'd'])
+  assert.deepEqual(changes, [{ entryId: 'a', description: '변경' }, { entryId: 'd', description: null }])
+  assert.deepEqual(getEntryDescriptionChanges(images, drafts, []), [])
+})
+
+test('이미지 설명은 한 PATCH로 저장하고 실패 응답을 전체 저장 성공으로 처리하지 않는다', async t => {
+  const items = [{ imageId: 'image', description: '설명' }]
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(items))
+  assert.deepEqual(await saveImageDescriptions('dataset/a', items, 'token'), items)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa/images/descriptions')
+  assert.equal(options.method, 'PATCH')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.deepEqual(JSON.parse(options.body), { items })
+  for (const [status, message] of [[400, /2,000자/], [403, /이미지 수정 권한/], [404, /전체 저장이 취소/], [500, /저장하지 못했습니다/]]) {
+    request.mock.mockImplementation(async () => new Response('', { status }))
+    await assert.rejects(saveImageDescriptions('dataset', items, 'token'), message)
+  }
+})
+
+test('이미지 삭제는 선택 이미지 경로·인증을 사용하고 실패를 성공으로 처리하지 않는다', async t => {
+  const request = t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 204 }))
+  const controller = new AbortController()
+  await deleteImage('dataset/a', 'image/1', 'token', controller.signal)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa/images/image%2F1')
+  assert.equal(options.method, 'DELETE')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.equal(options.signal, controller.signal)
+  for (const [status, message] of [[401, /다시 로그인/], [403, /삭제 권한/], [404, /이미 삭제되었거나 교체된/], [500, /삭제하지 못했습니다/]]) {
+    request.mock.mockImplementation(async () => new Response('private details', { status }))
+    await assert.rejects(deleteImage('dataset', 'image', 'token'), message)
+  }
+  const calls = request.mock.calls.length
+  request.mock.mockImplementation(async () => { throw new TypeError('fetch failed') })
+  await assert.rejects(deleteImage('dataset', 'image', 'token'), /삭제 결과를 확인할 수 없습니다/)
+  assert.equal(request.mock.calls.length, calls + 1)
+})
 
 test('이미지 대상 목록은 데이터셋 목록 대신 이미지 권한 전용 경로로 조회한다', async t => {
   const targets = [{ datasetId: 'd1', name: '이미지 대상', workspaceId: 'a', workspaceName: '공간' }]
@@ -37,7 +170,7 @@ test('이미지 업로드는 multipart 단건 파일과 인증을 보내고 원�
   const request = t.mock.method(globalThis, 'fetch', async () => Response.json(result, { status: 201 }))
   const file = new File(['image'], '원본.png', { type: 'image/png' })
   const controller = new AbortController()
-  assert.deepEqual(await uploadImage('dataset/a', file, 'token', controller.signal), result)
+  assert.deepEqual(await uploadImage('dataset/a', file, 'token', controller.signal, false, '파일별 설명'), result)
   const [url, options] = request.mock.calls[0].arguments
   assert.equal(url, '/api/datasets/dataset%2Fa/images')
   assert.equal(options.method, 'POST')
@@ -45,6 +178,7 @@ test('이미지 업로드는 multipart 단건 파일과 인증을 보내고 원�
   assert.equal(options.signal, controller.signal)
   assert.equal(options.body.get('file').name, file.name)
   assert.equal(await options.body.get('file').text(), 'image')
+  assert.equal(options.body.get('description'), '파일별 설명')
   await uploadImage('dataset/a', file, 'token', controller.signal, true)
   assert.equal(request.mock.calls[1].arguments[0], '/api/datasets/dataset%2Fa/images?replaceExisting=true')
 })

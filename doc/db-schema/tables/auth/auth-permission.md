@@ -27,7 +27,7 @@
 
 ## 제약 및 인덱스
 
-2026-11-13: 이미지 기능 카탈로그는 dataset:image:read·upload·update·delete입니다. common R__04_image_permissions.sql에서 멱등 등록하고 local seed만 admin 역할에 네 권한을 연결합니다. 기능별 대상 범위와 현재 API 구현 상태는 [API 계약](../../../api/api.md#이미지-기능-권한)에 둡니다. delete 카탈로그 등록은 개별 이미지 삭제 API 구현을 의미하지 않습니다.
+2026-11-13: 이미지 기능 카탈로그는 dataset:image:read·upload·update·delete입니다. common R__04_image_permissions.sql에서 멱등 등록하고 local seed만 admin 역할에 네 권한을 연결합니다. 기능별 대상 범위와 현재 API 구현 상태는 [API 계약](../../../api/api.md#이미지-기능-권한)에 둡니다. 후속 ADR-041에서 delete 권한을 사용하는 개별 이미지 삭제 API·선택 삭제 화면을 구현했습니다.
 
 - `pk_auth_permission`: 기본 키 (`permission_code`). 별도 동일 컬럼 인덱스를 만들지 않습니다.
 - 코드는 `^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$` 형식과 최대 150자를 서비스 입력에서 검증합니다. 향후 관리 API에서 빈 표시 이름도 거부해야 하며 현재 쓰기 API는 없습니다. DB CHECK의 구체 문법은 대상 DB 결정 후 확정합니다.
@@ -59,3 +59,7 @@
 
 - `auth_role_permission.permission_code`가 참조합니다. 참조가 남아 있으면 삭제를 거부하고 자동 연쇄 삭제하지 않습니다.
 - 실행 중 API가 참조하는 권한 삭제는 서비스·배포 검증으로 금지합니다. API와의 정합성은 FK만으로 보장되지 않습니다.
+
+## 데이터 파일 권한 — 2026-11-13
+
+공통 R__05_file_permissions.sql에 dataset:file:read/upload/update/delete를 등록합니다. 이미지·데이터셋 권한과 독립이며 공통 seed는 역할 부여를 하지 않습니다. local R__local_file_permissions.sql만 admin 역할에 네 권한을 부여합니다. 대상 접근 조건은 [API](../../../api/api.md#데이터-파일-api--2026-11-13)를 따릅니다.

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="datasetFile">
+  <sql id="readScope">
+    EXISTS (
+      SELECT 1 FROM workspace space
+      JOIN workspace_member member ON member.workspace_id = space.workspace_id
+      WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
+    )
+  </sql>
+  <sql id="manageScope">
+    EXISTS (
+      SELECT 1 FROM workspace space
+      JOIN workspace_member member ON member.workspace_id = space.workspace_id
+      WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
+        AND (space.owner_user_key = #{userKey} OR member.role_code = 'ADMIN' OR dataset.created_by = #{userKey})
+    )
+  </sql>
+  <select id="canRead" resultType="java.lang.Boolean" useCache="false" flushCache="true">
+    SELECT COUNT(*) > 0 FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="readScope"/>
+  </select>
+  <select id="canManage" resultType="java.lang.Boolean" useCache="false" flushCache="true">
+    SELECT COUNT(*) > 0 FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="manageScope"/>
+  </select>
+  <resultMap id="target" type="com.imageaiplatform.dataset.domain.DatasetFileTarget">
+    <constructor>
+      <idArg column="dataset_id" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="workspace_id" javaType="java.lang.String"/>
+      <arg column="workspace_name" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="findTargets" resultMap="target" useCache="false" flushCache="true">
+    SELECT dataset.dataset_id, dataset.name, dataset.workspace_id, space.name AS workspace_name
+    FROM dataset JOIN workspace space ON space.workspace_id = dataset.workspace_id
+    WHERE <include refid="readScope"/>
+    ORDER BY dataset.created_at DESC, dataset.dataset_id
+  </select>
+  <resultMap id="entry" type="com.imageaiplatform.dataset.domain.DatasetFile">
+    <constructor>
+      <idArg column="file_id" javaType="java.lang.String"/>
+      <arg column="dataset_id" javaType="java.lang.String"/>
+      <arg column="original_filename" javaType="java.lang.String"/>
+      <arg column="storage_path" javaType="java.lang.String"/>
+      <arg column="media_type" javaType="java.lang.String"/>
+      <arg column="size_bytes" javaType="java.lang.Long"/>
+      <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="created_by" javaType="java.lang.String"/>
+      <arg column="updated_by" javaType="java.lang.String"/>
+      <arg column="is_deleted" javaType="java.lang.Boolean"/>
+      <arg column="version_count" javaType="java.lang.Integer"/>
+      <arg column="previous_file_id" javaType="java.lang.String"/>
+      <arg column="creator_user_id" javaType="java.lang.String"/>
+      <arg column="creator_username" javaType="java.lang.String"/>
+      <arg column="updater_user_id" javaType="java.lang.String"/>
+      <arg column="updater_username" javaType="java.lang.String"/>
+      <arg column="first_registered_at" javaType="java.time.OffsetDateTime"/>
+      <arg column="description" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <sql id="fileRows">
+    WITH RECURSIVE file_lineage(file_id, first_registered_at) AS (
+      SELECT file_id, created_at FROM dataset_file
+      WHERE dataset_id = #{datasetId} AND version_count = 1 AND previous_file_id IS NULL
+      UNION ALL
+      SELECT next_file.file_id, lineage.first_registered_at
+      FROM dataset_file next_file JOIN file_lineage lineage ON next_file.previous_file_id = lineage.file_id
+      WHERE next_file.dataset_id = #{datasetId}
+    )
+    SELECT entry.*, creator.user_id AS creator_user_id, creator.username AS creator_username,
+        updater.user_id AS updater_user_id, updater.username AS updater_username, lineage.first_registered_at
+    FROM dataset_file entry
+    LEFT JOIN file_lineage lineage ON lineage.file_id = entry.file_id
+    LEFT JOIN auth_user creator ON creator.user_key = entry.created_by
+    LEFT JOIN auth_user updater ON updater.user_key = entry.updated_by
+    WHERE entry.is_deleted = FALSE
+  </sql>
+  <select id="findById" resultMap="entry" useCache="false" flushCache="true">
+    <include refid="fileRows"/> AND entry.dataset_id = #{datasetId} AND entry.file_id = #{fileId}
+  </select>
+  <select id="findByDatasetId" resultMap="entry" useCache="false" flushCache="true">
+    <include refid="fileRows"/> AND entry.dataset_id = #{datasetId} ORDER BY entry.created_at DESC, entry.file_id
+  </select>
+  <select id="findActiveByFilename" resultMap="entry" useCache="false" flushCache="true">
+    <include refid="fileRows"/> AND entry.dataset_id = #{datasetId} AND entry.original_filename = #{originalFilename}
+  </select>
+  <select id="lockDataset" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT dataset_id FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="manageScope"/> FOR UPDATE
+  </select>
+  <update id="markDeleted" parameterType="com.imageaiplatform.dataset.domain.DatasetFile">
+    <bind name="userKey" value="updatedBy"/>
+    UPDATE dataset_file SET is_deleted = TRUE, updated_at = #{updatedAt}, updated_by = #{updatedBy}
+    WHERE file_id = #{fileId} AND dataset_id = #{datasetId} AND is_deleted = FALSE
+      AND EXISTS (SELECT 1 FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>)
+  </update>
+  <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.DatasetFile">
+    <bind name="userKey" value="createdBy"/>
+    INSERT INTO dataset_file (file_id, dataset_id, original_filename, storage_path, media_type, size_bytes,
+        created_at, updated_at, created_by, updated_by, is_deleted, version_count, previous_file_id, description)
+    SELECT #{fileId}, #{datasetId}, #{originalFilename}, #{storagePath}, #{mediaType}, #{sizeBytes},
+        #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}, #{deleted}, #{versionCount}, #{previousFileId}, #{description}
+    FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>
+  </insert>
+  <update id="updateDescription" parameterType="com.imageaiplatform.dataset.domain.DatasetFile">
+    <bind name="userKey" value="updatedBy"/>
+    UPDATE dataset_file SET description = #{description,jdbcType=VARCHAR}, updated_at = #{updatedAt}, updated_by = #{updatedBy}
+    WHERE file_id = #{fileId} AND dataset_id = #{datasetId} AND is_deleted = FALSE
+      AND EXISTS (SELECT 1 FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>)
+  </update>
+  <insert id="insertHistory" parameterType="com.imageaiplatform.dataset.domain.DatasetFileHistory">
+    INSERT INTO dataset_file_history (history_id, file_id, dataset_id, action, version_count, previous_file_id,
+        original_filename, storage_path, media_type, size_bytes,
+        file_created_at, file_updated_at, file_created_by, file_updated_by,
+        created_at, updated_at, created_by, updated_by, description)
+    VALUES (#{historyId}, #{entry.fileId}, #{entry.datasetId}, #{action}, #{entry.versionCount}, #{entry.previousFileId},
+        #{entry.originalFilename}, #{entry.storagePath}, #{entry.mediaType}, #{entry.sizeBytes},
+        #{entry.createdAt}, #{entry.updatedAt}, #{entry.createdBy}, #{entry.updatedBy},
+        #{createdAt}, #{createdAt}, #{createdBy}, #{createdBy}, #{entry.description})
+  </insert>
+</mapper>

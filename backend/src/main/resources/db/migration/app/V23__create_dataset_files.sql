@@ -1,0 +1,50 @@
+CREATE TABLE dataset_file (
+    file_id VARCHAR(36) NOT NULL,
+    dataset_id VARCHAR(36) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    storage_path VARCHAR(100) NOT NULL,
+    media_type VARCHAR(100) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    created_at TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100) NOT NULL DEFAULT '0',
+    updated_by VARCHAR(100) NOT NULL DEFAULT '0',
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version_count INTEGER NOT NULL DEFAULT 1,
+    previous_file_id VARCHAR(36),
+    description VARCHAR(2000),
+    active_filename VARCHAR(255) GENERATED ALWAYS AS (CASE WHEN is_deleted = FALSE THEN original_filename ELSE NULL END),
+    CONSTRAINT ck_dataset_file_version CHECK (version_count > 0),
+    CONSTRAINT pk_dataset_file PRIMARY KEY (file_id),
+    CONSTRAINT uq_dataset_file_active_filename UNIQUE (dataset_id, active_filename),
+    CONSTRAINT uq_dataset_file_storage UNIQUE (storage_path),
+    CONSTRAINT fk_dataset_file_dataset FOREIGN KEY (dataset_id) REFERENCES dataset(dataset_id) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT ck_dataset_file_size CHECK (size_bytes > 0)
+);
+
+CREATE TABLE dataset_file_history (
+    history_id VARCHAR(36) NOT NULL,
+    file_id VARCHAR(36) NOT NULL,
+    dataset_id VARCHAR(36) NOT NULL,
+    action VARCHAR(10) NOT NULL,
+    version_count INTEGER NOT NULL,
+    previous_file_id VARCHAR(36),
+    original_filename VARCHAR(255) NOT NULL,
+    storage_path VARCHAR(100) NOT NULL,
+    description VARCHAR(2000),
+    media_type VARCHAR(100) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    file_created_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    file_updated_at TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    file_created_by VARCHAR(100) NOT NULL,
+    file_updated_by VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100) NOT NULL DEFAULT '0',
+    updated_by VARCHAR(100) NOT NULL DEFAULT '0',
+    CONSTRAINT pk_dataset_file_history PRIMARY KEY (history_id),
+    CONSTRAINT ck_dataset_file_history_action CHECK (action IN ('CREATE', 'UPDATE', 'DELETE', 'BASELINE')),
+    CONSTRAINT ck_dataset_file_history_version CHECK (version_count > 0)
+);
+CREATE INDEX ix_dataset_file_history_file ON dataset_file_history (file_id, created_at);
+CREATE INDEX ix_dataset_file_history_dataset ON dataset_file_history (dataset_id, original_filename, version_count);

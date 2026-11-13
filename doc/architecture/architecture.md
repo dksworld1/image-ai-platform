@@ -1,5 +1,15 @@
 # 아키텍처
 
+## 이미지 설명 편집 — 2026-11-13
+
+[ADR-042](../decisions/ADR-042-image-descriptions.md)에 따라 이미지 설명은 버전 행과 이벤트 이력에 저장합니다. 업로드 모달은 파일마다 description을 전송하고, 목록은 원본·임시 편집·선택을 분리해 선택된 실제 변경만 단일 PATCH로 보냅니다. DatasetImageService는 image:update와 대상 범위를 검사하고 데이터셋 행 잠금 안에서 설명·수정 감사 값·UPDATE 스냅샷을 한 트랜잭션으로 반영합니다. 한 행 실패 시 전부 롤백하며 새 파일 버전은 만들지 않습니다. 컨트롤러의 DTO 검증과 서비스 정규화 외에 별도 편집 프레임워크는 추가하지 않았습니다.
+
+2026-11-13 이미지 최초 등록일시: 이미지 조회 SQL은 보존된 이전 버전 연결을 따라 버전 1의 created_at을 firstRegisteredAt으로 계산합니다. 같은 파일명 전체의 최솟값을 사용하지 않으며 DB 컬럼·별도 요청은 추가하지 않습니다. 응답의 현재 버전 createdAt과 구분하고 최초 시각의 상세 계약은 [API](../api/api.md#get-apidatasetsdatasetidimages)에 둡니다.
+
+## 이미지 선택 삭제 — 2026-11-13
+
+[ADR-041](../decisions/ADR-041-image-logical-deletion.md)에 따라 이미지 서비스에 delete 권한·대상 조건을 검사하는 단건 논리 삭제를 추가했습니다. 기존 데이터셋 행 잠금·삭제 표시 DAO·DELETE 이력을 재사용하며 파일을 제거하지 않습니다. 컨트롤러는 204/404 HTTP 경계만 처리합니다. 프런트는 기존 목록 그리드의 선택·확인·순차 삭제·부분 실패 표시를 적용합니다. 아래 이미지 delete API 미구현 설명은 이전 단계 기록입니다.
+
 ## 이미지 기능 권한 분리 — 2026-11-13
 
 [ADR-040](../decisions/ADR-040-image-permissions.md)에 따라 DatasetImageService의 @PreAuthorize는 이미지 read·upload·update와 이미지 대상 조건을 AND로 검사합니다. 데이터셋 상세 서비스 의존성을 제거했고 대상 SQL은 이미지 매퍼에서 독립 관리합니다. 이미지 관리의 데이터셋 선택도 이미지 read 전용 target API를 사용합니다. 따라서 이미지 read만 부여받은 활성 멤버가 데이터셋 read 없이 이미지 목록·원본·썸네일을 사용할 수 있습니다.
@@ -134,3 +144,13 @@ DB 테이블은 `doc/db-schema/tables/` 아래 업무 그룹별 정의서로 관
 ## 화면·메뉴
 
 기존 ui 모듈의 API·서비스·DAO·도메인·매퍼를 제거했습니다. V3 이력은 유지하고 V4에서 UI 테이블을 삭제합니다. UI 전용 권한은 공통 seed에서 정리하며 local seed는 관리자 계정·역할·현재 권한 연결만 유지합니다. [ADR-027](../decisions/ADR-027-remove-ui-module.md)을 따릅니다.
+
+## 데이터셋 관리의 파일 유형 분리 — 2026-11-13
+
+폴더 업로드(ADR-046)는 기존 단건 API를 사용하며 선택 multipart relativePath를 공통 도메인 UploadFilename에서 검증·정규화해 original_filename에 저장합니다. 폴더 엔티티나 물리 폴더 계층은 추가하지 않습니다. 유형별 서비스는 기존 권한·내용 처리·버전 관리 경계를 유지합니다.
+
+현재 페이지는 DatasetManagePage이며 /datasets/manage에서 이미지 파일·데이터 파일 탭을 제공합니다. 기존 /datasets/images도 같은 페이지로 연결합니다. DatasetUploadModal과 목록 동작을 함께 사용하고 api/datasetEntries.ts에서 두 API의 imageId/fileId를 화면용 entryId로 변환합니다. 이미지 전용 썸네일·상세 조회와 데이터 파일 다운로드는 각각 유지합니다. 별도 공통 그리드 프레임워크나 의존성은 추가하지 않았습니다.
+
+데이터 파일은 DatasetFileController → DatasetFileService → DatasetFileDao/MyBatisDatasetFileDao와 별도 mapper·dataset_file/history로 관리합니다. 이미지 모델·저장소·권한을 합치지 않습니다. 데이터 파일은 원본 바이너리 보관과 메타데이터 수명 주기를 담당하고 내용 파싱·분석 파이프라인은 담당하지 않습니다. 권한과 HTTP 상세는 [API](../api/api.md#데이터-파일-api--2026-11-13), 채택 근거는 [ADR-043](../decisions/ADR-043-dataset-file-tabs.md)을 따릅니다.
+
+후속 [ADR-044](../decisions/ADR-044-data-file-binary-upload.md)에 따라 데이터 파일은 이미지도 허용하며 확장자·내용을 판별하지 않습니다. 데이터 파일 경로에서는 이미지 처리·썸네일 생성을 수행하지 않습니다.
