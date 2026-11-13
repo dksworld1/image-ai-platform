@@ -3,14 +3,18 @@ package com.imageaiplatform.dataset.controller;
 import com.imageaiplatform.dataset.service.DatasetImageService;
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,11 +34,35 @@ public class DatasetImageController {
         return imageService.list(datasetId).stream().map(DatasetImageResponse::from).toList();
     }
 
+    @GetMapping(value = "/{imageId}/thumbnail", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> thumbnail(@PathVariable String datasetId, @PathVariable String imageId) {
+        try {
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).cacheControl(CacheControl.noStore())
+                    .body(imageService.thumbnail(datasetId, imageId));
+        } catch (NoSuchElementException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Thumbnail is unavailable.");
+        }
+    }
+
+    @GetMapping("/{imageId}/content")
+    public ResponseEntity<byte[]> content(@PathVariable String datasetId, @PathVariable String imageId) {
+        try {
+            var content = imageService.content(datasetId, imageId);
+            return ResponseEntity.ok().contentType(MediaType.parseMediaType(content.mediaType()))
+                    .cacheControl(CacheControl.noStore()).body(content.contents());
+        } catch (NoSuchElementException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Image is unavailable.");
+        }
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public DatasetImageResponse upload(@PathVariable String datasetId, @RequestPart("file") MultipartFile file) throws IOException {
+    public DatasetImageResponse upload(@PathVariable String datasetId, @RequestPart("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") Boolean replaceExisting) throws IOException {
         try {
-            return DatasetImageResponse.from(imageService.upload(datasetId, file.getOriginalFilename(), file.getBytes()));
+            return DatasetImageResponse.from(Boolean.TRUE.equals(replaceExisting)
+                    ? imageService.replace(datasetId, file.getOriginalFilename(), file.getBytes())
+                    : imageService.upload(datasetId, file.getOriginalFilename(), file.getBytes()));
         } catch (DuplicateKeyException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 이미지입니다.");
         } catch (IllegalArgumentException exception) {

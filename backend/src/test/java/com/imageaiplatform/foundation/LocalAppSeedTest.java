@@ -13,6 +13,30 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 class LocalAppSeedTest {
     @Test
+    void baselinesExistingImageMetadataWithoutInventingPastEvents() {
+        var old = Flyway.configure()
+                .dataSource("jdbc:h2:mem:image-baseline-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "")
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common").target("19").load();
+        old.migrate();
+        var source = old.getConfiguration().getDataSource();
+        var jdbc = new JdbcTemplate(source);
+        jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES ('original', 'original', 'unused')");
+        jdbc.update("INSERT INTO workspace (workspace_id, name, owner_user_key) VALUES ('space', '공간', 'original')");
+        jdbc.update("INSERT INTO dataset (dataset_id, name, workspace_id) VALUES ('dataset', '과거', 'space')");
+        jdbc.update("INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes, created_by) VALUES ('image', 'dataset', '과거.png', 'original.png', 'image/png', 1, 'original')");
+        var current = Flyway.configure().dataSource(source)
+                .locations("classpath:db/migration/app", "classpath:db/seed/app/common").load();
+        current.migrate();
+        var history = jdbc.queryForMap("SELECT * FROM dataset_image_history");
+        assertThat(history.get("ACTION")).isEqualTo("BASELINE");
+        assertThat(history.get("IMAGE_CREATED_BY")).isEqualTo("original");
+        assertThat(history.get("CREATED_BY")).isEqualTo("0");
+        assertThat(history.get("VERSION_COUNT")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT is_deleted FROM dataset_image", Boolean.class)).isFalse();
+        assertThat(current.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
     void removesExistingUiSchemaAndGrantsWithoutRemovingOtherPermissions() {
         var old = Flyway.configure()
                 .dataSource("jdbc:h2:mem:retire-ui-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "")
@@ -36,7 +60,7 @@ class LocalAppSeedTest {
                 .doesNotContain("UI_SCREEN", "UI_MENU", "UI_SCREEN_PERMISSION");
         assertThat(jdbc.queryForList("SELECT permission_code FROM auth_permission", String.class))
                 .containsExactlyInAnyOrder("dataset:item:read", "dataset:item:create", "dataset:item:use",
-                        "dataset:item:update", "dataset:item:delete", "dataset:image:upload");
+                        "dataset:item:update", "dataset:item:delete", "dataset:image:upload", "dataset:image:read", "dataset:image:update", "dataset:image:delete");
         assertThat(jdbc.queryForList("SELECT permission_code FROM auth_role_permission", String.class))
                 .containsExactly("dataset:item:read");
         assertThat(current.migrate().migrationsExecuted).isZero();
@@ -59,7 +83,7 @@ class LocalAppSeedTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role", Integer.class)).isZero();
         var withSeed = Flyway.configure().dataSource(source)
                 .locations("classpath:db/migration/app", "classpath:db/seed/app/common", "classpath:db/seed/app/local").load();
-        assertThat(withSeed.migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(withSeed.migrate().migrationsExecuted).isEqualTo(8);
 
         String hash = jdbc.queryForObject("SELECT password_hash FROM auth_user WHERE user_id='admin'", String.class);
         String userKey = jdbc.queryForObject("SELECT user_key FROM auth_user WHERE user_id='admin'", String.class);
@@ -114,7 +138,7 @@ class LocalAppSeedTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT user_key FROM auth_user WHERE user_id='admin'", String.class)).isEqualTo(userKey);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_user_role", Integer.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(7);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_role_permission WHERE role_code='admin'", Integer.class)).isEqualTo(10);
         for (String table : new String[] {"auth_user", "auth_role"}) {
             var audit = jdbc.queryForMap("SELECT created_at, updated_at, created_by, updated_by FROM " + table);
             assertThat(((OffsetDateTime) audit.get("CREATED_AT")).toInstant()).isEqualTo(originalCreated.toInstant());

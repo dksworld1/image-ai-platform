@@ -4,13 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 import com.imageaiplatform.auth.service.JwtTokenService;
 import jakarta.servlet.Filter;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -24,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -51,7 +55,7 @@ class DatasetImageUploadTest {
     void setup() throws Exception {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilter).build();
         jdbc = new JdbcTemplate(dataSource);
-        for (String table : new String[] {"dataset_image", "dataset", "workspace_member", "workspace", "auth_user_role", "auth_role_permission", "auth_role", "auth_user"}) {
+        for (String table : new String[] {"dataset_image_history", "dataset_image", "dataset", "workspace_member", "workspace", "auth_user_role", "auth_role_permission", "auth_role", "auth_user"}) {
             jdbc.update("DELETE FROM " + table);
         }
         Files.createDirectories(STORAGE);
@@ -59,7 +63,7 @@ class DatasetImageUploadTest {
             for (Path file : files.toList()) Files.delete(file);
         }
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('uploader', 'Uploader')");
-        jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:image:upload'), ('uploader', 'dataset:item:read')");
+        jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:image:upload'), ('uploader', 'dataset:image:update'), ('uploader', 'dataset:image:read'), ('uploader', 'dataset:item:read'), ('uploader', 'dataset:item:delete')");
         for (String user : new String[] {"owner", "manager", "creator", "other", "outsider", "no-permission"}) {
             jdbc.update("INSERT INTO auth_user (user_key, user_id, password_hash) VALUES (?, ?, 'unused')", user, "login-" + user);
             if (!user.equals("no-permission")) jdbc.update("INSERT INTO auth_user_role (user_key, role_code) VALUES (?, 'uploader')", user);
@@ -76,6 +80,147 @@ class DatasetImageUploadTest {
     }
 
     @Test
+    void imageReadIsIndependentOfDatasetReadIncludingTargetsAndContent() throws Exception {
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("독립.png", png)).header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated());
+        String imageId = jdbc.queryForObject("SELECT image_id FROM dataset_image", String.class);
+        jdbc.update("INSERT INTO dataset (dataset_id, name, workspace_id) VALUES ('outside', '다른 공간', 'b'), ('unassigned', '미귀속', NULL)");
+        jdbc.update("DELETE FROM auth_role_permission WHERE role_code='uploader' AND permission_code='dataset:item:read'");
+        mvc.perform(get("/api/datasets").header("Authorization", bearer("other"))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/datasets/image-targets").header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].workspaceId").value("a"));
+        for (String path : new String[] {"/api/datasets/d1/images", "/api/datasets/d1/images/" + imageId + "/content", "/api/datasets/d1/images/" + imageId + "/thumbnail"}) {
+            mvc.perform(get(path).header("Authorization", bearer("other"))).andExpect(status().isOk());
+        }
+        jdbc.update("DELETE FROM auth_role_permission WHERE role_code='uploader' AND permission_code='dataset:image:read'");
+        jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:item:read')");
+        mvc.perform(get("/api/datasets").header("Authorization", bearer("other"))).andExpect(status().isOk());
+        for (String path : new String[] {"/api/datasets/image-targets", "/api/datasets/d1/images", "/api/datasets/d1/images/" + imageId + "/content", "/api/datasets/d1/images/" + imageId + "/thumbnail"}) {
+            mvc.perform(get(path).header("Authorization", bearer("other"))).andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
+    void separatesUploadAndUpdateAndRequiresUploadForNewReplacementNames() throws Exception {
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("기존.png", png)).header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated());
+        jdbc.update("DELETE FROM auth_role_permission WHERE role_code='uploader' AND permission_code IN ('dataset:item:read', 'dataset:item:delete', 'dataset:image:upload')");
+        mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("기존.png", png))
+                        .header("Authorization", bearer("manager")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.versionCount").value(2));
+        for (String mode : new String[] {"false", "true"}) {
+            mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", mode).file(file("신규.png", png))
+                            .header("Authorization", bearer("manager")))
+                    .andExpect(status().isForbidden());
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image", Integer.class)).isEqualTo(2);
+        jdbc.update("DELETE FROM auth_role_permission WHERE role_code='uploader' AND permission_code='dataset:image:update'");
+        jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:image:upload')");
+        mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("기존.png", png))
+                        .header("Authorization", bearer("manager"))).andExpect(status().isForbidden());
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("신규.png", png)).header("Authorization", bearer("manager")))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void serializesConcurrentReplacementsWithoutLosingVersionNumbers() throws Exception {
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("동시.png", png)).header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated());
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var tasks = new java.util.ArrayList<java.util.concurrent.Future<Integer>>();
+            String authorization = bearer("manager");
+            for (int i = 0; i < 2; i++) tasks.add(executor.submit(() -> {
+                start.await();
+                return mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true")
+                        .file(file("동시.png", png)).header("Authorization", authorization)).andReturn().getResponse().getStatus();
+            }));
+            start.countDown();
+            for (var task : tasks) assertThat(task.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(201);
+        }
+        assertThat(jdbc.queryForList("SELECT version_count FROM dataset_image ORDER BY version_count", Integer.class)).containsExactly(1, 2, 3);
+        assertThat(jdbc.queryForObject("SELECT version_count FROM dataset_image WHERE is_deleted=FALSE", Integer.class)).isEqualTo(3);
+    }
+
+    @Test
+    void replacesMatchingNamesPreservesFilesAndTracesVersionsAndDatasetDeletion() throws Exception {
+        jdbc.update("UPDATE auth_user SET username='등록 담당자' WHERE user_key='creator'");
+        jdbc.update("UPDATE auth_user SET username='수정 담당자' WHERE user_key='manager'");
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("교체.png", png)).header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.versionCount").value(1))
+                .andExpect(jsonPath("$.creatorUserId").value("login-creator"))
+                .andExpect(jsonPath("$.creatorUsername").value("등록 담당자"));
+        var first = jdbc.queryForMap("SELECT * FROM dataset_image");
+        var replacementOutput = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB), "png", replacementOutput);
+        byte[] replacement = replacementOutput.toByteArray();
+        for (int version = 2; version <= 3; version++) {
+            mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("교체.png", replacement))
+                            .header("Authorization", bearer("manager")))
+                    .andExpect(status().isCreated()).andExpect(jsonPath("$.versionCount").value(version))
+                    .andExpect(jsonPath("$.updatedBy").value("manager"))
+                    .andExpect(jsonPath("$.updaterUsername").value("수정 담당자"));
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image WHERE is_deleted=FALSE", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT created_by FROM dataset_image WHERE image_id=?", String.class, first.get("IMAGE_ID"))).isEqualTo("creator");
+        assertThat(jdbc.queryForObject("SELECT updated_by FROM dataset_image WHERE image_id=?", String.class, first.get("IMAGE_ID"))).isEqualTo("manager");
+        assertThat(Files.readAllBytes(STORAGE.resolve((String) first.get("STORAGE_PATH")))).isEqualTo(png);
+        assertThat(Files.exists(STORAGE.resolve((String) first.get("THUMBNAIL_PATH")))).isTrue();
+        assertThat(fileCount()).isEqualTo(6);
+        String currentImageId = jdbc.queryForObject("SELECT image_id FROM dataset_image WHERE is_deleted=FALSE", String.class);
+        mvc.perform(get("/api/datasets/d1/images/" + currentImageId + "/content").header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(content().bytes(replacement));
+        mvc.perform(get("/api/datasets/d1/images").header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].versionCount").value(3)).andExpect(jsonPath("$[0].updatedAt").isString());
+        mvc.perform(get("/api/datasets/d1/images/" + first.get("IMAGE_ID") + "/thumbnail").header("Authorization", bearer("creator")))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/datasets/d1/images/" + first.get("IMAGE_ID") + "/content").header("Authorization", bearer("creator")))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/datasets/d1").header("Authorization", bearer("creator")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.imageCount").value(1));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history WHERE action='CREATE' AND created_by='creator'", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history WHERE action='UPDATE' AND created_by='manager'", Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history WHERE action='DELETE'", Integer.class)).isEqualTo(2);
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("교체.png", png)).header("Authorization", bearer("creator")))
+                .andExpect(status().isConflict());
+        mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("신규.png", png))
+                        .header("Authorization", bearer("owner")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.versionCount").value(1));
+        mvc.perform(delete("/api/datasets/d1").header("Authorization", bearer("owner"))).andExpect(status().isNoContent());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history WHERE action='DELETE' AND created_by='owner'", Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history WHERE image_created_by='creator'", Integer.class)).isGreaterThan(0);
+        assertThat(fileCount()).isEqualTo(8);
+    }
+
+    @Test
+    void rejectsUnauthorizedReplacementAndRollsBackOldStatusAndHistoryOnFailure() throws Exception {
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("보존.png", png)).header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated());
+        var original = jdbc.queryForMap("SELECT * FROM dataset_image");
+        for (String user : new String[] {"other", "outsider", "no-permission"}) {
+            mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("보존.png", png))
+                            .header("Authorization", bearer(user)))
+                    .andExpect(status().isForbidden());
+        }
+        mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("보존.png", new byte[] {1}))
+                        .header("Authorization", bearer("creator"))).andExpect(status().isBadRequest());
+        jdbc.execute("ALTER TABLE dataset_image_history ADD CONSTRAINT reject_history_test CHECK (action <> 'UPDATE')");
+        try {
+            assertThatThrownBy(() -> mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true")
+                    .file(file("보존.png", png)).header("Authorization", bearer("creator"))))
+                    .hasRootCauseInstanceOf(java.sql.SQLException.class);
+            assertThat(jdbc.queryForMap("SELECT * FROM dataset_image")).isEqualTo(original);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history", Integer.class)).isEqualTo(1);
+            assertThat(fileCount()).isEqualTo(2);
+        } finally {
+            jdbc.execute("ALTER TABLE dataset_image_history DROP CONSTRAINT reject_history_test");
+        }
+    }
+
+    @Test
     void storesOriginalFilenameAndBytesRejectsDatasetDuplicatesAndAllowsOtherDatasets() throws Exception {
         mvc.perform(multipart("/api/datasets/d1/images").file(file("C:\\fakepath\\원본.png", png)).header("Authorization", bearer("creator")))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.originalFilename").value("원본.png"))
@@ -84,6 +229,25 @@ class DatasetImageUploadTest {
         assertThat(row.get("CREATED_AT")).isEqualTo(row.get("UPDATED_AT"));
         assertThat(row.get("CREATED_BY")).isEqualTo(row.get("UPDATED_BY"));
         assertThat(Files.readAllBytes(STORAGE.resolve((String) row.get("STORAGE_PATH")))).isEqualTo(png);
+        var smallThumbnail = ImageIO.read(STORAGE.resolve((String) row.get("THUMBNAIL_PATH")).toFile());
+        assertThat(smallThumbnail.getWidth()).isEqualTo(2);
+        assertThat(smallThumbnail.getHeight()).isEqualTo(2);
+        String thumbnailUrl = "/api/datasets/d1/images/" + row.get("IMAGE_ID") + "/thumbnail";
+        mvc.perform(get(thumbnailUrl).header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_PNG));
+        String originalUrl = "/api/datasets/d1/images/" + row.get("IMAGE_ID") + "/content";
+        mvc.perform(get(originalUrl).header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_PNG)).andExpect(content().bytes(png));
+        mvc.perform(get(originalUrl)).andExpect(status().isUnauthorized());
+        mvc.perform(get(originalUrl).header("Authorization", bearer("outsider"))).andExpect(status().isForbidden());
+        mvc.perform(get(originalUrl).header("Authorization", bearer("no-permission"))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/datasets/d2/images/" + row.get("IMAGE_ID") + "/content").header("Authorization", bearer("other")))
+                .andExpect(status().isNotFound());
+        mvc.perform(get(thumbnailUrl)).andExpect(status().isUnauthorized());
+        mvc.perform(get(thumbnailUrl).header("Authorization", bearer("outsider"))).andExpect(status().isForbidden());
+        mvc.perform(get(thumbnailUrl).header("Authorization", bearer("no-permission"))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/datasets/d2/images/" + row.get("IMAGE_ID") + "/thumbnail").header("Authorization", bearer("other")))
+                .andExpect(status().isNotFound());
         mvc.perform(multipart("/api/datasets/d1/images").file(file("원본.png", png)).header("Authorization", bearer("creator")))
                 .andExpect(status().isConflict());
         mvc.perform(multipart("/api/datasets/d2/images").file(file("원본.png", png)).header("Authorization", bearer("owner")))
@@ -94,9 +258,34 @@ class DatasetImageUploadTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
         assertThatThrownBy(() -> jdbc.update("INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes) VALUES ('duplicate', 'd1', '원본.png', 'unused', 'image/png', 1)"))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThat(fileCount()).isEqualTo(3);
+        assertThat(fileCount()).isEqualTo(6);
         jdbc.update("DELETE FROM dataset WHERE dataset_id='d1'");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image WHERE dataset_id='d1'", Integer.class)).isZero();
+    }
+
+    @Test
+    void generatesProportionalThumbnailAndLeavesLegacyImagesWithoutThumbnailUnavailable() throws Exception {
+        var output = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(512, 256, BufferedImage.TYPE_INT_ARGB), "png", output);
+        byte[] original = output.toByteArray();
+        mvc.perform(multipart("/api/datasets/d1/images").file(file("큰 이미지.png", original)).header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.thumbnailUrl").isString());
+        var stored = jdbc.queryForMap("SELECT * FROM dataset_image");
+        assertThat(Files.readAllBytes(STORAGE.resolve((String) stored.get("STORAGE_PATH")))).isEqualTo(original);
+        var response = mvc.perform(get("/api/datasets/d1/images/" + stored.get("IMAGE_ID") + "/thumbnail").header("Authorization", bearer("creator")))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+                .andReturn().getResponse();
+        var thumbnail = ImageIO.read(new ByteArrayInputStream(response.getContentAsByteArray()));
+        assertThat(thumbnail.getWidth()).isEqualTo(256);
+        assertThat(thumbnail.getHeight()).isEqualTo(128);
+        assertThat(thumbnail.getColorModel().hasAlpha()).isTrue();
+        mvc.perform(get("/api/datasets/d1/images/" + stored.get("IMAGE_ID") + "/content").header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(content().bytes(original));
+        jdbc.update("INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes) VALUES ('legacy', 'd1', '과거.png', 'legacy.png', 'image/png', 1)");
+        mvc.perform(get("/api/datasets/d1/images/legacy/thumbnail").header("Authorization", bearer("creator"))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/datasets/d1/images").header("Authorization", bearer("other")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].thumbnailUrl").isEmpty());
     }
 
     @Test

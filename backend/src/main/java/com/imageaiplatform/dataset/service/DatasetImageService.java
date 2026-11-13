@@ -2,13 +2,21 @@ package com.imageaiplatform.dataset.service;
 
 import com.imageaiplatform.dataset.dao.DatasetImageDao;
 import com.imageaiplatform.dataset.domain.DatasetImage;
+import com.imageaiplatform.dataset.domain.DatasetImageHistory;
+import com.imageaiplatform.dataset.domain.DatasetImageContent;
+import com.imageaiplatform.dataset.domain.DatasetImageTarget;
+import com.imageaiplatform.auth.service.AuthorizationService;
 import com.imageaiplatform.dataset.domain.ImageStorageProperties;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.NoSuchFileException;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -16,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.NoSuchElementException;
 import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,35 +45,143 @@ public class DatasetImageService {
     private static final Map<String, String> MEDIA_TYPES = Map.of(
             "png", "image/png", "jpeg", "image/jpeg", "jpg", "image/jpeg", "gif", "image/gif", "bmp", "image/bmp");
     private final DatasetImageDao imageDao;
-    private final DatasetService datasetService;
+    private final AuthorizationService authorizationService;
     private final Path directory;
     private final long maxFileSizeBytes;
+    private final Integer thumbnailMaxEdge;
 
-    public DatasetImageService(DatasetImageDao imageDao, DatasetService datasetService, ImageStorageProperties properties) {
+    public DatasetImageService(DatasetImageDao imageDao, AuthorizationService authorizationService, ImageStorageProperties properties) {
         this.imageDao = imageDao;
-        this.datasetService = datasetService;
+        this.authorizationService = authorizationService;
         this.directory = properties.directory().toAbsolutePath().normalize();
         this.maxFileSizeBytes = properties.maxFileSize().toBytes();
+        this.thumbnailMaxEdge = properties.thumbnailMaxEdge();
     }
 
-    @PreAuthorize("@authorizationService.hasPermission('dataset:image:upload') and @datasetService.canManage(#datasetId)")
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:upload') and @datasetImageService.canUpload(#datasetId)")
     @Transactional("appTransactionManager")
     public DatasetImage upload(String datasetId, String originalFilename, byte[] contents) {
+        return store(datasetId, originalFilename, contents, false);
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:update') and @datasetImageService.canUpdate(#datasetId)")
+    @Transactional("appTransactionManager")
+    public DatasetImage replace(String datasetId, String originalFilename, byte[] contents) {
+        return store(datasetId, originalFilename, contents, true);
+    }
+
+    private DatasetImage store(String datasetId, String originalFilename, byte[] contents, boolean replaceExisting) {
         String filename = originalFilename == null ? "" : originalFilename.replace('\\', '/');
         filename = filename.substring(filename.lastIndexOf('/') + 1);
         if (filename.isBlank() || filename.length() > 255 || filename.indexOf('\0') >= 0) {
             throw new IllegalArgumentException("Original filename must contain 1 to 255 characters.");
         }
-        if (Boolean.TRUE.equals(imageDao.existsByOriginalFilename(datasetId, filename))) {
+        String actor = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (imageDao.lockDataset(datasetId, actor) == null) {
+            throw new AccessDeniedException("Dataset is unavailable or upload is not allowed.");
+        }
+        var previous = imageDao.findActiveByFilename(datasetId, filename);
+        if (replaceExisting && previous == null) {
+            authorizationService.hasPermission("dataset:image:upload");
+        }
+        if (previous != null && !replaceExisting) {
             throw new DuplicateKeyException("An image with this original filename already exists in the dataset.");
         }
         if (contents == null || contents.length == 0 || contents.length > maxFileSizeBytes) {
             throw new IllegalArgumentException("Image is empty or exceeds the configured maximum size.");
         }
-        String format = validateImage(contents);
+        var decoded = validateImage(contents);
+        String format = decoded.format();
+        byte[] thumbnail = createThumbnail(decoded.image());
         String imageId = UUID.randomUUID().toString();
         String storagePath = imageId + "." + (format.equals("jpeg") ? "jpg" : format);
-        Path file = directory.resolve(storagePath);
+        String thumbnailPath = imageId + "-thumbnail.png";
+        writeFile(directory.resolve(storagePath), contents);
+        writeFile(directory.resolve(thumbnailPath), thumbnail);
+        var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
+        if (previous != null) {
+            var removed = previous.withDeletion(now, actor);
+            if (!Integer.valueOf(1).equals(imageDao.markDeleted(removed))) {
+                throw new AccessDeniedException("Dataset access changed before the image could be replaced.");
+            }
+            recordHistory("DELETE", removed, now, actor);
+        }
+        var image = new DatasetImage(imageId, datasetId, filename, storagePath, MEDIA_TYPES.get(format),
+                Long.valueOf(contents.length), now, now, actor, actor, thumbnailPath, Boolean.FALSE,
+                previous == null ? Integer.valueOf(1) : Integer.valueOf(Math.addExact(previous.versionCount(), 1)),
+                previous == null ? null : previous.imageId(), null, null, null, null);
+        if (!Integer.valueOf(1).equals(imageDao.insert(image))) {
+            throw new AccessDeniedException("Dataset access changed before the image could be stored.");
+        }
+        recordHistory(previous == null ? "CREATE" : "UPDATE", image, now, actor);
+        return imageDao.findById(datasetId, imageId);
+    }
+
+    private void recordHistory(String action, DatasetImage image, OffsetDateTime now, String actor) {
+        if (!Integer.valueOf(1).equals(imageDao.insertHistory(new DatasetImageHistory(UUID.randomUUID().toString(), action, image, now, actor)))) {
+            throw new IllegalStateException("Could not record image history.");
+        }
+    }
+
+    public boolean canRead(String datasetId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && Boolean.TRUE.equals(imageDao.canRead(datasetId, authentication.getName()));
+    }
+
+    public boolean canUpload(String datasetId) {
+        return canManage(datasetId);
+    }
+
+    public boolean canUpdate(String datasetId) {
+        return canManage(datasetId);
+    }
+
+    private boolean canManage(String datasetId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && Boolean.TRUE.equals(imageDao.canManage(datasetId, authentication.getName()));
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:read')")
+    @Transactional(value = "appTransactionManager", readOnly = true)
+    public List<DatasetImageTarget> targets() {
+        return imageDao.findTargets(SecurityContextHolder.getContext().getAuthentication().getName());
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:read') and @datasetImageService.canRead(#datasetId)")
+    @Transactional(value = "appTransactionManager", readOnly = true)
+    public List<DatasetImage> list(String datasetId) {
+        return imageDao.findByDatasetId(datasetId);
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:read') and @datasetImageService.canRead(#datasetId)")
+    @Transactional(value = "appTransactionManager", readOnly = true)
+    public byte[] thumbnail(String datasetId, String imageId) {
+        var image = imageDao.findById(datasetId, imageId);
+        if (image == null || image.thumbnailPath() == null) throw new NoSuchElementException("Thumbnail is unavailable.");
+        return readFile(image.thumbnailPath());
+    }
+
+    @PreAuthorize("@authorizationService.hasPermission('dataset:image:read') and @datasetImageService.canRead(#datasetId)")
+    @Transactional(value = "appTransactionManager", readOnly = true)
+    public DatasetImageContent content(String datasetId, String imageId) {
+        var image = imageDao.findById(datasetId, imageId);
+        if (image == null) throw new NoSuchElementException("Image is unavailable.");
+        return new DatasetImageContent(readFile(image.storagePath()), image.mediaType());
+    }
+
+    private byte[] readFile(String storagePath) {
+        Path file = directory.resolve(storagePath).normalize();
+        if (!file.startsWith(directory)) throw new NoSuchElementException("Image file is unavailable.");
+        try {
+            return Files.readAllBytes(file);
+        } catch (NoSuchFileException exception) {
+            throw new NoSuchElementException("Image file is unavailable.");
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not read the image file.", exception);
+        }
+    }
+
+    private void writeFile(Path file, byte[] contents) {
         try {
             Files.createDirectories(directory);
             try (var output = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
@@ -85,24 +202,33 @@ public class DatasetImageService {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not store the image.", exception);
         }
-        String actor = SecurityContextHolder.getContext().getAuthentication().getName();
-        var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
-        var image = new DatasetImage(imageId, datasetId, filename, storagePath, MEDIA_TYPES.get(format),
-                Long.valueOf(contents.length), now, now, actor, actor);
-        if (!Integer.valueOf(1).equals(imageDao.insert(image))) {
-            throw new AccessDeniedException("Dataset access changed before the image could be stored.");
+    }
+
+    private byte[] createThumbnail(BufferedImage image) {
+        double scale = Math.min(1.0, thumbnailMaxEdge.doubleValue() / Math.max(image.getWidth(), image.getHeight()));
+        int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
+        int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
+        var thumbnail = new BufferedImage(width, height,
+                image.getColorModel().hasAlpha() ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
+        var graphics = thumbnail.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(image, 0, 0, width, height, null);
+        } finally {
+            graphics.dispose();
         }
-        return image;
+        try {
+            var output = new ByteArrayOutputStream();
+            if (!ImageIO.write(thumbnail, "png", output)) throw new IOException("PNG encoder is unavailable.");
+            return output.toByteArray();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not generate the thumbnail.", exception);
+        }
     }
 
-    @PreAuthorize("@authorizationService.hasPermission('dataset:item:read')")
-    @Transactional(value = "appTransactionManager", readOnly = true)
-    public List<DatasetImage> list(String datasetId) {
-        datasetService.detail(datasetId);
-        return imageDao.findByDatasetId(datasetId);
-    }
+    private record DecodedImage(String format, BufferedImage image) {}
 
-    private String validateImage(byte[] contents) {
+    private DecodedImage validateImage(byte[] contents) {
         try (var input = ImageIO.createImageInputStream(new ByteArrayInputStream(contents))) {
             var readers = ImageIO.getImageReaders(input);
             if (!readers.hasNext()) throw new IllegalArgumentException("Unsupported or invalid image.");
@@ -112,8 +238,10 @@ public class DatasetImageService {
                 String format = reader.getFormatName().toLowerCase(Locale.ROOT);
                 if (!MEDIA_TYPES.containsKey(format)) throw new IllegalArgumentException("Only PNG, JPEG, GIF and BMP are supported.");
                 long pixels = (long) reader.getWidth(0) * reader.getHeight(0);
-                if (pixels > 40_000_000 || reader.read(0) == null) throw new IllegalArgumentException("Invalid image or more than 40 million pixels.");
-                return format;
+                if (pixels > 40_000_000) throw new IllegalArgumentException("More than 40 million pixels.");
+                var image = reader.read(0);
+                if (image == null) throw new IllegalArgumentException("Invalid image.");
+                return new DecodedImage(format, image);
             } finally {
                 reader.dispose();
             }

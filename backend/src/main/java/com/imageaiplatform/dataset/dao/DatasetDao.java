@@ -10,4 +10,5 @@ public interface DatasetDao {
     DatasetListItem findVisibleById(String datasetId, String userKey);
     Boolean canDelete(String datasetId, String userKey);
     Integer deleteAllowed(String datasetId, String userKey);
+    String lockForDeletion(String datasetId, String userKey);
 }

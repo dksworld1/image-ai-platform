@@ -32,7 +32,7 @@ class DatasetPermissionSeedTest {
                 .locations("classpath:db/migration/app", "classpath:db/seed/app/common").load();
         common.migrate();
         assertThat(jdbc.queryForList("SELECT permission_code FROM auth_permission ORDER BY permission_code", String.class))
-                .containsExactly("dataset:image:upload", "dataset:item:create", "dataset:item:delete", "dataset:item:read",
+                .containsExactly("dataset:image:delete", "dataset:image:read", "dataset:image:update", "dataset:image:upload", "dataset:item:create", "dataset:item:delete", "dataset:item:read",
                         "dataset:item:update", "dataset:item:use", "other:item:read");
         assertThat(jdbc.queryForList("SELECT * FROM auth_permission WHERE permission_code IN ('dataset:item:read', 'other:item:read') ORDER BY permission_code"))
                 .isEqualTo(existing);
@@ -47,7 +47,8 @@ class DatasetPermissionSeedTest {
         }
 
         var seeded = jdbc.queryForList("SELECT * FROM auth_permission ORDER BY permission_code");
-        new ResourceDatabasePopulator(new ClassPathResource("db/seed/app/common/R__03_dataset_permissions.sql"))
+        new ResourceDatabasePopulator(new ClassPathResource("db/seed/app/common/R__03_dataset_permissions.sql"),
+                new ClassPathResource("db/seed/app/common/R__04_image_permissions.sql"))
                 .execute(source);
         assertThat(jdbc.queryForList("SELECT * FROM auth_permission ORDER BY permission_code")).isEqualTo(seeded);
         assertThat(jdbc.queryForList("SELECT * FROM auth_role_permission")).isEqualTo(grants);

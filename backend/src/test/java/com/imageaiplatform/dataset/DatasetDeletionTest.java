@@ -58,7 +58,10 @@ class DatasetDeletionTest {
 
     @Test
     void allowsActiveCreatorAndLocalOperatorsWithoutDeletingIndependentDatasets() throws Exception {
+        jdbc.update("INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes) VALUES ('image', 'target', 'a.png', 'a.png', 'image/png', 1)");
         mvc.perform(delete("/api/datasets/target").header("Authorization", bearer("creator"))).andExpect(status().isNoContent());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image WHERE dataset_id='target'", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT created_by FROM dataset_image_history WHERE image_id='image' AND action='DELETE'", String.class)).isEqualTo("creator");
         for (String operator : new String[] {"owner", "manager"}) {
             jdbc.update("INSERT INTO dataset (dataset_id, name, created_by, workspace_id) VALUES (?, '다른 생성자 데이터', 'creator', 'a')", operator);
             mvc.perform(delete("/api/datasets/" + operator).header("Authorization", bearer(operator))).andExpect(status().isNoContent());

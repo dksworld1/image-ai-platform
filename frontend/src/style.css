@@ -90,6 +90,46 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 
 .account-name { font-size: 12px; color: #aab2c2; overflow-wrap: anywhere; }
 .dataset-list { width: 100%; }
+.image-list-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-top: 16px; }
+.image-list-filters label { display: grid; gap: 8px; flex: 1 1 240px; min-width: 0; font-size: 14px; }
+.image-list-filters select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #65718b; border-radius: 8px; color: #eef1f7; background: #171c26; font: inherit; }
+.image-list-filters select:focus-visible { outline: 2px solid #b9c5ff; }
+.image-list-filters button:disabled { opacity: .55; }
+.image-table { min-width: 1400px; }
+.image-thumbnail { display: block; width: 64px; height: 64px; object-fit: contain; }
+.thumbnail-state { display: inline-grid; gap: 8px; font-size: 12px; color: #aab2c2; }
+.thumbnail-state button { border: 1px solid #65718b; border-radius: 4px; background: #202736; color: #eef1f7; cursor: pointer; padding: 4px; }
+.dataset-table tbody tr:focus-visible { outline: 2px solid #b9c5ff; outline-offset: -2px; }
+.dataset-context-menu { position: fixed; z-index: 20; width: min(280px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; padding: 6px; border: 1px solid #65718b; border-radius: 8px; background: #202736; box-shadow: 0 12px 32px #0008; }
+.dataset-context-info { display: grid; gap: 6px; padding: 10px; border-bottom: 1px solid #475268; margin-bottom: 6px; overflow-wrap: anywhere; }
+.dataset-context-info span { color: #c9d0df; font-size: 13px; }
+.dataset-context-info small { color: #aab2c2; font-size: 11px; }
+.dataset-context-menu [role="menuitem"] { display: block; width: 100%; padding: 10px; border: 0; border-radius: 4px; background: transparent; text-align: left; color: #eef1f7; text-decoration: none; font: inherit; cursor: pointer; }
+.dataset-context-menu [role="menuitem"]:is(:hover, :focus-visible) { background: #354362; outline: 0; }
+.image-upload-modal { width: min(760px, calc(100vw - 32px)); }
+.image-upload-modal button:disabled { opacity: .55; cursor: not-allowed; }
+.upload-target { display: grid; gap: 6px; overflow-wrap: anywhere; }
+.upload-target span, .upload-target small { color: #aab2c2; }
+.image-upload-dropzone { position: relative; border: 1px dashed #91a6ff; border-radius: 8px; background: #202736; }
+.image-upload-dropzone label { display: block; padding: 28px 16px; text-align: center; cursor: pointer; }
+.image-upload-dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.image-upload-dropzone:focus-within { outline: 2px solid #b9c5ff; outline-offset: 3px; }
+.image-upload-dropzone.upload-disabled { opacity: .55; }
+.image-upload-dropzone.upload-disabled label { cursor: not-allowed; }
+.image-upload-files { padding: 0; margin: 0 0 20px; list-style: none; max-height: min(36dvh, 360px); overflow: auto; }
+.image-upload-files li { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid #2b3241; }
+.image-upload-files li > div { display: grid; gap: 6px; flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.image-upload-files small { color: #aab2c2; }
+.image-upload-files .secondary-action { padding: 6px 10px; font-size: 13px; }
+.image-upload-files li > p { flex-basis: 100%; margin: 0; }
+.upload-failure { color: #ffb4b4; }
+.image-replace-warning { padding: 14px; border: 1px solid #c9934d; border-radius: 8px; color: #f4cf9a; background: #352b20; line-height: 1.7; }
+.image-thumbnail-button { display: block; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: zoom-in; }
+.image-thumbnail-button:focus-visible { outline: 2px solid #b9c5ff; outline-offset: 4px; }
+.image-detail-modal { width: min(1100px, calc(100vw - 32px)); }
+.image-detail-filename { overflow-wrap: anywhere; font-weight: 700; }
+.image-detail-canvas { display: flex; align-items: center; justify-content: center; padding: 16px; background: #10131a; border-radius: 8px; }
+.image-detail-canvas img { display: block; max-width: 100%; max-height: 60dvh; object-fit: contain; }
 .dataset-list-layout .dataset-list { height: 100%; min-height: 0; display: flex; flex-direction: column; }
 .dataset-list-layout .dataset-list > * { flex-shrink: 0; }
 .dataset-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

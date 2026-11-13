@@ -1,5 +1,23 @@
 # DB 마이그레이션 설정
 
+## 이미지 기능 권한 분리 seed — 2026-11-13
+
+새 DDL 없이 common R__04_image_permissions.sql에 이미지 read·update·delete 카탈로그를 추가했습니다. 기존 upload를 보존하며 공통에서 역할을 자동 부여하지 않습니다. local R__local_image_permissions.sql은 admin 역할에 read·upload·update·delete를 명시적으로 부여하고 기존 정의·역할 연결·감사 값은 보존합니다. 반복 seed 체크섬 변경으로 기존 DB에서도 다음 Flyway 적용 시 재실행되며 repair는 필요하지 않습니다. 기존 migration/common/local 위치·실행 순서는 유지합니다. 사용자 DB 적용·서버 재시작은 하지 않았습니다.
+
+local 외 역할은 새 권한을 자동 상속하지 않습니다. 이미지 읽기 역할에는 read, 신규 등록에는 upload, 기존 이미지 교체에는 update를 각각 부여해야 합니다. update만 있는 사용자는 기존 이름 교체만 가능하고 이름 미일치의 신규 등록에는 upload도 필요합니다. delete는 개별 삭제 API를 미리 제공한다는 뜻이 아닙니다. [현재 권한 계약](../api/api.md#이미지-기능-권한)을 따릅니다.
+
+## 이미지 버전·작업 이력 V20·공통 V21 — 2026-11-13
+
+V20 DDL은 dataset_image에 삭제 표시·버전·이전 이미지 ID·활성 이름 계산 컬럼과 활성 이름 UNIQUE를 추가하고 dataset_image_history를 생성합니다. 기존 이미지는 기본 is_deleted=false·version_count=1로 유지됩니다. V18·V19는 수정하지 않습니다.
+
+일회성 DML `db/seed/app/common/V21__baseline_image_history.sql`은 V20 이후 기존 메타데이터를 BASELINE 이벤트로 옮깁니다. 과거 생성·수정 감사 정보는 별도 image_* 스냅샷에 보존하고 이관 작업자는 시스템 '0'입니다. 알 수 없는 과거 작업 이력을 복원하는 작업이 아닙니다. DML을 DDL 경로에 섞지 않았으며 local 한정 데이터가 아니므로 common에 둡니다. 기존 Flyway migration·common seed 위치를 함께 활성화하면 버전 20→21→기존 반복 seed 순으로 실행합니다. repair·파일 복사·파일 삭제는 필요하지 않습니다. 실제 사용자 DB 적용·서버 재시작은 수행하지 않았습니다.
+
+적용 뒤 일반 업로드·수정 업로드·목록·개수·원본 조회는 같은 V20 계약을 사용하는 서버와 프런트로 배포합니다. [테이블](../db-schema/tables/dataset/dataset-image-history.md)과 [운영](deployment.md)을 따릅니다.
+
+## 이미지 썸네일 V19 — 2026-11-13
+
+`db/migration/app/V19__add_image_thumbnails.sql`은 nullable thumbnail_path와 UNIQUE를 추가합니다. 기존 V18 메타데이터와 원본은 보존하며 DML·파일 소급 생성은 없습니다. 기존 Flyway app migration 경로에서 읽으며 seed 추가·repair는 필요하지 않습니다. 실제 사용자 DB에는 적용하지 않았습니다. [테이블 정의](../db-schema/tables/dataset/dataset-image.md)와 [저장 운영](deployment.md)을 따릅니다.
+
 ## 데이터셋 이미지 V18 — 2026-11-12
 
 V18은 dataset_image와 데이터셋별 원본명 UNIQUE·저장 경로 UNIQUE·FK CASCADE를 정의합니다. 과거 SQL은 변경하지 않습니다. common R__04_image_permissions.sql은 업로드 기능 권한을 등록하고 local R__local_image_permissions.sql은 admin 역할에 해당 권한만 명시적으로 부여합니다. 공통에는 local 역할 부여가 없습니다. 기본 locations는 이미 필요한 경로를 포함하므로 수정하지 않습니다.

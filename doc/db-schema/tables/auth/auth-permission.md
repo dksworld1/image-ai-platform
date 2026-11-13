@@ -27,6 +27,8 @@
 
 ## 제약 및 인덱스
 
+2026-11-13: 이미지 기능 카탈로그는 dataset:image:read·upload·update·delete입니다. common R__04_image_permissions.sql에서 멱등 등록하고 local seed만 admin 역할에 네 권한을 연결합니다. 기능별 대상 범위와 현재 API 구현 상태는 [API 계약](../../../api/api.md#이미지-기능-권한)에 둡니다. delete 카탈로그 등록은 개별 이미지 삭제 API 구현을 의미하지 않습니다.
+
 - `pk_auth_permission`: 기본 키 (`permission_code`). 별도 동일 컬럼 인덱스를 만들지 않습니다.
 - 코드는 `^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$` 형식과 최대 150자를 서비스 입력에서 검증합니다. 향후 관리 API에서 빈 표시 이름도 거부해야 하며 현재 쓰기 API는 없습니다. DB CHECK의 구체 문법은 대상 DB 결정 후 확정합니다.
 - 예: `auth:user:manage`, `auth:role:manage`, `dataset:item:read`.

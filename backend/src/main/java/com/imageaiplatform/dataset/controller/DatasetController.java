@@ -1,6 +1,8 @@
 package com.imageaiplatform.dataset.controller;
 
 import com.imageaiplatform.dataset.domain.DatasetListItem;
+import com.imageaiplatform.dataset.domain.DatasetImageTarget;
+import com.imageaiplatform.dataset.service.DatasetImageService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,9 +21,11 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/datasets")
 public class DatasetController {
     private final DatasetService datasetService;
+    private final DatasetImageService imageService;
 
-    public DatasetController(DatasetService datasetService) {
+    public DatasetController(DatasetService datasetService, DatasetImageService imageService) {
         this.datasetService = datasetService;
+        this.imageService = imageService;
     }
 
     @GetMapping
@@ -32,6 +36,11 @@ public class DatasetController {
     @GetMapping("/{datasetId}")
     public DatasetDetailResponse detail(@PathVariable String datasetId) {
         return DatasetDetailResponse.from(datasetService.detail(datasetId));
+    }
+
+    @GetMapping("/image-targets")
+    public List<DatasetImageTarget> imageTargets() {
+        return imageService.targets();
     }
 
     @DeleteMapping("/{datasetId}")

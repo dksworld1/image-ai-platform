@@ -50,6 +50,19 @@ class DatasetListTest {
     }
 
     @Test
+    void listsImageCountsPerDatasetIncludingEmptyAndLegacyImages() throws Exception {
+        jdbc.update("INSERT INTO dataset (dataset_id, name, workspace_id) VALUES ('count-a', '이미지 둘', 'a'), ('count-b', '이미지 없음', 'b'), ('count-hidden', '숨김', 'hidden')");
+        jdbc.update("INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes) VALUES ('image-a', 'count-a', 'a.png', 'a.png', 'image/png', 1), ('image-b', 'count-a', 'b.png', 'b.png', 'image/png', 1), ('image-hidden', 'count-hidden', 'c.png', 'c.png', 'image/png', 1)");
+        mvc.perform(get("/api/datasets").header("Authorization", bearer))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.datasetId == 'count-a')].imageCount").value(org.hamcrest.Matchers.contains(2)))
+                .andExpect(jsonPath("$[?(@.datasetId == 'count-b')].imageCount").value(org.hamcrest.Matchers.contains(0)));
+        jdbc.update("DELETE FROM dataset_image WHERE image_id='image-a'");
+        mvc.perform(get("/api/datasets/count-a").header("Authorization", bearer))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.imageCount").value(1));
+    }
+
+    @Test
     void detailRequiresReadPermissionAndCurrentActiveMembership() throws Exception {
         jdbc.update("INSERT INTO dataset (dataset_id, name, description, created_by, workspace_id) VALUES ('detail-a', '상세 데이터', '상세 설명', 'other', 'a')");
         mvc.perform(get("/api/datasets/detail-a")).andExpect(status().isUnauthorized());

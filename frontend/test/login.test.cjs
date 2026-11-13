@@ -15,8 +15,92 @@ for (const extension of ['.ts', '.tsx']) {
 }
 const { login } = require('../src/api/auth.ts')
 const { createDataset, fetchDatasetDetail } = require('../src/api/datasets.ts')
+const { fetchImageDatasetTargets, fetchImages, fetchThumbnail, fetchImageContent, uploadImage, ImageUploadError } = require('../src/api/images.ts')
 const App = require('../src/App.tsx').default
 const { saveAuthSession, loadAuthSession, clearAuthSession } = require('../src/authSession.ts')
+
+test('이미지 대상 목록은 데이터셋 목록 대신 이미지 권한 전용 경로로 조회한다', async t => {
+  const targets = [{ datasetId: 'd1', name: '이미지 대상', workspaceId: 'a', workspaceName: '공간' }]
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(targets))
+  const controller = new AbortController()
+  assert.deepEqual(await fetchImageDatasetTargets('token', controller.signal), targets)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/image-targets')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.equal(options.signal, controller.signal)
+  request.mock.mockImplementation(async () => new Response('', { status: 403 }))
+  await assert.rejects(fetchImageDatasetTargets('token'), /이미지를 조회할 권한/)
+})
+
+test('이미지 업로드는 multipart 단건 파일과 인증을 보내고 원본명을 보존한다', async t => {
+  const result = { imageId: 'image', originalFilename: '원본.png' }
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(result, { status: 201 }))
+  const file = new File(['image'], '원본.png', { type: 'image/png' })
+  const controller = new AbortController()
+  assert.deepEqual(await uploadImage('dataset/a', file, 'token', controller.signal), result)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa/images')
+  assert.equal(options.method, 'POST')
+  assert.deepEqual(options.headers, { Authorization: 'Bearer token' })
+  assert.equal(options.signal, controller.signal)
+  assert.equal(options.body.get('file').name, file.name)
+  assert.equal(await options.body.get('file').text(), 'image')
+  await uploadImage('dataset/a', file, 'token', controller.signal, true)
+  assert.equal(request.mock.calls[1].arguments[0], '/api/datasets/dataset%2Fa/images?replaceExisting=true')
+})
+
+test('이미지 업로드는 중복·용량·권한 오류를 구분하고 불명확한 결과를 재전송하지 않는다', async t => {
+  const request = t.mock.method(globalThis, 'fetch', async () => new Response('private details', { status: 409 }))
+  const file = new File(['image'], '원본.png')
+  for (const [status, message] of [[400, /파일명/], [401, /다시 로그인/], [403, /업로드 권한/], [409, /이미 존재하는 이미지/], [413, /용량 제한/], [500, /등록 결과를 확인/]]) {
+    request.mock.mockImplementation(async () => new Response('private details', { status }))
+    await assert.rejects(uploadImage('dataset', file, 'token'), error => error instanceof ImageUploadError && error.status === status && message.test(error.message))
+  }
+  const previousCalls = request.mock.calls.length
+  request.mock.mockImplementation(async () => { throw new TypeError('fetch failed') })
+  await assert.rejects(uploadImage('dataset', file, 'token'), error => error instanceof ImageUploadError && error.status === null)
+  assert.equal(request.mock.calls.length, previousCalls + 1)
+})
+
+test('이미지 목록과 썸네일은 데이터셋 ID를 인코딩하고 인증 헤더와 취소 신호를 전달한다', async t => {
+  const image = { imageId: 'image/1', datasetId: 'dataset/a', thumbnailUrl: '/untrusted-path' }
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json([image]))
+  const controller = new AbortController()
+  assert.deepEqual(await fetchImages('dataset/a', 'token', controller.signal), [image])
+  let [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa/images')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.equal(options.signal, controller.signal)
+  request.mock.mockImplementation(async () => new Response('thumbnail', { headers: { 'Content-Type': 'image/png' } }))
+  const blob = await fetchThumbnail(image.datasetId, image.imageId, 'token', controller.signal)
+  ;[url, options] = request.mock.calls[1].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa/images/image%2F1/thumbnail')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.equal(options.signal, controller.signal)
+  assert.equal(blob.type, 'image/png')
+  const original = await fetchImageContent(image.datasetId, image.imageId, 'token', controller.signal)
+  ;[url, options] = request.mock.calls[2].arguments
+  assert.equal(url, '/api/datasets/dataset%2Fa/images/image%2F1/content')
+  assert.equal(options.headers.Authorization, 'Bearer token')
+  assert.equal(options.signal, controller.signal)
+  assert.equal(original.type, 'image/png')
+})
+
+test('이미지 조회 거부와 썸네일 없음을 구분하고 취소는 그대로 전달한다', async t => {
+  const request = t.mock.method(globalThis, 'fetch', async () => new Response('private details', { status: 403 }))
+  const controller = new AbortController()
+  await assert.rejects(fetchImages('dataset', 'token'), /조회 권한/)
+  await assert.rejects(fetchThumbnail('dataset', 'image', 'token', controller.signal), /조회 권한/)
+  await assert.rejects(fetchImageContent('dataset', 'image', 'token', controller.signal), /조회 권한/)
+  request.mock.mockImplementation(async () => new Response('', { status: 404 }))
+  await assert.rejects(fetchThumbnail('dataset', 'image', 'token', controller.signal), /썸네일 없음/)
+  await assert.rejects(fetchImageContent('dataset', 'image', 'token', controller.signal), /이미지를 찾을 수 없습니다/)
+  request.mock.mockImplementation(async () => new Response('', { status: 401 }))
+  await assert.rejects(fetchImages('dataset', 'token'), /다시 로그인/)
+  controller.abort()
+  request.mock.mockImplementation(async () => { throw controller.signal.reason })
+  await assert.rejects(fetchImages('dataset', 'token', controller.signal), reason => reason === controller.signal.reason)
+})
 
 test('상세 조회는 선택 ID를 인코딩하고 현재 토큰과 취소 신호로 서버 정보를 조회한다', async t => {
   const dataset = { datasetId: 'dataset/a', name: '서버 상세' }

@@ -41,4 +41,9 @@ public class MyBatisDatasetDao implements DatasetDao {
     public Integer deleteAllowed(String datasetId, String userKey) {
         return sqlSession.delete("dataset.deleteAllowed", Map.of("datasetId", datasetId, "userKey", userKey));
     }
+
+    @Override
+    public String lockForDeletion(String datasetId, String userKey) {
+        return sqlSession.selectOne("dataset.lockForDeletion", Map.of("datasetId", datasetId, "userKey", userKey));
+    }
 }

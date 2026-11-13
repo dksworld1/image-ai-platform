@@ -1,6 +1,8 @@
 package com.imageaiplatform.dataset.service;
 
 import com.imageaiplatform.dataset.dao.DatasetDao;
+import com.imageaiplatform.dataset.dao.DatasetImageDao;
+import com.imageaiplatform.dataset.domain.DatasetImageHistory;
 import com.imageaiplatform.dataset.domain.Dataset;
 import com.imageaiplatform.dataset.domain.DatasetListItem;
 import java.util.ArrayList;
@@ -18,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DatasetService {
     private final DatasetDao datasetDao;
+    private final DatasetImageDao imageDao;
 
-    public DatasetService(DatasetDao datasetDao) {
+    public DatasetService(DatasetDao datasetDao, DatasetImageDao imageDao) {
         this.datasetDao = datasetDao;
+        this.imageDao = imageDao;
     }
 
     @PreAuthorize("@authorizationService.hasPermission('dataset:item:create') and @workspaceService.isMemberOfAll(#workspaceIds)")
@@ -68,6 +72,16 @@ public class DatasetService {
     @Transactional("appTransactionManager")
     public void delete(String datasetId) {
         String actor = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (datasetDao.lockForDeletion(datasetId, actor) == null) {
+            throw new AccessDeniedException("Dataset is unavailable or deletion is not allowed.");
+        }
+        var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
+        for (var image : imageDao.findByDatasetId(datasetId)) {
+            if (!Integer.valueOf(1).equals(imageDao.insertHistory(new DatasetImageHistory(UUID.randomUUID().toString(),
+                    "DELETE", image.withDeletion(now, actor), now, actor)))) {
+                throw new IllegalStateException("Could not record image deletion history.");
+            }
+        }
         if (!Integer.valueOf(1).equals(datasetDao.deleteAllowed(datasetId, actor))) {
             throw new AccessDeniedException("Dataset is unavailable or deletion is not allowed.");
         }

@@ -1,9 +1,54 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { deleteDataset, fetchDatasets, type DatasetListItem } from '../api/datasets'
 import DatasetDetailModal from './DatasetDetailModal'
 
 const dateTime = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
-const columnLabels = ['선택', '이름', '설명', '워크스페이스', '생성자 ID', '생성자 이름', '생성일시', '수정일시']
+const columnLabels = ['선택', '이름', '설명', '워크스페이스', '이미지 개수', '생성자 ID', '생성자 이름', '생성일시', '수정일시']
+
+function DatasetContextMenu({ target, onClose, onDetail }: {
+  target: { dataset: DatasetListItem; x: number; y: number; trigger: HTMLElement }
+  onClose: () => void
+  onDetail: () => void
+}) {
+  const menu = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = menu.current!
+    const bounds = element.getBoundingClientRect()
+    element.style.left = `${Math.max(8, Math.min(target.x, window.innerWidth - bounds.width - 8))}px`
+    element.style.top = `${Math.max(8, Math.min(target.y, window.innerHeight - bounds.height - 8))}px`
+    element.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+  }, [target])
+  useEffect(() => {
+    function outside(event: globalThis.PointerEvent) {
+      if (!menu.current?.contains(event.target as Node)) onClose()
+    }
+    function dismiss() { onClose() }
+    document.addEventListener('pointerdown', outside)
+    window.addEventListener('resize', dismiss)
+    window.addEventListener('scroll', dismiss, true)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      window.removeEventListener('resize', dismiss)
+      window.removeEventListener('scroll', dismiss, true)
+    }
+  }, [onClose])
+  return <div ref={menu} className="dataset-context-menu" role="menu" aria-label={`${target.dataset.name} · ${target.dataset.workspaceName} 메뉴`}
+    style={{ left: target.x, top: target.y }} onContextMenu={event => event.preventDefault()} onKeyDown={event => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); target.trigger.focus() }
+      if (event.key === 'Tab') onClose()
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault()
+        const items = Array.from(menu.current!.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+        const index = items.indexOf(document.activeElement as HTMLElement)
+        items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus()
+      }
+    }}>
+    <div className="dataset-context-info" role="presentation"><strong>{target.dataset.name}</strong>
+      <span>{target.dataset.workspaceName}</span><small>{target.dataset.datasetId}</small></div>
+    <a role="menuitem" href={`/datasets/images?datasetId=${encodeURIComponent(target.dataset.datasetId)}`}>이미지 관리</a>
+    <button role="menuitem" type="button" onClick={onDetail}>상세보기</button>
+  </div>
+}
 
 export default function DatasetListPage({ accessToken }: { accessToken: string }) {
   const [datasets, setDatasets] = useState<DatasetListItem[] | null>(null)
@@ -12,10 +57,15 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [contextTarget, setContextTarget] = useState<{ dataset: DatasetListItem; x: number; y: number; trigger: HTMLElement } | null>(null)
   const [deleteResult, setDeleteResult] = useState<{ deleted: number; failures: string[] } | null>(null)
   const selectAll = useRef<HTMLInputElement>(null)
   const submitting = useRef(false)
-  const [columnWidths, setColumnWidths] = useState([52, 150, 150, 150, 150, 150, 149, 149].map(width => width / 11))
+  const [columnWidths, setColumnWidths] = useState(() => {
+    const widths = [52, 150, 150, 150, 100, 150, 150, 149, 149]
+    const total = widths.reduce((sum, width) => sum + width, 0)
+    return widths.map(width => width / total * 100)
+  })
   const resizing = useRef<{ index: number; startX: number; widths: number[] } | null>(null)
 
   function resizeColumns(index: number, delta: number, widths: number[]) {
@@ -69,6 +119,7 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
     setSelectedIds([])
     setDeleteResult(null)
     setDetailId(null)
+    setContextTarget(null)
     fetchDatasets(accessToken, controller.signal).then(result => {
       if (!controller.signal.aborted) setDatasets(result)
     }).catch((reason: unknown) => {
@@ -138,7 +189,16 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
             onChange={event => setSelectedIds(event.target.checked ? datasets.map(dataset => dataset.datasetId) : [])} />{resizeHandle(0)}</th>
             {columnLabels.slice(1).map((label, index) => <th key={label} scope="col">{label}
               {index + 1 < columnLabels.length - 1 && resizeHandle(index + 1)}</th>)}</tr></thead>
-          <tbody>{datasets.map(dataset => <tr key={dataset.datasetId}>
+          <tbody>{datasets.map(dataset => <tr key={dataset.datasetId} tabIndex={0}
+            onContextMenu={event => {
+              event.preventDefault()
+              if (!deleting) setContextTarget({ dataset, x: event.clientX, y: event.clientY, trigger: event.currentTarget })
+            }} onKeyDown={event => {
+              if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
+              event.preventDefault()
+              const bounds = event.currentTarget.getBoundingClientRect()
+              if (!deleting) setContextTarget({ dataset, x: bounds.left + 24, y: bounds.top + 24, trigger: event.currentTarget })
+            }}>
             <td className="selection-column"><input type="checkbox" disabled={deleting}
               aria-label={`${dataset.name} · ${dataset.workspaceName} 선택`}
               checked={selectedIds.includes(dataset.datasetId)} onChange={event => {
@@ -149,12 +209,19 @@ export default function DatasetListPage({ accessToken }: { accessToken: string }
               aria-haspopup="dialog" aria-label={`${dataset.name} 상세 보기`}
               onClick={() => setDetailId(dataset.datasetId)}>{dataset.name}</button></th><td>{dataset.description ?? '설명 없음'}</td>
             <td title={dataset.workspaceId}>{dataset.workspaceName}</td>
+            <td>{new Intl.NumberFormat('ko-KR').format(dataset.imageCount)}개</td>
             <td>{dataset.creatorUserId ?? '-'}</td><td>{dataset.creatorUsername ?? '-'}</td>
             <td><time dateTime={dataset.createdAt}>{dateTime.format(new Date(dataset.createdAt))}</time></td>
             <td><time dateTime={dataset.updatedAt}>{dateTime.format(new Date(dataset.updatedAt))}</time></td>
           </tr>)}</tbody>
         </table>
       </div>}
+    {contextTarget && <DatasetContextMenu target={contextTarget} onClose={() => setContextTarget(null)}
+      onDetail={() => {
+        contextTarget.trigger.focus()
+        setDetailId(contextTarget.dataset.datasetId)
+        setContextTarget(null)
+      }} />}
     {detailId !== null && <DatasetDetailModal key={detailId} datasetId={detailId} accessToken={accessToken}
       onClose={() => setDetailId(null)} />}
   </section>

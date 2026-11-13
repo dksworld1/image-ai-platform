@@ -5,6 +5,7 @@
 ## 문서 분류
 
 - [화면 스토리보드](storyboards/README.md): 기능별 화면 구성 이미지, 사용자 흐름과 설계 상태
+- [이미지 관리 스토리보드](storyboards/image-management/README.md): 목록·일반/수정 업로드·원본 상세의 설계와 현재 구현 기록
 
 - [제품 개요](product/project-overview.md): 제품 목적과 주요 기능
 - [기능 정의서](product/functional-specification.md): 확정된 3단계 기능 분류, 기능 ID 및 미정 세부 정책
@@ -24,6 +25,9 @@
 - [데이터셋 삭제 권한](decisions/ADR-035-dataset-deletion-authorization.md): 삭제 기능 권한·활성 멤버십·공간 운영자 또는 데이터셋 생성자 조건. 삭제 UI·이미지 처리는 제외
 - [데이터셋 이미지 업로드](decisions/ADR-036-dataset-image-upload.md): 로컬 파일·원본명 DB 저장·데이터셋 내 중복 409·업로드 권한. 백엔드 구현, 프런트 취소
 - [일반 설정 직접 관리](decisions/ADR-037-application-yaml-settings.md): DB 외 일반 설정은 application.yaml에 직접 작성, DB 접속 import 유지
+- [이미지 썸네일](decisions/ADR-038-image-thumbnails.md): 업로드 시 동기 생성·권한 조회, 기존 이미지 소급 생성 제외
+- [이미지 버전·작업 이력](decisions/ADR-039-image-version-history.md): 명시적 수정 업로드·기존 버전 삭제 표시·파일 보존·작업자 추적
+- [이미지 기능 권한 분리](decisions/ADR-040-image-permissions.md): 이미지 read·upload·update·delete와 대상 접근 조건을 분리, 데이터셋 권한과 독립
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
 - [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의

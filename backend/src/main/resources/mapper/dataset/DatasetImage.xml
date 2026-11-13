@@ -1,6 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="datasetImage">
+  <sql id="readScope">
+    EXISTS (
+      SELECT 1 FROM workspace space
+      JOIN workspace_member member ON member.workspace_id = space.workspace_id
+      WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
+    )
+  </sql>
+  <sql id="manageScope">
+    EXISTS (
+      SELECT 1 FROM workspace space
+      JOIN workspace_member member ON member.workspace_id = space.workspace_id
+      WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
+        AND (space.owner_user_key = #{userKey} OR member.role_code = 'ADMIN' OR dataset.created_by = #{userKey})
+    )
+  </sql>
+  <select id="canRead" resultType="java.lang.Boolean" useCache="false" flushCache="true">
+    SELECT COUNT(*) > 0 FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="readScope"/>
+  </select>
+  <select id="canManage" resultType="java.lang.Boolean" useCache="false" flushCache="true">
+    SELECT COUNT(*) > 0 FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="manageScope"/>
+  </select>
+  <resultMap id="target" type="com.imageaiplatform.dataset.domain.DatasetImageTarget">
+    <constructor>
+      <idArg column="dataset_id" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="workspace_id" javaType="java.lang.String"/>
+      <arg column="workspace_name" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="findTargets" resultMap="target" useCache="false" flushCache="true">
+    SELECT dataset.dataset_id, dataset.name, dataset.workspace_id, space.name AS workspace_name
+    FROM dataset JOIN workspace space ON space.workspace_id = dataset.workspace_id
+    WHERE <include refid="readScope"/>
+    ORDER BY dataset.created_at DESC, dataset.dataset_id
+  </select>
   <resultMap id="image" type="com.imageaiplatform.dataset.domain.DatasetImage">
     <constructor>
       <idArg column="image_id" javaType="java.lang.String"/>
@@ -13,20 +50,58 @@
       <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
       <arg column="created_by" javaType="java.lang.String"/>
       <arg column="updated_by" javaType="java.lang.String"/>
+      <arg column="thumbnail_path" javaType="java.lang.String"/>
+      <arg column="is_deleted" javaType="java.lang.Boolean"/>
+      <arg column="version_count" javaType="java.lang.Integer"/>
+      <arg column="previous_image_id" javaType="java.lang.String"/>
+      <arg column="creator_user_id" javaType="java.lang.String"/>
+      <arg column="creator_username" javaType="java.lang.String"/>
+      <arg column="updater_user_id" javaType="java.lang.String"/>
+      <arg column="updater_username" javaType="java.lang.String"/>
     </constructor>
   </resultMap>
-  <select id="existsByOriginalFilename" resultType="java.lang.Boolean" useCache="false" flushCache="true">
-    SELECT COUNT(*) > 0 FROM dataset_image WHERE dataset_id = #{datasetId} AND original_filename = #{originalFilename}
+  <sql id="imageRows">
+    SELECT image.*, creator.user_id AS creator_user_id, creator.username AS creator_username,
+        updater.user_id AS updater_user_id, updater.username AS updater_username
+    FROM dataset_image image
+    LEFT JOIN auth_user creator ON creator.user_key = image.created_by
+    LEFT JOIN auth_user updater ON updater.user_key = image.updated_by
+    WHERE image.is_deleted = FALSE
+  </sql>
+  <select id="findById" resultMap="image" useCache="false" flushCache="true">
+    <include refid="imageRows"/> AND image.dataset_id = #{datasetId} AND image.image_id = #{imageId}
   </select>
   <select id="findByDatasetId" resultMap="image" useCache="false" flushCache="true">
-    SELECT * FROM dataset_image WHERE dataset_id = #{datasetId} ORDER BY created_at DESC, image_id
+    <include refid="imageRows"/> AND image.dataset_id = #{datasetId} ORDER BY image.created_at DESC, image.image_id
   </select>
+  <select id="findActiveByFilename" resultMap="image" useCache="false" flushCache="true">
+    <include refid="imageRows"/> AND image.dataset_id = #{datasetId} AND image.original_filename = #{originalFilename}
+  </select>
+  <select id="lockDataset" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT dataset_id FROM dataset WHERE dataset_id = #{datasetId} AND <include refid="manageScope"/> FOR UPDATE
+  </select>
+  <update id="markDeleted" parameterType="com.imageaiplatform.dataset.domain.DatasetImage">
+    <bind name="userKey" value="updatedBy"/>
+    UPDATE dataset_image SET is_deleted = TRUE, updated_at = #{updatedAt}, updated_by = #{updatedBy}
+    WHERE image_id = #{imageId} AND dataset_id = #{datasetId} AND is_deleted = FALSE
+      AND EXISTS (SELECT 1 FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>)
+  </update>
   <insert id="insert" parameterType="com.imageaiplatform.dataset.domain.DatasetImage">
     <bind name="userKey" value="createdBy"/>
     INSERT INTO dataset_image (image_id, dataset_id, original_filename, storage_path, media_type, size_bytes,
-        created_at, updated_at, created_by, updated_by)
+        created_at, updated_at, created_by, updated_by, thumbnail_path, is_deleted, version_count, previous_image_id)
     SELECT #{imageId}, #{datasetId}, #{originalFilename}, #{storagePath}, #{mediaType}, #{sizeBytes},
-        #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}
-    FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="dataset.deleteScope"/>
+        #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy}, #{thumbnailPath}, #{deleted}, #{versionCount}, #{previousImageId}
+    FROM dataset WHERE dataset.dataset_id = #{datasetId} AND <include refid="manageScope"/>
+  </insert>
+  <insert id="insertHistory" parameterType="com.imageaiplatform.dataset.domain.DatasetImageHistory">
+    INSERT INTO dataset_image_history (history_id, image_id, dataset_id, action, version_count, previous_image_id,
+        original_filename, storage_path, thumbnail_path, media_type, size_bytes,
+        image_created_at, image_updated_at, image_created_by, image_updated_by,
+        created_at, updated_at, created_by, updated_by)
+    VALUES (#{historyId}, #{image.imageId}, #{image.datasetId}, #{action}, #{image.versionCount}, #{image.previousImageId},
+        #{image.originalFilename}, #{image.storagePath}, #{image.thumbnailPath}, #{image.mediaType}, #{image.sizeBytes},
+        #{image.createdAt}, #{image.updatedAt}, #{image.createdBy}, #{image.updatedBy},
+        #{createdAt}, #{createdAt}, #{createdBy}, #{createdBy})
   </insert>
 </mapper>

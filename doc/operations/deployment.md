@@ -1,5 +1,19 @@
 # 배포 및 서버 설정 운영
 
+## 이미지 권한 분리 배포 — 2026-11-13
+
+이미지 조회·수정의 권한 코드가 변경되어 서버·프런트와 수정된 common/local 반복 seed를 함께 배포합니다. [seed 적용](database-migration.md#이미지-기능-권한-분리-seed--2026-11-13)을 따릅니다. 기존 dataset:item:read와 dataset:image:upload만 가진 운영 역할에 read·update가 자동 부여되지는 않습니다. 해당 사용자에게 허용할 이미지 read·upload·update·delete를 역할별로 명시해야 합니다. local admin에는 네 권한을 자동 연결합니다. 이미지 관리 화면은 별도 image-targets API를 사용하므로 기존 프런트와 서버를 함께 갱신합니다.
+
+데이터셋 삭제는 dataset:item:delete와 기존 대상 조건을 유지합니다. 개별 이미지 삭제는 아직 제공하지 않습니다. 새 실행 설정·외부 비밀값은 없으며 실제 사용자 DB 적용·서버 재시작은 하지 않았습니다.
+
+## 이미지 버전 보존·원본 확인 — 2026-11-13
+
+이미지 수정 업로드·이력 저장·원본 확인 API는 app V20 DDL과 공통 seed V21을 전제로 합니다. 기존 migration/common 위치를 유지하고 버전 순서대로 적용합니다. [적용 내역](database-migration.md#이미지-버전작업-이력-v20공통-v21--2026-11-13)을 확인합니다. 실제 사용자 DB 적용·서버 재시작은 하지 않았습니다.
+
+수정 업로드는 저장 파일 자체를 덮어쓰지 않고 새 UUID 파일·썸네일을 만들며 이전 파일을 보관합니다. 이전 파일을 현재 목록에 없다는 이유로 지우면 버전 보존이 깨지므로 전체 이미지 디렉터리와 dataset_image·dataset_image_history를 함께 백업합니다. 데이터셋 삭제 시에도 실제 파일과 이력은 남습니다. DB 보존량·디스크 사용량은 버전 수에 따라 증가하며 자동 정리·이력 보존 기간·복원 기능은 이번 범위에 없습니다.
+
+원본·썸네일 조회는 인증된 API로만 제공하고 저장 루트를 웹 정적 디렉터리로 노출하지 않습니다. 원본 응답은 mediaType과 no-store를 사용합니다. 파일·신규 메타데이터·이력 중 실패하면 기존 상태로 롤백하고 이번 요청이 작성한 파일만 정리합니다. 직접 SQL로 변경·삭제한 자료에는 서비스 이벤트가 생성되지 않습니다. 운영 정리가 필요하면 기존 이력·버전과의 관계를 검토해야 합니다.
+
 ## 이미지 업로드 저장소 — 2026-11-12
 
 app V18을 기존 마이그레이션 활성화·DDL/common 위치 설정으로 적용합니다. common 반복 R__04_image_permissions.sql은 dataset:image:upload를 등록하고 local의 R__local_image_permissions.sql은 기존 admin 역할에만 부여합니다. 실행 순서는 버전 마이그레이션 → 공통 반복 01~04 → local app → local image permissions → local workspace입니다. 운영 역할은 자동 부여하지 않습니다.
@@ -12,6 +26,7 @@ app:
     images:
       directory: /srv/image-ai/images
       max-file-size: 10MB
+      thumbnail-max-edge: 256
 spring:
   servlet:
     multipart:
@@ -19,6 +34,8 @@ spring:
 ```
 
 기본 directory는 backend 실행 디렉터리 기준 `./data/images`입니다. 서비스 계정에 저장·조회·실패 정리 권한이 있어야 합니다. 디렉터리는 업로드 시 생성하며 실제 파일명은 UUID.형식확장자입니다. DB storage_path는 상대 경로이므로 루트를 바꿀 때 기존 파일도 새 루트로 함께 이동해야 합니다. DB와 이미지 디렉터리를 함께 백업해야 원본명·파일 관계를 복원할 수 있습니다.
+
+2026-11-13: V19로 nullable thumbnail_path와 UNIQUE를 추가합니다. 신규 업로드는 같은 루트에 UUID-thumbnail.png를 저장하므로 원본과 썸네일을 모두 백업·이동합니다. application.yaml의 thumbnail-max-edge는 양의 픽셀 수이며 기본 256입니다. 변경값은 이후 업로드에만 적용하고 기존 이미지의 썸네일을 자동 생성·재생성하지 않습니다. 원본·썸네일 파일 작성 또는 DB 등록 실패 시 작성 파일을 롤백 정리합니다. 실제 사용자 DB 적용·서버 재시작은 수행하지 않았습니다.
 
 파일당 최대 용량은 app.storage.images.max-file-size 한 값으로 서비스와 spring.servlet.multipart.max-file-size를 맞춥니다. 요청 전체 제한에는 multipart 부가 데이터가 포함되므로 파일당 용량을 늘릴 때 max-request-size도 여유 있게 조정해야 합니다. 허용 형식 4종·최대 4천만 화소는 현재 코드 정책이며 설정화 후보는 agent-suggestions에서 별도로 검토합니다.
 

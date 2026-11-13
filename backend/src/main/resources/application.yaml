@@ -16,6 +16,7 @@ app:
     images:
       directory: ./data/images
       max-file-size: 10MB
+      thumbnail-max-edge: 256
   migration:
     enabled: false
     app-locations:
