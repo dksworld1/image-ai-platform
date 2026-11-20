@@ -18,6 +18,7 @@
 - [개발 계획·설계·진척 관리](plans/README.md): 로드맵·작업계획·설계 제안·단계별 구현 기록의 통합 목록
 - [개발 로드맵](plans/README.md#개발-로드맵): 현재 상태와 다음 설계 항목
 - [데이터셋 업무 개발 작업계획서](plans/dataset-development-plan.md): 사용자 지시용 작업 ID·상태·선행 조건·완료 기준
+- [실행 파이프라인 설계 데이터 모델링](plans/execution-pipeline-data-modeling.md): 아티팩트·아티팩트셋·스테이지 입출력·파이프라인·분산 실행·프로비넌스의 논리 모델. 설계 제안·미구현
 - [워크스페이스 설계 제안](plans/workspace-design-proposal.md): 가입 승인·멤버 역할·공간별 데이터셋 접근 범위 검토
 - [워크스페이스 테이블 설계](db-schema/tables/workspace/README.md): V10·local 초기 공간 구현, 관리 화면·API·실제 DB 적용은 후속
 - [다중 공간 데이터셋 결정](decisions/ADR-033-dataset-multiple-workspaces.md): 가입 공간 통합 목록·다중 공간 생성·local 두 공간, 관리 화면은 후속
