@@ -8,7 +8,7 @@
 
 ## 문서 목록
 
-- [실행 파이프라인 설계 데이터 모델링](../execution-pipeline-data-modeling.md): 아티팩트·아티팩트셋·스테이지 입출력·실행·프로비넌스의 설계 제안, 구현 전 검토
+- [실행 파이프라인 설계 데이터 모델링](../execution-pipeline-data-modeling.md): 아티팩트·셋의 5개 테이블·백엔드 API 부분 구현. 스테이지·입출력·실행·프로비넌스는 설계 제안
 
 - [애플리케이션 설정](stage-application-settings.md)
 - [1단계: 백엔드 프레임워크와 데이터 기반](stage-01-backend-foundation.md)

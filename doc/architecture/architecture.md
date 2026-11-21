@@ -1,5 +1,14 @@
 # 아키텍처
 
+## 아티팩트·아티팩트셋 — 2026-11-20
+
+`artifact` 모듈은 controller/service/dao/domain 경계를 사용합니다. ArtifactService는 WorkspaceService로 활성 공간 멤버십을 확인하고 @PreAuthorize로 pipeline:artifact 및 pipeline:artifactset 기능 권한을 각각 검사합니다. MyBatisArtifactDao는 명시적인 appSqlSessionTemplate과 appTransactionManager를 사용하며 스키마는 V26의 5개 테이블입니다.
+
+ArtifactFileStore는 설정의 루트 키를 로컬 경로로 해석하고 서버 UUID 상대 경로에 파일을 저장합니다. 아티팩트는 다중 파일의 SHA-256을 검증해 이용 가능으로 확정합니다. 셋은 고정 아티팩트 참조를 버전별로 관리하고 구성·순서·원본 대응 키를 체크섬으로 고정합니다. 같은 아티팩트를 재사용해도 파일을 복사하지 않습니다.
+
+파일 기록과 DB는 단일 트랜잭션이 아니므로 롤백 시 파일 삭제를 보상합니다. 비정상 프로세스 종료에 따른 고아 파일 정리는 후속입니다. 실행·프로비넌스·보존/삭제 정책 전체와 NAS/S3는 구현하지 않았습니다. [ADR-047](../decisions/ADR-047-artifacts-and-versioned-sets.md)을 따릅니다.
+
+
 ## 이미지 설명 편집 — 2026-11-13
 
 [ADR-042](../decisions/ADR-042-image-descriptions.md)에 따라 이미지 설명은 버전 행과 이벤트 이력에 저장합니다. 업로드 모달은 파일마다 description을 전송하고, 목록은 원본·임시 편집·선택을 분리해 선택된 실제 변경만 단일 PATCH로 보냅니다. DatasetImageService는 image:update와 대상 범위를 검사하고 데이터셋 행 잠금 안에서 설명·수정 감사 값·UPDATE 스냅샷을 한 트랜잭션으로 반영합니다. 한 행 실패 시 전부 롤백하며 새 파일 버전은 만들지 않습니다. 컨트롤러의 DTO 검증과 서비스 정규화 외에 별도 편집 프레임워크는 추가하지 않았습니다.

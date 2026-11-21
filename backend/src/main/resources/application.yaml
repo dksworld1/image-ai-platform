@@ -13,6 +13,11 @@ server:
 
 app:
   storage:
+    artifacts:
+      default-root: local
+      roots:
+        local: ./data/artifacts
+      max-file-size: 10MB
     images:
       directory: ./data/images
       max-file-size: 10MB

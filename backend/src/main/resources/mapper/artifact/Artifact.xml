@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="artifact">
+  <resultMap id="Artifact" type="com.imageaiplatform.artifact.domain.Artifact"><constructor>
+    <arg column="artifact_id" javaType="java.lang.String"/>
+    <arg column="workspace_id" javaType="java.lang.String"/>
+    <arg column="data_type" javaType="java.lang.String"/>
+    <arg column="schema_name" javaType="java.lang.String"/>
+    <arg column="schema_version" javaType="java.lang.String"/>
+    <arg column="status" javaType="java.lang.String"/>
+    <arg column="description" javaType="java.lang.String"/>
+    <arg column="retention_until" javaType="java.time.OffsetDateTime"/>
+    <arg column="protected_flag" javaType="java.lang.Boolean"/>
+    <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_by" javaType="java.lang.String"/>
+    <arg column="updated_by" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="ArtifactFile" type="com.imageaiplatform.artifact.domain.ArtifactFile"><constructor>
+    <arg column="file_id" javaType="java.lang.String"/>
+    <arg column="artifact_id" javaType="java.lang.String"/>
+    <arg column="internal_name" javaType="java.lang.String"/>
+    <arg column="root_key" javaType="java.lang.String"/>
+    <arg column="relative_path" javaType="java.lang.String"/>
+    <arg column="media_type" javaType="java.lang.String"/>
+    <arg column="size_bytes" javaType="java.lang.Long"/>
+    <arg column="checksum_algorithm" javaType="java.lang.String"/>
+    <arg column="checksum" javaType="java.lang.String"/>
+    <arg column="deleted_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_by" javaType="java.lang.String"/>
+    <arg column="updated_by" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="ArtifactSet" type="com.imageaiplatform.artifact.domain.ArtifactSet"><constructor>
+    <arg column="set_id" javaType="java.lang.String"/>
+    <arg column="workspace_id" javaType="java.lang.String"/>
+    <arg column="name" javaType="java.lang.String"/>
+    <arg column="purpose" javaType="java.lang.String"/>
+    <arg column="description" javaType="java.lang.String"/>
+    <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_by" javaType="java.lang.String"/>
+    <arg column="updated_by" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="ArtifactSetVersion" type="com.imageaiplatform.artifact.domain.ArtifactSetVersion"><constructor>
+    <arg column="version_id" javaType="java.lang.String"/>
+    <arg column="set_id" javaType="java.lang.String"/>
+    <arg column="version_number" javaType="java.lang.Integer"/>
+    <arg column="status" javaType="java.lang.String"/>
+    <arg column="item_count" javaType="java.lang.Long"/>
+    <arg column="composition_checksum" javaType="java.lang.String"/>
+    <arg column="confirmed_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_by" javaType="java.lang.String"/>
+    <arg column="updated_by" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="ArtifactSetMember" type="com.imageaiplatform.artifact.domain.ArtifactSetMember"><constructor>
+    <arg column="version_id" javaType="java.lang.String"/>
+    <arg column="artifact_id" javaType="java.lang.String"/>
+    <arg column="ordinal" javaType="java.lang.Long"/>
+    <arg column="source_key" javaType="java.lang.String"/>
+    <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+    <arg column="created_by" javaType="java.lang.String"/>
+    <arg column="updated_by" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <insert id="insertArtifact">
+    INSERT INTO artifact (artifact_id, workspace_id, data_type, schema_name, schema_version, status, description, retention_until, protected_flag, created_at, updated_at, created_by, updated_by)
+    VALUES (#{artifactId}, #{workspaceId}, #{dataType}, #{schemaName}, #{schemaVersion}, #{status}, #{description}, #{retentionUntil}, #{protectedFlag}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+  <insert id="insertFile">
+    INSERT INTO artifact_file (file_id, artifact_id, internal_name, root_key, relative_path, media_type, size_bytes, checksum_algorithm, checksum, deleted_at, created_at, updated_at, created_by, updated_by)
+    VALUES (#{fileId}, #{artifactId}, #{internalName}, #{rootKey}, #{relativePath}, #{mediaType}, #{sizeBytes}, #{checksumAlgorithm}, #{checksum}, #{deletedAt}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+  <insert id="insertSet">
+    INSERT INTO artifact_set (set_id, workspace_id, name, purpose, description, created_at, updated_at, created_by, updated_by)
+    VALUES (#{setId}, #{workspaceId}, #{name}, #{purpose}, #{description}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+  <insert id="insertVersion">
+    INSERT INTO artifact_set_version (version_id, set_id, version_number, status, item_count, composition_checksum, confirmed_at, created_at, updated_at, created_by, updated_by)
+    VALUES (#{versionId}, #{setId}, #{versionNumber}, #{status}, #{itemCount}, #{compositionChecksum}, #{confirmedAt}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+  <insert id="insertMember">
+    INSERT INTO artifact_set_member (version_id, artifact_id, ordinal, source_key, created_at, updated_at, created_by, updated_by)
+    VALUES (#{versionId}, #{artifactId}, #{ordinal}, #{sourceKey}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+  <select id="artifact" resultMap="Artifact" useCache="false" flushCache="true">SELECT * FROM artifact WHERE artifact_id = #{id}</select>
+  <select id="lockArtifact" resultMap="Artifact" useCache="false" flushCache="true">SELECT * FROM artifact WHERE artifact_id = #{id} FOR UPDATE</select>
+  <select id="set" resultMap="ArtifactSet" useCache="false" flushCache="true">SELECT * FROM artifact_set WHERE set_id = #{id}</select>
+  <select id="lockSet" resultMap="ArtifactSet" useCache="false" flushCache="true">SELECT * FROM artifact_set WHERE set_id = #{id} FOR UPDATE</select>
+  <select id="version" resultMap="ArtifactSetVersion" useCache="false" flushCache="true">SELECT * FROM artifact_set_version WHERE version_id = #{id}</select>
+  <select id="lockVersion" resultMap="ArtifactSetVersion" useCache="false" flushCache="true">SELECT * FROM artifact_set_version WHERE version_id = #{id} FOR UPDATE</select>
+  <select id="artifacts" resultMap="Artifact" useCache="false" flushCache="true">SELECT * FROM artifact WHERE workspace_id = #{id} ORDER BY created_at DESC, artifact_id</select>
+  <select id="sets" resultMap="ArtifactSet" useCache="false" flushCache="true">SELECT * FROM artifact_set WHERE workspace_id = #{id} ORDER BY created_at DESC, set_id</select>
+  <select id="files" resultMap="ArtifactFile" useCache="false" flushCache="true">SELECT * FROM artifact_file WHERE artifact_id = #{id} ORDER BY internal_name, file_id</select>
+  <select id="versions" resultMap="ArtifactSetVersion" useCache="false" flushCache="true">SELECT * FROM artifact_set_version WHERE set_id = #{id} ORDER BY version_number</select>
+  <select id="members" resultMap="ArtifactSetMember" useCache="false" flushCache="true">SELECT * FROM artifact_set_member WHERE version_id = #{id} ORDER BY ordinal</select>
+  <select id="file" resultMap="ArtifactFile" useCache="false" flushCache="true">SELECT * FROM artifact_file WHERE artifact_id = #{artifactId} AND file_id = #{fileId}</select>
+  <select id="nextVersionNumber" resultType="java.lang.Integer" useCache="false" flushCache="true">SELECT COALESCE(MAX(version_number), 0) + 1 FROM artifact_set_version WHERE set_id = #{id}</select>
+  <update id="artifactStatus">UPDATE artifact SET status = #{status}, updated_at = CURRENT_TIMESTAMP, updated_by = #{actor} WHERE artifact_id = #{id}</update>
+  <delete id="deleteMembers">DELETE FROM artifact_set_member WHERE version_id = #{id}</delete>
+  <update id="confirmVersion">UPDATE artifact_set_version SET status = 'CONFIRMED', item_count = #{count}, composition_checksum = #{checksum}, confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, updated_by = #{actor} WHERE version_id = #{id}</update>
+</mapper>
