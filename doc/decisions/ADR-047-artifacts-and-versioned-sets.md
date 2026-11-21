@@ -1,6 +1,6 @@
 # ADR-047: 아티팩트와 버전 기반 아티팩트셋
 
-- 상태: 채택 — 이번 아티팩트·셋 백엔드 구현 범위
+- 상태: 부분 대체 — 셋 모델은 [ADR-049](ADR-049-artifact-file-unification.md)로 폐기
 - 날짜: 2026-11-20
 - 관련 기록: ADR-037, [실행 파이프라인 설계](../plans/execution-pipeline-data-modeling.md)
 
@@ -29,4 +29,4 @@ artifact·artifact_file·artifact_set·artifact_set_version·artifact_set_member
 
 보관 기한·보호 여부는 메타데이터로 기록하며, 삭제 정책과 참조 보호의 전체 범위가 미확정이므로 삭제·보호 해제·실체 정리 API는 제공하지 않습니다. 원본 파일 삭제를 수행하지 않아 확정 셋의 입력을 지우는 경로를 만들지 않습니다. deleted_at은 후속 파일 수명주기용 예약 필드입니다.
 
-기준 문서는 [API](../api/api.md#아티팩트와-아티팩트셋), [테이블](../db-schema/tables/artifact/README.md), [배포](../operations/deployment.md#아티팩트아티팩트셋--2026-11-20)를 따릅니다.
+기준 문서는 [셋 API 및 테이블 이력](../archive/artifact-set/README.md), [테이블](../db-schema/tables/artifact/README.md), [배포](../operations/deployment.md#아티팩트와-파일)를 따릅니다.

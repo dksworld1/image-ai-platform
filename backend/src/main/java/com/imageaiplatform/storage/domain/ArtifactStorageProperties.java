@@ -1,4 +1,4 @@
-package com.imageaiplatform.artifact.domain;
+package com.imageaiplatform.storage.domain;
 
 import java.nio.file.Path;
 import java.util.Map;

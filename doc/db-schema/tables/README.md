@@ -9,7 +9,7 @@
 - [인증·권한](auth/README.md): 기존 사용자 인증 정보 및 신규 RBAC 테이블 설계 초안
 - [데이터셋](dataset/README.md): 데이터셋 기본 정보, 이미지 버전과 생성·수정·삭제 이력
 - [워크스페이스](workspace/README.md): V10 공간·멤버십과 데이터셋 nullable 공간 FK, local 초기 데이터. 업무 API·실제 DB 미적용
-- [아티팩트·셋](artifact/README.md): V26 고정 아티팩트·다중 파일과 셋 버전·구성 항목
+- [아티팩트·파일](artifact/README.md): V26의 고정 아티팩트와 다중 파일
 - [기반](foundation): 기반 동작 확인용 테이블
 
 ## 폐기 이력

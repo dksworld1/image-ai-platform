@@ -1,8 +1,8 @@
-# 아티팩트·아티팩트셋 테이블 정의
+# 아티팩트·파일 테이블 정의
 
 - 종류: 현재 테이블 정의
-- 갱신일: 2026-11-20
-- 구현: app DB의 V26, [ADR-047](../../../decisions/ADR-047-artifacts-and-versioned-sets.md)
+- 갱신일: 2026-11-21
+- 구현: app DB의 V26, [ADR-049](../../../decisions/ADR-049-artifact-file-unification.md)
 
 모든 테이블에 created_at·updated_at(TIMESTAMP(6) WITH TIME ZONE NOT NULL), created_by·updated_by(VARCHAR(100) NOT NULL)를 둡니다. 작업자는 내부 user_key이며 시스템 작업자는 '0'입니다. 아래 표 외에 이 공통 컬럼이 포함됩니다. 모든 FK는 부모 삭제 연쇄 없이 참조를 보존합니다.
 
@@ -39,39 +39,4 @@
 
 UNIQUE: (artifact_id, internal_name), (root_key, relative_path). 업로드가 성공한 파일 행만 저장하므로 기록 중 아티팩트라도 파일 행의 크기·체크섬은 확정값입니다. 실패한 업로드는 행을 남기지 않습니다. 절대 경로를 저장하지 않습니다.
 
-## artifact_set
-
-| 컬럼 | 타입·제약 | 의미 |
-|---|---|---|
-| set_id | VARCHAR(36) PK | 논리적 셋 식별자 |
-| workspace_id | VARCHAR(36) NOT NULL FK workspace | 귀속 공간 |
-| name | VARCHAR(200) NOT NULL | 표시 이름 |
-| purpose | VARCHAR(100) NOT NULL | 목적, 플랫폼 열거형 강제 없음 |
-| description | VARCHAR(2000) NULL | 설명 |
-
-조회 인덱스: (workspace_id, created_at). 생성 시 버전을 자동 생성하지 않습니다.
-
-## artifact_set_version
-
-| 컬럼 | 타입·제약 | 의미 |
-|---|---|---|
-| version_id | VARCHAR(36) PK | 고정 버전 참조 ID |
-| set_id | VARCHAR(36) NOT NULL FK artifact_set | 소속 셋 |
-| version_number | INTEGER NOT NULL CHECK > 0 | 셋 안에서 1부터 증가 |
-| status | VARCHAR(20) NOT NULL CHECK | DRAFT·CONFIRMED |
-| item_count | BIGINT NULL CHECK >= 0 | 확정 시 아티팩트 개수, 초안에서는 NULL |
-| composition_checksum | VARCHAR(64) NULL | 확정 구성의 SHA-256 |
-| confirmed_at | TIMESTAMP(6) WITH TIME ZONE NULL | 확정 시각 |
-
-UNIQUE: (set_id, version_number). CONFIRMED에서는 개수·체크섬·확정 시각이 모두 필수입니다. 빈 셋의 item_count는 0입니다. 파일 수·벡터 행 수와 구분합니다.
-
-## artifact_set_member
-
-| 컬럼 | 타입·제약 | 의미 |
-|---|---|---|
-| version_id | VARCHAR(36) NOT NULL FK artifact_set_version | 소속 버전 |
-| artifact_id | VARCHAR(36) NOT NULL FK artifact | 참조 아티팩트 |
-| ordinal | BIGINT NOT NULL CHECK >= 0 | 순서, 연속일 필요 없음 |
-| source_key | VARCHAR(1024) NULL | 원본 대응 키 |
-
-PK: (version_id, artifact_id), UNIQUE: (version_id, ordinal). source_key 중복은 허용합니다. 셋 중첩은 없습니다. 서비스가 같은 공간·AVAILABLE 상태를 검사합니다. 구성 교체·확정은 버전 행 잠금 안에서 수행하고, 확정 후 변경 API를 거부합니다.
+[아티팩트셋 테이블 이력](../../../archive/artifact-set/README.md)

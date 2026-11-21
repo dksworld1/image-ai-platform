@@ -1,12 +1,12 @@
 # 아키텍처
 
-## 아티팩트·아티팩트셋 — 2026-11-20
+## 아티팩트와 파일 — 2026-11-21
 
-`artifact` 모듈은 controller/service/dao/domain 경계를 사용합니다. ArtifactService는 WorkspaceService로 활성 공간 멤버십을 확인하고 @PreAuthorize로 pipeline:artifact 및 pipeline:artifactset 기능 권한을 각각 검사합니다. MyBatisArtifactDao는 명시적인 appSqlSessionTemplate과 appTransactionManager를 사용하며 스키마는 V26의 5개 테이블입니다.
+`artifact` 모듈은 service/dao/domain 경계를 사용합니다. 아티팩트 생명주기는 프로세스 내부 서비스에서 관리합니다. [ADR-051](../decisions/ADR-051-in-process-artifact-lifecycle.md) ArtifactService는 WorkspaceService로 활성 공간 멤버십을 확인하고 @PreAuthorize로 pipeline:artifact 기능 권한을 검사합니다. MyBatisArtifactDao는 명시적인 appSqlSessionTemplate과 appTransactionManager를 사용하며 활성 테이블은 artifact와 artifact_file입니다.
 
-ArtifactFileStore는 설정의 루트 키를 로컬 경로로 해석하고 서버 UUID 상대 경로에 파일을 저장합니다. 아티팩트는 다중 파일의 SHA-256을 검증해 이용 가능으로 확정합니다. 셋은 고정 아티팩트 참조를 버전별로 관리하고 구성·순서·원본 대응 키를 체크섬으로 고정합니다. 같은 아티팩트를 재사용해도 파일을 복사하지 않습니다.
+ArtifactService는 storage 모듈의 ArtifactStorage 인터페이스를 사용합니다. 구현체 LocalFileStorage는 루트 키를 로컬 경로로 해석하고 파일 입출력과 실측 크기·SHA-256 계산을 담당합니다. ArtifactService는 파일 검증 결과를 메타데이터와 비교해 아티팩트를 확정하고, DB 롤백 시 저장 파일 삭제를 요청합니다. [ADR-050](../decisions/ADR-050-artifact-storage-interface.md)
 
-파일 기록과 DB는 단일 트랜잭션이 아니므로 롤백 시 파일 삭제를 보상합니다. 비정상 프로세스 종료에 따른 고아 파일 정리는 후속입니다. 실행·프로비넌스·보존/삭제 정책 전체와 NAS/S3는 구현하지 않았습니다. [ADR-047](../decisions/ADR-047-artifacts-and-versioned-sets.md)을 따릅니다.
+파일 기록과 DB는 단일 트랜잭션이 아니므로 롤백 시 파일 삭제를 보상합니다. 비정상 프로세스 종료에 따른 고아 파일 정리는 후속입니다. 실행·프로비넌스·보존/삭제 정책 전체와 NAS/S3는 구현하지 않았습니다. [ADR-049](../decisions/ADR-049-artifact-file-unification.md)
 
 
 ## 이미지 설명 편집 — 2026-11-13

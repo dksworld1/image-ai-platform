@@ -356,11 +356,11 @@ local YAML의 app.cors.allowed-origin은 localhost와 127.0.0.1 각각의 5173·
 
 2026-11-13 21:03(KST) 후속: ADR-044의 이미지 포함 바이너리 업로드를 반영해 같은 스크립트로 백엔드를 재시작했습니다. /api/health HTTP 200, {"status":"UP"} 확인. DB·설정 변경은 없으며 데이터 파일은 이미지여도 썸네일을 생성하지 않습니다.
 
-## 아티팩트·아티팩트셋 — 2026-11-20
+## 아티팩트와 파일
 
 새 backend는 app DB V26__create_artifacts_and_sets.sql과 app/common의 R__06_artifact_permissions.sql을 사용합니다. 과거 마이그레이션은 변경하지 않았습니다. dev/prod는 기존 외부 YAML의 app.migration.enabled 및 app DDL·app/common 위치 설정으로 명시적으로 적용합니다. workspace 테이블이 선행되어야 합니다. 다른 DB에 새 테이블을 만들지 않습니다.
 
-local 전용 R__local_artifact_permissions는 기존 admin 역할에 pipeline:artifact 및 pipeline:artifactset의 create/read/update 6개 권한을 연결합니다. 운영 역할에는 자동 부여하지 않습니다. 기존 데이터셋·이미지·파일 권한만으로 새 API를 사용할 수 없습니다. 관리자 역할 이름으로 우회하지 않습니다.
+local 전용 R__local_artifact_permissions는 기존 admin 역할에 pipeline:artifact의 create/read/update 권한을 연결합니다. 운영 역할에는 자동 부여하지 않습니다. 내부 서비스 호출에는 아티팩트 권한과 활성 워크스페이스 멤버십이 필요합니다. 관리자 역할 이름으로 우회하지 않습니다.
 
 일반 파일 설정은 application.yaml에 직접 추가했습니다.
 
@@ -376,8 +376,8 @@ app:
 
 DB 파일 위치는 root_key와 relative_path이며 절대 경로를 저장하지 않습니다. 루트 키는 각 서버가 동일한 파일을 가리키도록 해석해야 합니다. root_key의 경로를 바꿀 때는 기존 파일을 먼저 이관해야 합니다. 기본 경로는 backend 작업 디렉터리 기준입니다. 별도 라이브러리·환경 변수·설정 import는 추가하지 않았습니다. NAS·S3 연결 및 마운트 상태 검사는 이번 범위가 아니며 기본 로컬 저장을 NAS 운영 구성으로 간주하지 않습니다.
 
-파일 한도를 변경하면 app.storage.artifacts.max-file-size 외에 기존 spring.servlet.multipart.max-file-size·max-request-size도 함께 검토합니다. 업로드는 스트림으로 크기와 SHA-256을 계산하고 완료 시 실파일을 다시 읽어 확인합니다. 파일 다운로드는 AVAILABLE만 허용하고 MIME 선언값과 무관하게 바이너리 첨부로 보냅니다.
+내부 파일 등록 크기는 app.storage.artifacts.max-file-size에서 제한합니다. 등록 시 스트림에서 크기와 SHA-256을 계산하고, 확정 시 파일을 다시 읽어 검증합니다. 아티팩트 REST 경로는 제공하지 않습니다. [ADR-051](../decisions/ADR-051-in-process-artifact-lifecycle.md)
 
 DB와 아티팩트 파일 루트를 같은 복구 시점으로 백업합니다. 삭제·보호 해제·보관 만료에 따른 자동 정리는 제공하지 않습니다. 프로세스 중단이나 보상 실패로 미공개 파일이 남을 수 있으며 자동 고아 정리는 후속입니다. 기존 데이터셋 파일의 자동 등록·복사·삭제 보호를 구현한 것은 아닙니다.
 
-검증·로컬 기동: Java 21에서 ArtifactTest 7개, 기존 DatasetFileTest 4개가 통과하고 JAR 빌드가 성공했습니다. 기존 8080 프로세스와 local H2 파일이 없는 상태에서 기존 Linux 스크립트 bin/start-local-backend.sh로 local 기동하여 DB를 새로 초기화하고 V26까지 적용했습니다. PowerShell이 없는 환경이므로 Windows ps1 대신 sh를 사용했습니다. GET /api/health의 UP 및 admin 인증 후 아티팩트·셋 목록 200을 확인했습니다. 검증용 아티팩트/셋은 local DB에 생성하지 않았습니다. 기동 로그는 /tmp/artifact-backend-local.log입니다. 운영 DB·외부 NAS에는 적용하지 않았습니다.
+V26으로 생성된 셋 테이블과 기존 권한 데이터는 보존합니다. 셋 API는 폐기했고, 권한 시드는 아티팩트 권한만 등록합니다. [ADR-049](../decisions/ADR-049-artifact-file-unification.md)
