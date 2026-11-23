@@ -138,6 +138,7 @@ ID·생성일시·수정일시·작업자는 서버가 생성하며 요청에 �
 | 204 | 허용된 대상 1건 삭제, 응답 본문 없음 |
 | 401 | 인증 없음·토큰 오류·만료·계정 없음·비활성 |
 | 403 | 기능 권한 없음, 비멤버·비활성 공간/멤버십, 일반 사용자의 다른 생성자 데이터, 미귀속 또는 없는 대상, 조건 변경 후 삭제 0건 |
+| 409 | 확정 데이터셋 버전이 존재하여 삭제 금지 |
 | 500 | DB 등 서버 오류 |
 
 서비스 `@PreAuthorize`에 기능 권한과 `datasetService.canDelete(datasetId)`를 AND로 선언합니다. 실제 DELETE에도 동일한 공간·멤버·운영자/생성자 조건을 적용하며 실패를 성공으로 처리하지 않습니다. 삭제 API의 자동 재시도는 하지 않습니다. 반복 삭제는 대상이 없어 403이며 204로 간주하지 않습니다. [ADR-035](../decisions/ADR-035-dataset-deletion-authorization.md)를 따릅니다.
@@ -338,3 +339,56 @@ POST는 file과 선택 description(최대 2,000자)을 받습니다. 정상 201�
 ## 아티팩트와 파일
 
 아티팩트 생명주기는 같은 프로세스의 내부 서비스에서 관리합니다. 이전 REST 경로는 [이력](../archive/artifact-rest-api/README.md)에 보관합니다.
+
+## 데이터셋 전체 목록 버전 — 2026-11-23
+
+모든 요청은 활성 계정 JWT와 ACTIVE 공간의 ACTIVE 멤버십이 필요합니다. 새 권한은 dataset:version:read와 dataset:version:create이며 기존 이미지·파일 권한만으로 버전 전체를 읽거나 생성할 수 없습니다. 버전 read는 해당 공간의 스냅샷 이미지·데이터 파일 메타데이터와 원본 다운로드를 함께 허용하므로 역할 부여 시 범위를 고려합니다. 관리자는 권한 검사를 우회하지 않습니다.
+
+| 메서드·경로 | 권한·조건 | 결과 |
+|---|---|---|
+| GET /api/datasets/version-targets | dataset:version:read | 가입한 활성 공간의 데이터셋 선택 목록, 200 |
+| POST /api/datasets/{datasetId}/versions | dataset:version:create + 기존 데이터셋 관리 범위 | 스냅샷 생성, 201 |
+| GET /api/datasets/{datasetId}/versions | dataset:version:read | 최신 버전 번호순 배열, 200 |
+| GET /api/datasets/{datasetId}/versions/{versionId} | dataset:version:read | 고정 버전 메타데이터, 200 |
+| GET /api/datasets/{datasetId}/versions/{versionId}/entries | dataset:version:read | 이미지·데이터 파일 전체 구성 배열, 200 |
+| GET /api/datasets/{datasetId}/versions/{versionId}/images/{imageId}/content | dataset:version:read | 당시 이미지 원본 바이트 |
+| GET /api/datasets/{datasetId}/versions/{versionId}/files/{fileId}/content | dataset:version:read | 당시 데이터 파일 원본 바이트 |
+
+관리 범위는 해당 공간의 OWNER·ADMIN 또는 데이터셋 생성자입니다. 일반 활성 멤버는 read로 조회할 수 있지만 create 권한만 추가받았다고 다른 생성자의 데이터셋을 버전으로 만들 수는 없습니다. 버전 선택 목록은 dataset:item:read나 이미지·파일 read 없이도 version:read로 조회합니다.
+
+생성 요청은 JSON {"changeNote":"학습 입력 고정"} 또는 {}입니다. 설명은 선택·최대 2000자이며 공백만 있으면 null입니다. 클라이언트가 버전 ID·번호·파일 목록·작업자를 보내도 사용하지 않습니다. 서버가 UUID·번호를 발급하고 잠근 시점의 활성 파일 전체를 캡처합니다. 빈 데이터셋도 허용합니다.
+
+버전 응답 필드: versionId, datasetId, versionNumber, name, description, changeNote, imageCount, fileCount, createdAt, updatedAt, createdBy, updatedBy, creatorUserId, creatorUsername. name·description은 당시 값, 시각은 ISO 8601, 작업자는 내부 user_key입니다. 표시용 creatorUserId·creatorUsername은 현재 계정에서 LEFT JOIN하므로 계정 변경·부재 시 값이 달라지거나 null일 수 있습니다.
+
+구성 응답 필드: kind(images/files), entryId, originalFilename, description, mediaType, sizeBytes, versionCount, sourceCreatedAt, sourceCreatedBy. 형식·크기·이름·설명·개별 버전 정보는 스냅샷 값입니다. kind·원본명·ID 순으로 반환합니다. 검색·페이지·버전 비교는 제공하지 않습니다.
+
+다운로드는 현재 파일 API를 경유하지 않고 해당 버전의 구성 연결로 읽습니다. 교체되거나 현재 목록에서 논리 삭제된 파일도 읽을 수 있지만 다른 버전의 파일 ID를 섞으면 404입니다. 저장 경로를 노출하지 않고 attachment·no-store·application/octet-stream으로 스트리밍합니다.
+
+| 오류 | 조건 |
+|---|---|
+| 400 | 변경 설명 2000자 초과 등 잘못된 요청 |
+| 401 | 인증 없음·만료·비활성 계정 |
+| 403 | 권한 없음·비멤버·비활성 공간·조회 불가 데이터셋·생성 관리 범위 밖 |
+| 404 | 접근 가능한 데이터셋에 해당 버전 없음·버전에 없는 파일·실파일 없음 |
+| 409 | 기존 DELETE /api/datasets/{id}에서 확정 버전 존재 시 삭제 차단 |
+| 5xx | DB·스토리지 등 서버 장애 |
+
+확정 버전 수정·삭제 API는 제공하지 않습니다. 현재 편집본을 과거 버전으로 준비하는 동작은 아래 별도 restore API로 제공합니다. 현재 파일의 교체·논리 삭제는 가능하지만 과거 구성과 바이트를 유지합니다. 버전이 있는 데이터셋은 데이터셋 삭제 권한이 있어도 삭제할 수 없습니다. FK가 버전과 원본 파일 행의 삭제 연쇄를 차단합니다.
+
+버전 생성은 자동 재시도하지 않습니다. 통신 장애·새로고침 중단으로 결과를 확인하지 못한 경우 목록을 먼저 조회합니다. 별도 멱등 요청 키는 도입하지 않았으므로 사용자가 다시 생성하면 새 번호의 독립 버전이 생길 수 있습니다.
+
+## 과거 버전으로 편집 시작 — 2026-11-23
+
+### POST /api/datasets/{datasetId}/versions/{versionId}/restore
+
+본문 없이 호출합니다. dataset:version:restore와 dataset:version:read, ACTIVE 공간의 ACTIVE 멤버십, 기존 데이터셋 관리 범위(공간 OWNER·ADMIN 또는 생성자)를 모두 충족해야 합니다. 이 권한은 이미지와 데이터 파일 전체의 현재 편집본 교체를 허용하는 별도 권한입니다.
+
+성공은 200이며 기준 DatasetVersion 메타데이터를 반환합니다. 반환 ID는 선택한 기존 버전의 ID이며 새 버전이 아닙니다. 현재 저장된 편집본을 기준 버전의 전체 이미지·데이터 파일 구성 및 데이터셋 이름·설명으로 교체합니다. 현재에만 있는 항목은 논리 삭제하고 과거 파일 ID를 재활성화하며 당시 파일 설명을 적용합니다. 빈 기준 버전은 현재 파일 목록을 비웁니다. 바이트·저장 경로·확정 버전·버전 구성은 변경하지 않습니다.
+
+기준 실파일의 존재·읽기 가능·크기를 먼저 확인합니다. 같은 데이터셋 행 잠금으로 파일 수정·버전 생성과 직렬화하고, 현재 목록 제외·기준 구성 활성화·메타데이터·작업 이력을 한 트랜잭션으로 갱신합니다. 검사나 DB 처리가 실패하면 현재 편집본을 유지합니다. 실제 파일 내용의 별도 체크섬 검증은 하지 않습니다.
+
+401은 인증 오류, 403은 권한·멤버십·관리 범위 위반, 404는 접근 가능한 데이터셋에 해당 기준 버전 없음, 409는 기준 실파일 누락·크기 불일치 등 적용 불가입니다. 그 밖의 DB 장애는 5xx입니다. 다른 데이터셋의 버전을 가져오는 기능은 없습니다.
+
+적용만으로 버전을 만들지 않습니다. 이미지/데이터 파일 관리 탭에서 편집하고 기존 POST /versions로 확정하면 최대 버전 번호+1을 발급합니다. v9까지 있는 데이터셋에서 v5를 적용하고 수정하면 다음 생성 버전은 v10입니다. base_version_id는 저장하지 않습니다.
+
+공유된 편집본을 변경하므로 미확정 변경을 보존하려면 먼저 버전을 생성해야 합니다. UI는 확인창·적용 중 중복 클릭/탭 전환 차단·실패 안내를 제공하며 네트워크 오류 시 자동 재시도하지 않습니다. 완료 기록은 기존 이미지·파일 UPDATE/DELETE 이력과 데이터셋 수정 감사 값으로 남깁니다. 반복 적용은 다시 작업 이력을 남길 수 있습니다.

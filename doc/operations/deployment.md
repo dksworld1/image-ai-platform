@@ -381,3 +381,37 @@ DB 파일 위치는 root_key와 relative_path이며 절대 경로를 저장하�
 DB와 아티팩트 파일 루트를 같은 복구 시점으로 백업합니다. 삭제·보호 해제·보관 만료에 따른 자동 정리는 제공하지 않습니다. 프로세스 중단이나 보상 실패로 미공개 파일이 남을 수 있으며 자동 고아 정리는 후속입니다. 기존 데이터셋 파일의 자동 등록·복사·삭제 보호를 구현한 것은 아닙니다.
 
 V26으로 생성된 셋 테이블과 기존 권한 데이터는 보존합니다. 셋 API는 폐기했고, 권한 시드는 아티팩트 권한만 등록합니다. [ADR-049](../decisions/ADR-049-artifact-file-unification.md)
+
+## 데이터셋 버전 관리 — 2026-11-23
+
+app DB에 V27__create_dataset_versions.sql을 적용합니다. 기존 마이그레이션은 변경하지 않으며 기존 데이터셋에서 자동 버전을 만들거나 파일을 복사하지 않습니다. 공통 R__07_dataset_version_permissions는 version:read/create를 등록하고, local 전용 R__local_dataset_version_permissions는 admin 역할에 연결합니다. 운영 역할에는 자동 부여하지 않습니다.
+
+새 파일 설정·외부 환경 변수·저장소는 추가하지 않았습니다. 과거 파일 바이트는 기존 app.storage.images.directory 및 app.storage.files.directory에서 읽습니다. DB와 두 파일 저장 영역을 함께 보전합니다. 과거 파일 행·바이트를 임의로 삭제하거나 이동하면 재현이 깨질 수 있습니다. 새 FK는 버전이 있는 데이터셋과 참조 파일 행의 물리 삭제를 차단합니다. 기존 데이터셋 삭제 API의 409를 처리하는 프런트도 함께 배포해야 합니다.
+
+버전 관리 화면은 /datasets/versions?datasetId=...로 직접 접근할 수 있습니다. 생성·목록·상세·고정 원본 다운로드를 제공하며 자동 생성·버전 폐기는 포함하지 않습니다. 과거 버전으로 편집 시작은 아래 후속 배포 범위를 따릅니다. 운영 배포는 기존 외부 YAML의 app 마이그레이션 활성화·백업 절차를 따릅니다.
+
+검증·로컬 적용: 백엔드 선별 테스트 26개(DatasetVersionTest 5개 및 기존 삭제/이미지/파일 테스트)와 프런트 Node 테스트 34개, 프런트 빌드·백엔드 package가 통과했습니다. Chromium에서는 응답 대체 방식으로 생성/상세/과거 원본 다운로드/권한 오류/재시도와 40개 버전·200개 항목의 표 스크롤·컬럼 조절·모바일/짧은 창을 검증했습니다. 실제 서버와 연결한 브라우저 전체 시나리오를 검증한 것은 아닙니다.
+
+기존 8080 프로세스가 없는 상태에서 local H2 파일을 /tmp/dataset-version-before-v27에 백업하고 Linux의 기존 bin/start-local-backend.sh로 기동했습니다. PowerShell이 없어 Windows ps1 대신 sh를 사용했습니다. V27과 관련 반복 seed가 적용되어 현재 app 스키마는 V27입니다. GET /api/health의 UP 및 admin 인증 후 GET /api/datasets/version-targets의 200을 확인했습니다. 로컬 선택 대상이 비어 있어 실제 파일을 포함한 버전 생성·목록 확인은 하지 않았으며, 검증용 로컬 버전은 생성하지 않았습니다. 기동 로그는 /tmp/version-local-backend.log입니다. 운영 DB에는 적용하지 않았습니다.
+
+## 과거 데이터셋 버전으로 편집 시작 — 2026-11-23
+
+신규 DDL 없이 V27 스키마를 그대로 사용합니다. R__08_dataset_version_restore_permission.sql이 dataset:version:restore를 등록하고 local 전용 R__local_dataset_version_restore_permission.sql이 admin 역할에 연결합니다. 운영 역할에는 자동 부여하지 않습니다. 기존 version:read/create 또는 파일 수정 권한만으로는 편집본을 교체할 수 없습니다. read와 restore 및 기존 관리 범위를 함께 요구합니다.
+
+파일을 복사·이동·삭제하지 않고 기준 버전의 기존 파일 ID·저장 경로·썸네일을 재사용합니다. 현재 파일 목록은 바뀌지만 확정된 버전 목록과 바이트는 보전합니다. 해당 파일 원본의 존재·읽기 가능·크기를 적용 전에 검사합니다. 기존 파일 관리 화면·원본 다운로드와 기존 개별 버전 작업 이력을 사용합니다.
+
+공유 편집본의 변경이므로 보존할 미확정 상태가 있으면 사용자가 먼저 버전을 생성해야 합니다. 자동 백업 버전이나 base_version_id는 추가하지 않았습니다. 적용 완료가 불명확할 때 무조건 재요청하지 말고 현재 이미지·데이터 파일 목록을 확인합니다. 자세한 계약은 [API](../api/api.md#과거-버전으로-편집-시작--2026-11-23)를 따릅니다.
+
+검증: 백엔드 선별 30개·프런트 테스트 36개와 양쪽 빌드/package가 통과했습니다. 브라우저는 응답 대체로 v5 기준 편집본 적용·파일 편집·v10 생성과 취소/실패 상태를 확인했습니다. 실제 로컬 편집본을 검증용으로 교체하거나 새 버전을 만들지는 않았습니다.
+
+로컬 적용: 기존 8080 백엔드 종료 여부를 확인하고 local H2 파일을 /tmp/dataset-version-before-restore에 백업한 뒤 기존 Linux bin/start-local-backend.sh로 기동했습니다. PowerShell이 없는 환경이므로 ps1 대신 sh를 사용했습니다. app 스키마는 V27을 유지하고 신규 공통/local 권한 반복 seed 2개만 적용했습니다. GET /api/health UP 및 admin 인증 후 version-targets 200을 확인했습니다. 실제 로컬 편집본은 바꾸지 않았습니다. 기동 로그는 /tmp/version-restore-local.log입니다. 운영 DB에는 적용하지 않았습니다.
+
+## 버전 관리 독립 페이지 — 2026-11-23
+
+프런트 메뉴·경로를 /datasets/versions로 분리했습니다. 프록시/정적 서버는 이 직접 접근에도 기존 SPA index.html fallback을 적용해야 합니다. 이전 manage/images의 tab=versions 링크는 브라우저에서 datasetId를 유지해 새 주소로 전환합니다. 이미지·파일 편집 페이지와 메뉴 이동은 datasetId 쿼리를 전달합니다. 백엔드 API·DB·권한 변경이 없으며 이번 프런트 작업으로 백엔드를 재시작하지 않습니다.
+
+프런트 빌드·Node 테스트 38개와 Chromium 응답 대체 기반 페이지 왕복 검증이 통과했습니다. 백엔드·DB는 변경하지 않았습니다.
+
+## 통합 데이터셋 관리 페이지 — 2026-11-23
+
+현재 진입점은 /datasets/manage?datasetId=... 하나입니다. 독립 버전 메뉴는 제거했고 /datasets/versions와 /datasets/images의 기존 주소는 통합 주소로 연결합니다. 편집 중 mode=edit는 새로고침 후 현재 편집본 재진입용이며 과거 버전을 자동 적용하지 않습니다. 스냅샷 API·권한·DB 스키마는 변경하지 않았습니다. 프런트 빌드와 테스트 39개·응답 대체 브라우저 시나리오가 통과했습니다. 이번 프런트 변경으로 백엔드를 재시작하지 않았습니다. 위 독립 버전 페이지 배포 기록은 이전 UI 이력입니다.

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="datasetVersion">
+<resultMap id="DatasetVersion" type="com.imageaiplatform.dataset.domain.DatasetVersion"><constructor>
+  <arg column="version_id" javaType="java.lang.String"/>
+  <arg column="dataset_id" javaType="java.lang.String"/>
+  <arg column="version_number" javaType="java.lang.Integer"/>
+  <arg column="name" javaType="java.lang.String"/>
+  <arg column="description" javaType="java.lang.String"/>
+  <arg column="change_note" javaType="java.lang.String"/>
+  <arg column="image_count" javaType="java.lang.Long"/>
+  <arg column="file_count" javaType="java.lang.Long"/>
+  <arg column="created_at" javaType="java.time.OffsetDateTime"/>
+  <arg column="updated_at" javaType="java.time.OffsetDateTime"/>
+  <arg column="created_by" javaType="java.lang.String"/>
+  <arg column="updated_by" javaType="java.lang.String"/>
+  <arg column="creator_user_id" javaType="java.lang.String"/>
+  <arg column="creator_username" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="DatasetVersionEntry" type="com.imageaiplatform.dataset.domain.DatasetVersionEntry"><constructor>
+  <arg column="kind" javaType="java.lang.String"/>
+  <arg column="entry_id" javaType="java.lang.String"/>
+  <arg column="original_filename" javaType="java.lang.String"/>
+  <arg column="description" javaType="java.lang.String"/>
+  <arg column="media_type" javaType="java.lang.String"/>
+  <arg column="size_bytes" javaType="java.lang.Long"/>
+  <arg column="version_count" javaType="java.lang.Integer"/>
+  <arg column="source_created_at" javaType="java.time.OffsetDateTime"/>
+  <arg column="source_created_by" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="DatasetVersionLocation" type="com.imageaiplatform.dataset.domain.DatasetVersionLocation"><constructor>
+  <arg column="original_filename" javaType="java.lang.String"/>
+  <arg column="storage_path" javaType="java.lang.String"/>
+</constructor></resultMap>
+  <insert id="insert">
+    INSERT INTO dataset_version(version_id, dataset_id, version_number, name, description, change_note, created_at, updated_at, created_by, updated_by)
+    VALUES(#{versionId}, #{datasetId}, #{versionNumber}, #{name}, #{description,jdbcType=VARCHAR}, #{changeNote,jdbcType=VARCHAR}, #{createdAt}, #{updatedAt}, #{createdBy}, #{updatedBy})
+  </insert>
+  <select id="nextNumber" resultType="java.lang.Integer" useCache="false" flushCache="true">SELECT COALESCE(MAX(version_number),0)+1 FROM dataset_version WHERE dataset_id=#{datasetId}</select>
+  <select id="exists" resultType="java.lang.Boolean" useCache="false" flushCache="true">SELECT COUNT(*) > 0 FROM dataset_version WHERE dataset_id=#{datasetId}</select>
+  <sql id="versionRows">
+    SELECT v.*, creator.user_id AS creator_user_id, creator.username AS creator_username,
+      (SELECT COUNT(*) FROM dataset_version_image i WHERE i.version_id=v.version_id) AS image_count,
+      (SELECT COUNT(*) FROM dataset_version_file f WHERE f.version_id=v.version_id) AS file_count
+    FROM dataset_version v LEFT JOIN auth_user creator ON creator.user_key=v.created_by
+    WHERE v.dataset_id=#{datasetId}
+  </sql>
+  <select id="list" resultMap="DatasetVersion" useCache="false" flushCache="true"><include refid="versionRows"/> ORDER BY v.version_number DESC</select>
+  <select id="find" resultMap="DatasetVersion" useCache="false" flushCache="true"><include refid="versionRows"/> AND v.version_id=#{versionId}</select>
+  <insert id="snapshotImages">
+    INSERT INTO dataset_version_image(version_id, image_id, original_filename, description, media_type, size_bytes, version_count,
+        source_created_at, source_created_by, created_at, updated_at, created_by, updated_by)
+    SELECT #{versionId}, image_id, original_filename, description, media_type, size_bytes, version_count,
+        created_at, created_by, #{now}, #{now}, #{actor}, #{actor}
+    FROM dataset_image WHERE dataset_id=#{datasetId} AND is_deleted=FALSE
+  </insert>
+  <insert id="snapshotFiles">
+    INSERT INTO dataset_version_file(version_id, file_id, original_filename, description, media_type, size_bytes, version_count,
+        source_created_at, source_created_by, created_at, updated_at, created_by, updated_by)
+    SELECT #{versionId}, file_id, original_filename, description, media_type, size_bytes, version_count,
+        created_at, created_by, #{now}, #{now}, #{actor}, #{actor}
+    FROM dataset_file WHERE dataset_id=#{datasetId} AND is_deleted=FALSE
+  </insert>
+  <select id="entries" resultMap="DatasetVersionEntry" useCache="false" flushCache="true">
+    SELECT 'images' AS kind, image_id AS entry_id, original_filename, description, media_type, size_bytes, version_count, source_created_at, source_created_by
+    FROM dataset_version_image WHERE version_id=#{versionId}
+    UNION ALL
+    SELECT 'files' AS kind, file_id AS entry_id, original_filename, description, media_type, size_bytes, version_count, source_created_at, source_created_by
+    FROM dataset_version_file WHERE version_id=#{versionId}
+    ORDER BY kind, original_filename, entry_id
+  </select>
+  <select id="imageLocation" resultMap="DatasetVersionLocation" useCache="false" flushCache="true">
+    SELECT snap.original_filename, source.storage_path FROM dataset_version_image snap JOIN dataset_image source ON source.image_id=snap.image_id
+    WHERE snap.version_id=#{versionId} AND snap.image_id=#{entryId}
+  </select>
+  <select id="fileLocation" resultMap="DatasetVersionLocation" useCache="false" flushCache="true">
+    SELECT snap.original_filename, source.storage_path FROM dataset_version_file snap JOIN dataset_file source ON source.file_id=snap.file_id
+    WHERE snap.version_id=#{versionId} AND snap.file_id=#{entryId}
+  </select>
+  <update id="restoreImage">
+    UPDATE dataset_image SET is_deleted=FALSE, original_filename=#{entry.originalFilename}, description=#{entry.description,jdbcType=VARCHAR},
+      media_type=#{entry.mediaType}, size_bytes=#{entry.sizeBytes}, updated_at=#{now}, updated_by=#{actor}
+    WHERE dataset_id=#{datasetId} AND image_id=#{entry.entryId}
+  </update>
+  <update id="restoreFile">
+    UPDATE dataset_file SET is_deleted=FALSE, original_filename=#{entry.originalFilename}, description=#{entry.description,jdbcType=VARCHAR},
+      media_type=#{entry.mediaType}, size_bytes=#{entry.sizeBytes}, updated_at=#{now}, updated_by=#{actor}
+    WHERE dataset_id=#{datasetId} AND file_id=#{entry.entryId}
+  </update>
+  <update id="restoreMetadata">
+    UPDATE dataset SET name=#{version.name}, description=#{version.description,jdbcType=VARCHAR}, updated_at=#{now}, updated_by=#{actor}
+    WHERE dataset_id=#{version.datasetId}
+  </update>
+</mapper>

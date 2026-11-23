@@ -1,5 +1,12 @@
 # 아키텍처
 
+## 데이터셋 버전 스냅샷 — 2026-11-23
+
+DatasetVersionService·DatasetVersionDao/MyBatis 구현과 V27의 3개 테이블을 기존 dataset 모듈에 추가했습니다. 현재 활성 파일 구성과 당시 이름·설명을 dataset 행 잠금 안에서 일괄 캡처하며 파일 바이트는 재사용합니다. 기존 이미지·데이터 파일의 추가·교체·논리 삭제·설명 변경도 동일 행을 먼저 잠그므로 캡처와 직렬화됩니다. 실패 시 전체 롤백하며 같은 데이터셋의 버전 번호는 고유합니다.
+
+버전 read/create 기능 권한과 활성 공간 멤버십을 검사하고 생성에는 기존 관리 범위를 추가 적용합니다. 과거 파일 읽기는 현재 is_deleted 필터를 사용하지 않고 버전 구성에서 파일 위치를 확인합니다. DatasetService.delete는 확정 버전이 있으면 409로 거부하고 DB FK도 부모·참조 파일 삭제를 보호합니다. 확정 버전 변경·삭제·자동 정리는 제공하지 않습니다. 과거 버전으로 현재 편집본을 준비하는 restore는 별도 권한과 데이터셋 잠금 안에서 기존 파일 ID를 재활성화하며, 모든 확정 스냅샷은 그대로 보존합니다. [ADR-053](../decisions/ADR-053-edit-from-dataset-version.md)을 따릅니다. [ADR-052](../decisions/ADR-052-dataset-version-snapshots.md), [API](../api/api.md#데이터셋-전체-목록-버전--2026-11-23)를 따릅니다.
+
+
 ## 아티팩트와 파일 — 2026-11-21
 
 `artifact` 모듈은 service/dao/domain 경계를 사용합니다. 아티팩트 생명주기는 프로세스 내부 서비스에서 관리합니다. [ADR-051](../decisions/ADR-051-in-process-artifact-lifecycle.md) ArtifactService는 WorkspaceService로 활성 공간 멤버십을 확인하고 @PreAuthorize로 pipeline:artifact 기능 권한을 검사합니다. MyBatisArtifactDao는 명시적인 appSqlSessionTemplate과 appTransactionManager를 사용하며 활성 테이블은 artifact와 artifact_file입니다.

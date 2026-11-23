@@ -29,7 +29,13 @@ export default function App() {
 
   if (token === null) return <LoginPage onLogin={handleLogin} />
 
-  const path = window.location?.pathname ?? '/'
+  let path = window.location?.pathname ?? '/'
+  if (path === '/datasets/versions' || path === '/datasets/images') {
+    const query = new URLSearchParams(window.location.search)
+    query.delete('tab')
+    window.history.replaceState(null, '', '/datasets/manage' + (query.size ? '?' + query.toString() : ''))
+    path = '/datasets/manage'
+  }
 
   return (
     <AppLayout userId={token.userId} username={token.username} onLogout={logout} currentPath={path}>

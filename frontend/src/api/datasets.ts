@@ -62,6 +62,7 @@ export async function deleteDataset(datasetId: string, accessToken: string): Pro
   }
   if (response.status === 401) throw new Error('로그인이 만료되었거나 계정을 사용할 수 없습니다. 다시 로그인해 주세요.')
   if (response.status === 403) throw new Error('삭제 권한이 없거나 현재 삭제할 수 없는 데이터셋입니다.')
+  if (response.status === 409) throw new Error('확정 버전이 있는 데이터셋은 삭제할 수 없습니다.')
   if (!response.ok) throw new Error('데이터셋을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.')
 }
 

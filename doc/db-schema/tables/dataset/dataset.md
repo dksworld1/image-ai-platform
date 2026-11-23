@@ -58,3 +58,7 @@
 
 - [API 계약](../../../api/api.md#데이터셋-생성)
 - [ADR-030](../../../decisions/ADR-030-dataset-creation-contract.md)
+
+## 버전 참조 삭제 보호 — 2026-11-23
+
+[dataset_version](dataset-version.md)이 참조하는 데이터셋은 V27 FK로 물리 삭제를 차단합니다. 삭제 서비스도 버전 존재 여부를 같은 dataset 행 잠금 안에서 검사하고 409로 거부합니다. 버전이 없는 경우 기존 삭제 정책을 유지합니다. 현재 파일을 논리 삭제해도 과거 버전의 파일 행·바이트를 제거하지 않습니다.

@@ -7,8 +7,12 @@ export default function AppLayout({ children, userId, username, onLogout, curren
   onLogout: () => void
   currentPath: string
 }) {
+  function datasetLink(path: string) {
+    const id = typeof window === 'undefined' ? null : new URLSearchParams(window.location?.search ?? '').get('datasetId')
+    return path + (id ? '?datasetId=' + encodeURIComponent(id) : '')
+  }
   return (
-    <div className={`app-layout${['/datasets', '/datasets/manage', '/datasets/images'].includes(currentPath) ? ' dataset-list-layout' : ''}`}>
+    <div className={`app-layout${['/datasets', '/datasets/manage', '/datasets/images', '/datasets/versions'].includes(currentPath) ? ' dataset-list-layout' : ''}`}>
       <header className="app-header">
         <a className="brand" href="/">Image AI Platform</a>
         <div className="header-account">
@@ -31,8 +35,9 @@ export default function AppLayout({ children, userId, username, onLogout, curren
               <a className="navigation-link" href="/datasets/new"
                 aria-current={currentPath === '/datasets/new' ? 'page' : undefined}>데이터셋 생성</a>
             </li>
-            <li><a className="navigation-link" href="/datasets/manage"
+            <li><a className="navigation-link" href={datasetLink('/datasets/manage')} onClick={event => { event.currentTarget.href = datasetLink('/datasets/manage') }}
               aria-current={['/datasets/manage', '/datasets/images'].includes(currentPath) ? 'page' : undefined}>데이터셋 관리</a></li>
+
           </ul>
         </details>
       </nav>

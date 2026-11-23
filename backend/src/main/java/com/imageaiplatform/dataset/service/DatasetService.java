@@ -1,6 +1,8 @@
 package com.imageaiplatform.dataset.service;
 
 import com.imageaiplatform.dataset.dao.DatasetDao;
+import com.imageaiplatform.dataset.dao.DatasetVersionDao;
+import com.imageaiplatform.dataset.domain.DatasetVersionConflictException;
 import com.imageaiplatform.dataset.dao.DatasetImageDao;
 import com.imageaiplatform.dataset.domain.DatasetImageHistory;
 import com.imageaiplatform.dataset.dao.DatasetFileDao;
@@ -22,13 +24,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DatasetService {
     private final DatasetDao datasetDao;
+    private final DatasetVersionDao versionDao;
     private final DatasetImageDao imageDao;
     private final DatasetFileDao fileDao;
 
-    public DatasetService(DatasetDao datasetDao, DatasetImageDao imageDao, DatasetFileDao fileDao) {
+    public DatasetService(DatasetDao datasetDao, DatasetImageDao imageDao, DatasetFileDao fileDao, DatasetVersionDao versionDao) {
         this.datasetDao = datasetDao;
         this.imageDao = imageDao;
         this.fileDao = fileDao;
+        this.versionDao = versionDao;
     }
 
     @PreAuthorize("@authorizationService.hasPermission('dataset:item:create') and @workspaceService.isMemberOfAll(#workspaceIds)")
@@ -78,6 +82,9 @@ public class DatasetService {
         String actor = SecurityContextHolder.getContext().getAuthentication().getName();
         if (datasetDao.lockForDeletion(datasetId, actor) == null) {
             throw new AccessDeniedException("Dataset is unavailable or deletion is not allowed.");
+        }
+        if (Boolean.TRUE.equals(versionDao.exists(datasetId))) {
+            throw new DatasetVersionConflictException("A dataset with immutable versions cannot be deleted.");
         }
         var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
         for (var image : imageDao.findByDatasetId(datasetId)) {

@@ -1,6 +1,7 @@
 package com.imageaiplatform.dataset.controller;
 
 import com.imageaiplatform.dataset.domain.DatasetListItem;
+import com.imageaiplatform.dataset.domain.DatasetVersionConflictException;
 import com.imageaiplatform.dataset.domain.DatasetImageTarget;
 import com.imageaiplatform.dataset.service.DatasetImageService;
 import com.imageaiplatform.dataset.service.DatasetFileService;
@@ -55,7 +56,11 @@ public class DatasetController {
     @DeleteMapping("/{datasetId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String datasetId) {
-        datasetService.delete(datasetId);
+        try {
+            datasetService.delete(datasetId);
+        } catch (DatasetVersionConflictException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "확정 버전이 있는 데이터셋은 삭제할 수 없습니다.");
+        }
     }
 
     @PostMapping

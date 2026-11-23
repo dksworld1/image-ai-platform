@@ -103,8 +103,8 @@ test('데이터셋 관리 화면은 두 파일 탭과 직접 진입한 데이터
   const previous = globalThis.window
   globalThis.window = { location: { search: '?tab=files' } }
   t.after(() => { if (previous === undefined) delete globalThis.window; else globalThis.window = previous })
-  const markup = renderToStaticMarkup(React.createElement(DatasetManagePage, { accessToken: 'token' }))
-  assert.match(markup, /데이터셋 관리/)
+  const markup = renderToStaticMarkup(React.createElement(require('../src/pages/DatasetFileEditor.tsx').default, { accessToken: 'token', datasetId: 'd', onBusyChange() {}, onDirtyChange() {} }))
+  assert.match(markup, /현재 편집본 파일 관리/)
   assert.match(markup, /id="dataset-tab-files"[^>]*aria-selected="true"/)
   assert.match(markup, /이미지 파일/)
   assert.match(markup, /데이터 파일/)
@@ -437,4 +437,93 @@ test('데이터셋 생성 실패는 상태별로 안내하고 내부 오류 본�
   }
   response.mock.mockImplementation(async () => { throw new TypeError('fetch failed') })
   await assert.rejects(createDataset({ name: 'name', description: null }, 'token'), /서버에 연결할 수 없습니다/)
+})
+
+test('데이터셋 버전 생성은 빈 설명도 POST로 한 번 전송하고 현재 인증·취소 신호를 사용한다', async t => {
+  const { createDatasetVersion } = require('../src/api/datasetVersions.ts')
+  const response = { versionId: 'v1', versionNumber: 1, imageCount: 1, fileCount: 2 }
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(response))
+  const controller = new AbortController()
+  assert.deepEqual(await createDatasetVersion('data/set', '', 'current-token', controller.signal), response)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/data%2Fset/versions')
+  assert.equal(options.method, 'POST')
+  assert.equal(options.headers.Authorization, 'Bearer current-token')
+  assert.equal(options.signal, controller.signal)
+  assert.deepEqual(JSON.parse(options.body), { changeNote: '' })
+  assert.equal(request.mock.callCount(), 1)
+})
+
+test('과거 버전 다운로드는 현재 파일 API가 아닌 고정 버전과 파일 ID를 사용한다', async t => {
+  const { fetchVersionContent } = require('../src/api/datasetVersions.ts')
+  const request = t.mock.method(globalThis, 'fetch', async () => new Response('old bytes'))
+  const result = await fetchVersionContent('dataset', 'version/1', { kind: 'files', entryId: 'old/file' }, 'token')
+  assert.equal(await result.text(), 'old bytes')
+  assert.equal(request.mock.calls[0].arguments[0], '/api/datasets/dataset/versions/version%2F1/files/old%2Ffile/content')
+})
+
+test('버전 생성 통신 실패는 자동 재시도하지 않고 목록 확인을 안내한다', async t => {
+  const { createDatasetVersion } = require('../src/api/datasetVersions.ts')
+  const request = t.mock.method(globalThis, 'fetch', async () => { throw new Error('network failure') })
+  await assert.rejects(createDatasetVersion('d', 'note', 'token'), /목록을 새로고침/)
+  assert.equal(request.mock.callCount(), 1)
+})
+
+test('과거 버전 편집 시작은 선택한 고정 버전에만 POST하고 새 버전을 생성하지 않는다', async t => {
+  const { restoreDatasetVersion } = require('../src/api/datasetVersions.ts')
+  const version = { versionId: 'v5', versionNumber: 5 }
+  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(version))
+  const controller = new AbortController()
+  assert.deepEqual(await restoreDatasetVersion('data/set', 'v/5', 'current-token', controller.signal), version)
+  const [url, options] = request.mock.calls[0].arguments
+  assert.equal(url, '/api/datasets/data%2Fset/versions/v%2F5/restore')
+  assert.equal(options.method, 'POST')
+  assert.equal(options.headers.Authorization, 'Bearer current-token')
+  assert.equal(options.signal, controller.signal)
+  assert.equal(request.mock.callCount(), 1)
+})
+
+test('기준 파일 누락은 편집본 유지로 안내하고 적용 통신 오류를 자동 재시도하지 않는다', async t => {
+  const { restoreDatasetVersion } = require('../src/api/datasetVersions.ts')
+  const request = t.mock.method(globalThis, 'fetch', async () => new Response('private server information', { status: 409 }))
+  await assert.rejects(restoreDatasetVersion('d', 'v5', 'token'), error => {
+    assert.match(error.message, /현재 편집본은 유지/)
+    assert.doesNotMatch(error.message, /private server/)
+    return true
+  })
+  request.mock.mockImplementation(async () => { throw new Error('network') })
+  await assert.rejects(restoreDatasetVersion('d', 'v5', 'token'), /현재 파일 목록을 확인/)
+  assert.equal(request.mock.callCount(), 2)
+})
+
+test('통합 데이터셋 관리는 버전 목록부터 진입하고 별도 버전 메뉴를 제공하지 않는다', t => {
+  sessionStorageForTest(t)
+  globalThis.window.location = { pathname: '/datasets/manage', search: '?datasetId=d1' }
+  saveAuthSession({ accessToken: 'saved-token', userKey: 'admin-key', userId: 'admin', username: 'Test User', tokenType: 'Bearer', expiresIn: 900 })
+  const html = renderToStaticMarkup(React.createElement(App))
+  assert.match(html, /<h1[^>]*>데이터셋 관리<\/h1>/)
+  assert.doesNotMatch(html, /href="\/datasets\/versions/)
+  assert.match(html, /href="\/datasets\/manage\?datasetId=d1"/)
+  assert.doesNotMatch(html, /role="tab"/)
+})
+
+test('통합 관리 진입 시 파일 편집은 바로 열리지 않는다', t => {
+  sessionStorageForTest(t)
+  globalThis.window.location = { pathname: '/datasets/manage', search: '?datasetId=d1&tab=files' }
+  saveAuthSession({ accessToken: 'saved-token', userKey: 'admin-key', userId: 'admin', username: 'Test User', tokenType: 'Bearer', expiresIn: 900 })
+  const html = renderToStaticMarkup(React.createElement(App))
+  assert.equal((html.match(/role="tab"/g) ?? []).length, 0)
+  assert.doesNotMatch(html, /id="dataset-tab-versions"/)
+  assert.match(html, /데이터셋 관리/)
+})
+
+test('데이터셋 관리의 이미지·데이터 파일 탭에는 일반 업로드만 제공한다', t => {
+  sessionStorageForTest(t)
+  saveAuthSession({ accessToken: 'saved-token', userKey: 'admin-key', userId: 'admin', username: 'Test User', tokenType: 'Bearer', expiresIn: 900 })
+  for (const tab of ['images', 'files']) {
+    globalThis.window.location = { pathname: '/datasets/manage', search: '?datasetId=d1&tab=' + tab }
+    const html = renderToStaticMarkup(React.createElement(require('../src/pages/DatasetFileEditor.tsx').default, { accessToken: 'token', datasetId: 'd1', onBusyChange() {}, onDirtyChange() {} }))
+    assert.doesNotMatch(html, /수정 업로드|기존 파일을 덮어씁니다|선택 삭제|삭제 중/)
+    assert.match(html, /업로드<\/button>/)
+  }
 })

@@ -22,6 +22,9 @@
 - [DB 마이그레이션 설정](operations/database-migration.md): DB별 Flyway 활성화, SQL·seed 경로와 생략 처리
 - [개발 계획·설계·진척 관리](plans/README.md): 로드맵·작업계획·설계 제안·단계별 구현 기록의 통합 목록
 - [개발 로드맵](plans/README.md#개발-로드맵): 현재 상태와 다음 설계 항목
+- [과거 버전으로 편집 시작](decisions/ADR-053-edit-from-dataset-version.md): 확정 스냅샷·바이트를 보전하며 공유 편집본을 준비하고 다음 번호로 새 버전 생성
+- [데이터셋 버전 스냅샷 결정](decisions/ADR-052-dataset-version-snapshots.md): 전체 구성 스냅샷·파일 재사용·참조 삭제 보호, 버전 관리 화면·백엔드 구현
+- [데이터셋 버전 테이블](db-schema/tables/dataset/dataset-version.md): V27의 버전·이미지/파일 스냅샷과 참조 보호
 - [데이터셋 업무 개발 작업계획서](plans/dataset-development-plan.md): 사용자 지시용 작업 ID·상태·선행 조건·완료 기준
 - [실행 파이프라인 설계 데이터 모델링](plans/execution-pipeline-data-modeling.md): 아티팩트·파일 백엔드 구현. 스테이지 입출력·파이프라인·분산 실행·프로비넌스는 설계 제안
 - [워크스페이스 설계 제안](plans/workspace-design-proposal.md): 가입 승인·멤버 역할·공간별 데이터셋 접근 범위 검토
