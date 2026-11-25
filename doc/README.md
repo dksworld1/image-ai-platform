@@ -45,7 +45,7 @@
 - [폴더 업로드](decisions/ADR-046-folder-upload-original-paths.md): 이미지·데이터 파일의 선택 폴더부터 원본 상대 경로 보존
 - [배포 및 서버 설정 운영](operations/deployment.md): 호스트 서버의 비밀정보 YAML 관리, 외부 설정 추가 및 JAR 실행·배포 절차
 - [agent의 제안](agent-suggestions.md): 승인 전 추가 기능·개선안을 분류별 목록으로 기록
-- [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의
+- [권한 시스템 설계 제안](plans/authorization-design-proposal.md): RBAC, ALLOW/DENY 역할 확장 설계(미구현), API 권한 식별자, 토큰·DB 조회 정책 및 강한 통제 논의
 - [개발 진척도 현황판](plans/README.md#개발-진척도-현황판): 전체 집계, 기능별 상태·완료 근거·남은 작업
 - [프런트 단계 설계](plans/front/README.md): 화면 흐름, 코드 구성, API 연동 및 프런트 완료 조건
 - [백엔드 단계 설계](plans/backend/README.md): 백엔드 기반·인증·업무 기능별 설계와 완료 조건
