@@ -38,7 +38,7 @@
 
 - 미결정: 데이터셋 공유 및 협업 단위
 - 미결정: 메타데이터 필수 필드와 확장 필드 방식
-- 미결정: 변경 이력 및 버전 관리 수준
+- 결정: [ADR-052](../../decisions/ADR-052-immutable-derived-datasets.md)의 데이터셋 불변·파생 저장. 전환과 실체 보존은 [상세 설계](dataset-version-design.md)에서 검토 중입니다.
 
 ## 완료 조건
 

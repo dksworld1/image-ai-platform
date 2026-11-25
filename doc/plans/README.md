@@ -20,7 +20,10 @@
 | [프런트 단계](front/README.md) | 단계별 계획·설계 | 화면 흐름·구현·검증 기록 |
 | [백엔드 단계](backend/README.md) | 단계별 계획·설계 | 기반·인증·업무별 목표·원리·완료 근거 |
 | [데이터셋 업무 개발 작업계획서](dataset-development-plan.md) | 작업계획 | 사용자 지시용 작업 ID, 선행 조건, 완료 기준과 결과 기록 |
+| [불변 데이터셋과 파생 저장 설계](backend/dataset-version-design.md) | 불변·상속 정책 결정 · 구현 검토 중 | 부모 데이터셋 상속, 변경 파일 저장, 파이프라인 입력 연동 |
 | [실행 파이프라인 설계 데이터 모델링](execution-pipeline-data-modeling.md) | 설계 제안 · 부분 채택·구현 | 아티팩트·파일·셋·버전·구성의 백엔드 구현. 스테이지·실행·프로비넌스는 제안 상태 |
+| [파이썬 플러그인 스테이지 설계](backend/python-plugin-stage-design.md) | 설계 제안 · 검토 중 | 1차 실행 타입, 데이터셋·모델 입력, 다중 출력과 결과 확정 |
+| [권한 시스템 설계 제안](authorization-design-proposal.md) | 설계 제안 | RBAC·서비스 권한 정책, 검토 사항과 부분 채택·대체 이력 |
 | [권한 시스템 설계 제안](authorization-design-proposal.md) | 설계 제안 | RBAC·서비스 권한 정책, ALLOW/DENY 역할 확장 설계(미구현), 부분 채택·대체 이력 |
 | [워크스페이스 설계 제안](workspace-design-proposal.md) | 설계 제안 · 검토 중 | 다중 가입·관리자 승인·멤버십·데이터셋 접근 경계와 기존 데이터 전환 |
 
