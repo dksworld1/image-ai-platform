@@ -9,6 +9,8 @@
 
 ## dataset_version
 
+V31의 `is_deleted`는 영구 버전의 삭제 표시입니다. 삭제 시 수정 감사 값을 갱신하고 버전 행과 구성은 보존합니다. 공개 조회에서는 제외하며 기존 편집본의 기준 정보와 신규 버전 번호 계산에는 남겨 둡니다.
+
 | 컬럼 | 타입·제약 | 의미 |
 |---|---|---|
 | version_id | VARCHAR(36) PK | 서버 UUID, 고정 버전 ID |
@@ -45,3 +47,9 @@ UNIQUE: (dataset_id, version_number). 생성 성공 즉시 확정하며 수정·
 ## 과거 버전으로 편집본 준비
 
 별도 DDL·base_version_id를 추가하지 않습니다. 기준 구성의 기존 파일 ID를 재활성화하고 스냅샷 설명을 적용하므로 storage_path UNIQUE 제약과 실파일을 그대로 사용합니다. 과거 확정 스냅샷의 헤더/구성 행은 수정하지 않습니다. 정확한 파일 버전 식별은 UUID이며, 되돌린 파일에서 새로 교체하면 과거 다른 분기와 개별 version_count가 같을 수 있습니다. 데이터셋 전체 버전 번호의 고유성·증가는 유지합니다. [ADR-053](../../../decisions/ADR-053-edit-from-dataset-version.md)을 따릅니다.
+
+## dataset_version_draft
+
+V28은 기존 공유 편집본의 적용 이력입니다. V29에서 `draft_id`를 PK로 사용하고 원본 `dataset_id`, 기준 `base_version_id`, 독립 `working_dataset_id`와 이름을 기록합니다. 작업용 데이터셋의 활성 이미지·데이터 파일이 해당 편집본의 구성입니다. 파일 저장 경로의 고유 범위는 데이터셋이며 서로 다른 편집본에서 같은 경로의 실체를 참조할 수 있습니다.
+
+V30 공통 seed는 기존 행을 새 테이블로 복사합니다. 이관 전 행은 `dataset_version_draft_legacy`에 보존합니다. V29 → V30 순서로 실행하려면 기본 app migration과 common seed 위치를 함께 사용합니다. 영구 확정은 선택한 편집본 행을 제거하며 스냅샷이 참조하는 파일 행은 유지합니다.

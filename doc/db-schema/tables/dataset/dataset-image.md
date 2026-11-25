@@ -35,7 +35,7 @@
 
 - `pk_dataset_image`: image_id PK.
 - V20은 `uq_dataset_image_filename`을 제거하고 `uq_dataset_image_active_filename` (dataset_id, active_filename) UNIQUE로 대체합니다. 활성 이름만 대소문자를 구분해 중복 거부하며 삭제 표시 버전은 여러 행을 보존합니다.
-- `uq_dataset_image_storage`: storage_path UNIQUE. 서로 다른 이미지가 같은 파일 경로를 사용하지 않습니다.
+- `uq_dataset_image_dataset_storage` (V29): `(dataset_id, storage_path)` UNIQUE. 다른 작업용 데이터셋은 같은 원본 경로를 참조할 수 있습니다.
 - `uq_dataset_image_thumbnail`: thumbnail_path UNIQUE. V19는 기존 데이터를 보존하며 썸네일을 소급 생성하지 않습니다. 신규 업로드는 원본과 썸네일을 모두 저장해야 성공합니다. [ADR-038](../../../decisions/ADR-038-image-thumbnails.md)을 따릅니다.
 - `fk_dataset_image_dataset`: dataset FK, ON DELETE CASCADE·ON UPDATE NO ACTION. 데이터셋 삭제는 메타데이터만 함께 삭제하며 파일 삭제는 수행하지 않습니다.
 - `ck_dataset_image_size`: size_bytes > 0. 최대 파일 크기와 실제 이미지 형식·화소는 서비스 및 multipart 설정에서 확인합니다.

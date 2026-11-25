@@ -12,7 +12,7 @@
 | file_id | VARCHAR(36), PK | 서버 UUID, 파일 버전 식별자 |
 | dataset_id | VARCHAR(36), NOT NULL, FK CASCADE | 소속 데이터셋 |
 | original_filename | VARCHAR(1024), NOT NULL | 선택 폴더부터의 원본 상대 경로 또는 단일 파일명 |
-| storage_path | VARCHAR(300), NOT NULL, UNIQUE | 저장 루트 아래 UUID + 원본 확장자 상대 경로. 기존 UUID.bin 유지 |
+| storage_path | VARCHAR(300), NOT NULL | 저장 루트 아래 UUID + 원본 확장자 상대 경로. V29에서 `(dataset_id, storage_path)` UNIQUE를 적용해 작업용 데이터셋 사이에서 원본을 공유할 수 있습니다. |
 | media_type | VARCHAR(100), NOT NULL | application/octet-stream |
 | size_bytes | BIGINT, NOT NULL, >0 | 원본 바이트 수 |
 | is_deleted | BOOLEAN, NOT NULL, 기본 FALSE | 삭제/교체 표시 |

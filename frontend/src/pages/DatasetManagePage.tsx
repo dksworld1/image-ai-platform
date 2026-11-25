@@ -18,6 +18,16 @@ export default function DatasetManagePage({ accessToken }: { accessToken: string
   const [busy, setBusy] = useState(false)
   const selected = datasets?.find(item => item.datasetId === datasetId)
   useEffect(() => {
+    const syncDataset = () => {
+      const id = new URLSearchParams(location.search).get('datasetId')
+      const target = datasets?.find(item => item.datasetId === id)
+      setDatasetId(target?.datasetId ?? '')
+      setWorkspaceId(target?.workspaceId ?? '')
+    }
+    window.addEventListener('popstate', syncDataset)
+    return () => window.removeEventListener('popstate', syncDataset)
+  }, [datasets])
+  useEffect(() => {
     const controller = new AbortController()
     setDatasets(null); setError(null)
     Promise.all([fetchVersionTargets(accessToken, controller.signal), fetchWorkspaces(accessToken, controller.signal)]).then(([items, spaces]) => {
@@ -52,7 +62,8 @@ export default function DatasetManagePage({ accessToken }: { accessToken: string
     {error && <div role="alert"><p>{error}</p><button className="secondary-action" disabled={busy} onClick={() => setAttempt(value => value + 1)}>선택 목록 다시 불러오기</button></div>}
     {datasets === null ? !error && <p role="status">선택 목록을 불러오고 있습니다.</p>
       : selected ? <DatasetVersionPanel key={selected.datasetId} datasetId={selected.datasetId} accessToken={accessToken} refreshKey={refreshKey} onBusyChange={setBusy}
-        onRestored={version => setDatasets(current => current?.map(item => item.datasetId === version.datasetId ? { ...item, name: version.name } : item) ?? null)} renderEditor={(onEditorBusy, onEditorDirty) => <DatasetFileEditor datasetId={selected.datasetId} accessToken={accessToken} onBusyChange={onEditorBusy} onDirtyChange={onEditorDirty} />} />
+        renderEditor={(workingDatasetId, onEditorBusy, onEditorDirty) => <DatasetFileEditor key={workingDatasetId}
+          target={{ ...selected, datasetId: workingDatasetId }} accessToken={accessToken} onBusyChange={onEditorBusy} onDirtyChange={onEditorDirty} />} />
       : <p role="status">{workspaces.length === 0 ? '가입한 워크스페이스가 없습니다.' : '버전을 관리할 데이터셋을 선택해 주세요.'}</p>}
   </section>
 }

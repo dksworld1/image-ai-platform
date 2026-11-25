@@ -1,0 +1,1 @@
+ALTER TABLE dataset_version ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;

@@ -2,9 +2,9 @@ import { Fragment, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { fetchThumbnail, type DatasetImage, type ImageDatasetTarget } from '../api/images'
 import { fetchFileContent } from '../api/files'
 import { entryApis, type EntryKind, type DatasetEntry, type EntryDescriptionChange } from '../api/datasetEntries'
-import { fetchWorkspaces, type Workspace } from '../api/workspaces'
 import DatasetUploadModal from './DatasetUploadModal'
 import ImageDetailModal from './ImageDetailModal'
+import DatasetFileGridScroll from './DatasetFileGridScroll'
 
 const dateTime = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
 const imageLabels = ['선택', '썸네일', '원본 파일명', '버전', '형식', '원본 용량', '등록자', '최초 등록일시', '현재 버전 등록일시', '수정자', '수정일시']
@@ -55,22 +55,15 @@ function Thumbnail({ image, accessToken, onOpen, disabled }: { image: DatasetEnt
     : <span className="thumbnail-state">불러오는 중…</span>
 }
 
-export default function DatasetFileEditor({ accessToken, datasetId: requestedDatasetId, onBusyChange, onDirtyChange }: {
-  accessToken: string; datasetId: string; onBusyChange: (value: boolean) => void; onDirtyChange: (value: boolean) => void
+export default function DatasetFileEditor({ accessToken, target: selected, onBusyChange, onDirtyChange }: {
+  accessToken: string; target: ImageDatasetTarget; onBusyChange: (value: boolean) => void; onDirtyChange: (value: boolean) => void
 }) {
-  const [initialId] = useState(() => requestedDatasetId)
   const [kind, setKind] = useState<EntryKind>(() => new URLSearchParams(window.location.search).get('tab') === 'files' ? 'files' : 'images')
   const api = entryApis[kind]
   const entryLabel = kind === 'images' ? '이미지' : '데이터 파일'
   const labels = kind === 'images' ? imageLabels : imageLabels.filter(label => label !== '썸네일').map(label => label === '형식' ? '파일 확장자' : label)
-  const [datasets, setDatasets] = useState<ImageDatasetTarget[] | null>(null)
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [workspaceId, setWorkspaceId] = useState('')
-  const [datasetId, setDatasetId] = useState(initialId)
   const [images, setImages] = useState<DatasetEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectionError, setSelectionError] = useState<string | null>(null)
-  const [selectionAttempt, setSelectionAttempt] = useState(0)
   const [attempt, setAttempt] = useState(0)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [detailImage, setDetailImage] = useState<DatasetImage | null>(null)
@@ -81,43 +74,23 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
   })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [expandedIds, setExpandedIds] = useState<string[]>([])
   const [saveResult, setSaveResult] = useState<{ message: string; failed: boolean } | null>(null)
   const selectAll = useRef<HTMLInputElement>(null)
-  const saveRequest = useRef<AbortController | null>(null)
+  const editRequest = useRef<AbortController | null>(null)
   const submitting = useRef(false)
   const drag = useRef<{ index: number; x: number; widths: number[] } | null>(null)
-  const selected = datasets?.find(item => item.datasetId === datasetId)
-  const busy = saving
+  const busy = saving || deleting
   const dirtyCount = images?.filter(image => descriptionEdited(image, drafts)).length ?? 0
   const selectedChangeCount = images ? getEntryDescriptionChanges(images, drafts, selectedIds).length : 0
 
-  useEffect(() => () => { saveRequest.current?.abort() }, [])
+  useEffect(() => () => { editRequest.current?.abort() }, [])
 
   useEffect(() => {
     if (selectAll.current) selectAll.current.indeterminate = selectedIds.length > 0 && selectedIds.length < (images?.length ?? 0)
   }, [selectedIds, images])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setDatasets(null)
-    setSelectionError(null)
-    Promise.all([api.targets(accessToken, controller.signal), fetchWorkspaces(accessToken, controller.signal)])
-      .then(([items, spaces]) => {
-        if (controller.signal.aborted) return
-        setDatasets(items)
-        setWorkspaces(spaces)
-        const requestedId = requestedDatasetId
-        const target = items.find(item => item.datasetId === requestedId)
-        setDatasetId(target?.datasetId ?? '')
-        setWorkspaceId(target?.workspaceId ?? '')
-        if (requestedId && !target) setSelectionError('선택한 데이터셋에 접근할 수 없습니다. 다른 데이터셋을 선택해 주세요.')
-      }).catch((reason: unknown) => {
-        if (!controller.signal.aborted) setSelectionError(reason instanceof Error ? reason.message : '선택 목록을 불러오지 못했습니다.')
-      })
-    return () => controller.abort()
-  }, [accessToken, selectionAttempt, initialId, api, kind, requestedDatasetId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -127,13 +100,13 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
     setDrafts({})
     setExpandedIds([])
     setSaveResult(null)
-    if (selected) api.list(selected.datasetId, accessToken, controller.signal).then(result => {
+    api.list(selected.datasetId, accessToken, controller.signal).then(result => {
       if (!controller.signal.aborted) setImages(result)
     }).catch((reason: unknown) => {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '서버에 연결할 수 없습니다. 다시 시도해 주세요.')
     })
     return () => controller.abort()
-  }, [selected, accessToken, attempt, api, kind])
+  }, [selected.datasetId, accessToken, attempt, api, kind])
 
   useEffect(() => { onBusyChange(busy || uploadOpen); }, [busy, uploadOpen, onBusyChange])
   useEffect(() => { onDirtyChange(dirtyCount > 0); }, [dirtyCount, onDirtyChange])
@@ -141,9 +114,10 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
   function changeKind(next: EntryKind) {
     if (busy || next === kind) return
     if (dirtyCount > 0 && !window.confirm('저장하지 않은 설명 변경은 버전에 포함되지 않으며 초기화됩니다. 탭을 전환하시겠습니까?')) return
-    window.history.replaceState(null, '', '/datasets/manage?mode=edit&tab=' + next + (datasetId ? '&datasetId=' + encodeURIComponent(datasetId) : ''))
+    const url = new URL(location.href)
+    url.searchParams.set('tab', next)
+    window.history.replaceState(null, '', url)
     setImages(null)
-    setDatasets(null)
     setDetailImage(null)
     setKind(next)
     const values = next === 'images' ? [52, 100, 220, 80, 90, 100, 130, 180, 180, 130, 180] : [52, 220, 80, 90, 100, 130, 180, 180, 130, 180]
@@ -185,7 +159,7 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
     setSaving(true)
     setSaveResult(null)
     const controller = new AbortController()
-    saveRequest.current = controller
+    editRequest.current = controller
     try {
       const saved = changes.length ? await api.save(selected.datasetId, changes, accessToken, controller.signal) : []
       if (controller.signal.aborted) return
@@ -199,6 +173,44 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
     } finally {
       submitting.current = false
       if (!controller.signal.aborted) setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (submitting.current || !images) return
+    const targets = images.filter(entry => selectedIds.includes(entry.entryId))
+    if (targets.length === 0 || !window.confirm(`현재 편집본에서 선택한 ${entryLabel} ${targets.length}개를 삭제하시겠습니까?`)) return
+
+    const controller = new AbortController()
+    editRequest.current = controller
+    submitting.current = true
+    setDeleting(true)
+    setSaveResult(null)
+    const deleted = new Set<string>()
+    const failures: string[] = []
+    try {
+      for (const entry of targets) {
+        if (controller.signal.aborted) return
+        try {
+          await api.remove(selected.datasetId, entry.entryId, accessToken, controller.signal)
+          deleted.add(entry.entryId)
+        } catch (reason: unknown) {
+          if (controller.signal.aborted) return
+          failures.push(`${entry.originalFilename} · ${reason instanceof Error ? reason.message : '삭제하지 못했습니다.'}`)
+        }
+      }
+      if (controller.signal.aborted) return
+      setImages(current => current?.filter(entry => !deleted.has(entry.entryId)) ?? null)
+      setSelectedIds(current => current.filter(id => !deleted.has(id)))
+      setExpandedIds(current => current.filter(id => !deleted.has(id)))
+      setDrafts(current => Object.fromEntries(Object.entries(current).filter(([id]) => !deleted.has(id))))
+      setSaveResult({
+        message: [`${deleted.size}개 삭제 완료`, ...failures].join('\n'),
+        failed: failures.length > 0,
+      })
+    } finally {
+      submitting.current = false
+      if (!controller.signal.aborted) setDeleting(false)
     }
   }
 
@@ -233,21 +245,18 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
     <p className="field-description">행을 클릭하면 아래에서 설명을 편집할 수 있습니다.</p>
     <div className="image-list-filters">
       <button className="secondary-action" disabled={!selected || busy} onClick={() => setAttempt(value => value + 1)}>새로고침</button>
-      <button className="primary-action" disabled={!selected || busy} onClick={() => setUploadOpen(true)}>{entryLabel} 업로드</button>
+      <button className="primary-action" disabled={!selected || !images || busy} onClick={() => setUploadOpen(true)}>{entryLabel} 업로드</button>
 
     </div>
     <div className="dataset-list-actions"><span aria-live="polite">{selectedIds.length}개 선택 · 변경 {dirtyCount}개 · 저장 대상 {selectedChangeCount}개</span>
       <button className="primary-action" type="button" disabled={busy || dirtyCount === 0} onClick={handleSave}>{saving ? '저장 중…' : '저장'}</button>
+      <button className="secondary-action" type="button" disabled={busy || selectedIds.length === 0} onClick={handleDelete}>{deleting ? '삭제 중…' : '선택 삭제'}</button>
     </div>
-    {saveResult && <p role={saveResult.failed ? 'alert' : 'status'}>{saveResult.message}</p>}
-    {selectionError && <div role="alert"><p>{selectionError}</p><button className="secondary-action" disabled={busy} onClick={() => setSelectionAttempt(value => value + 1)}>선택 목록 다시 불러오기</button></div>}
-    {datasets === null ? !selectionError && <p role="status">선택 목록을 불러오고 있습니다.</p>
-      : workspaces.length === 0 ? <p role="status">가입한 워크스페이스가 없습니다.</p>
-      : !selected ? <p role="status">{workspaceId && !datasets.some(item => item.workspaceId === workspaceId) ? '이 워크스페이스에 데이터셋이 없습니다.' : '데이터셋을 선택해 주세요.'}</p>
-      : error ? <div role="alert"><p>{error}</p><button className="secondary-action" onClick={() => setAttempt(value => value + 1)}>다시 시도</button></div>
+    {saveResult && <p className="version-description" role={saveResult.failed ? 'alert' : 'status'}>{saveResult.message}</p>}
+    {error ? <div role="alert"><p>{error}</p><button className="secondary-action" onClick={() => setAttempt(value => value + 1)}>다시 시도</button></div>
       : images === null ? <p role="status">{entryLabel} 목록을 불러오고 있습니다.</p>
       : images.length === 0 ? <div className="dataset-list-state" role="status">등록된 {entryLabel} 항목이 없습니다.</div>
-      : <div className="dataset-table-scroll" role="region" aria-label={`${entryLabel} 목록 표`} tabIndex={0}>
+      : <DatasetFileGridScroll label={`${entryLabel} 목록 표`}>
         <table className="dataset-table image-table"><caption>{entryLabel} {images.length}개 · 최신 등록순 · 일시는 현지 시간 기준</caption>
           <colgroup>{widths.map((width, i) => <col key={labels[i]} style={{ width: `${width}%` }} />)}</colgroup>
           <thead><tr>{labels.map((label, index) => <th key={label} scope="col" className={index === 0 ? 'selection-column' : undefined}>
@@ -301,9 +310,10 @@ export default function DatasetFileEditor({ accessToken, datasetId: requestedDat
               </td>
             </tr></Fragment>)}</tbody>
         </table>
-      </div>}
+      </DatasetFileGridScroll>}
     </div>
     {uploadOpen && selected && <DatasetUploadModal kind={kind} key={`${selected.datasetId}-${kind}`} dataset={selected} accessToken={accessToken}
+      existingPaths={images?.map(entry => entry.originalFilename) ?? []}
       onClose={() => setUploadOpen(false)} onComplete={() => setAttempt(value => value + 1)} />}
     {detailImage && <ImageDetailModal image={detailImage} accessToken={accessToken} onClose={() => setDetailImage(null)} />}
   </section>

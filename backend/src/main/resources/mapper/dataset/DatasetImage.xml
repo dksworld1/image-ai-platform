@@ -6,6 +6,9 @@
       SELECT 1 FROM workspace space
       JOIN workspace_member member ON member.workspace_id = space.workspace_id
       WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND (dataset.version_working_copy = FALSE OR EXISTS (
+          SELECT 1 FROM dataset_version_draft draft WHERE draft.working_dataset_id = dataset.dataset_id
+        ))
         AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
     )
   </sql>
@@ -14,6 +17,9 @@
       SELECT 1 FROM workspace space
       JOIN workspace_member member ON member.workspace_id = space.workspace_id
       WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
+        AND (dataset.version_working_copy = FALSE OR EXISTS (
+          SELECT 1 FROM dataset_version_draft draft WHERE draft.working_dataset_id = dataset.dataset_id
+        ))
         AND member.user_key = #{userKey} AND member.status = 'ACTIVE'
         AND (space.owner_user_key = #{userKey} OR member.role_code = 'ADMIN' OR dataset.created_by = #{userKey})
     )
@@ -35,7 +41,7 @@
   <select id="findTargets" resultMap="target" useCache="false" flushCache="true">
     SELECT dataset.dataset_id, dataset.name, dataset.workspace_id, space.name AS workspace_name
     FROM dataset JOIN workspace space ON space.workspace_id = dataset.workspace_id
-    WHERE <include refid="readScope"/>
+    WHERE dataset.version_working_copy = FALSE AND <include refid="readScope"/>
     ORDER BY dataset.created_at DESC, dataset.dataset_id
   </select>
   <resultMap id="image" type="com.imageaiplatform.dataset.domain.DatasetImage">

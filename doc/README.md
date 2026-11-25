@@ -23,6 +23,9 @@
 - [개발 계획·설계·진척 관리](plans/README.md): 로드맵·작업계획·설계 제안·단계별 구현 기록의 통합 목록
 - [개발 로드맵](plans/README.md#개발-로드맵): 현재 상태와 다음 설계 항목
 - [과거 버전으로 편집 시작](decisions/ADR-053-edit-from-dataset-version.md): 확정 스냅샷·바이트를 보전하며 공유 편집본을 준비하고 다음 번호로 새 버전 생성
+- [데이터셋 버전 편집본 저장](decisions/ADR-054-persist-dataset-version-draft.md): 편집 중 목록 항목, 중간 저장 및 영구 확정
+- [독립 데이터셋 버전 편집본과 상세 주소](decisions/ADR-055-independent-dataset-version-drafts.md): 편집본별 독립 구성과 브라우저 탐색
+- [편집본과 영구 버전 삭제](decisions/ADR-056-dataset-version-deletion.md): 개별 삭제와 기준 버전 삭제 후 편집본 유지
 - [데이터셋 버전 스냅샷 결정](decisions/ADR-052-dataset-version-snapshots.md): 전체 구성 스냅샷·파일 재사용·참조 삭제 보호, 버전 관리 화면·백엔드 구현
 - [데이터셋 버전 테이블](db-schema/tables/dataset/dataset-version.md): V27의 버전·이미지/파일 스냅샷과 참조 보호
 - [데이터셋 업무 개발 작업계획서](plans/dataset-development-plan.md): 사용자 지시용 작업 ID·상태·선행 조건·완료 기준

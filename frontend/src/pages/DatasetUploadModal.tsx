@@ -6,8 +6,8 @@ import { droppedUploadFiles } from './droppedUploadFiles'
 
 type UploadItem = { id: number; file: File; description: string; descriptionOpen?: boolean; status: '대기' | '업로드 중' | '성공' | '실패' | '미전송'; message?: string }
 
-export default function DatasetUploadModal({ dataset, accessToken, onClose, onComplete, replaceExisting = false, kind = 'images' }: {
-  dataset: ImageDatasetTarget; accessToken: string; onClose: () => void; onComplete: () => void; replaceExisting?: boolean; kind?: EntryKind
+export default function DatasetUploadModal({ dataset, accessToken, onClose, onComplete, existingPaths, kind = 'images' }: {
+  dataset: ImageDatasetTarget; accessToken: string; onClose: () => void; onComplete: () => void; existingPaths: string[]; kind?: EntryKind
 }) {
   const entryLabel = kind === 'images' ? '이미지' : '데이터 파일'
   const upload = kind === 'images' ? uploadImage : uploadFile
@@ -21,6 +21,7 @@ export default function DatasetUploadModal({ dataset, accessToken, onClose, onCo
   const request = useRef<AbortController | null>(null)
   const submitting = useRef(false)
   const [items, setItems] = useState<UploadItem[]>([])
+  const [listedPaths] = useState(() => new Set(existingPaths))
   const [running, setRunning] = useState(false)
   const [finished, setFinished] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -54,7 +55,7 @@ export default function DatasetUploadModal({ dataset, accessToken, onClose, onCo
         if (controller.signal.aborted) return
         update(item.id, '업로드 중')
         try {
-          await upload(dataset.datasetId, item.file, accessToken, controller.signal, replaceExisting, item.description)
+          await upload(dataset.datasetId, item.file, accessToken, controller.signal, true, item.description)
           if (controller.signal.aborted) return
           update(item.id, '성공')
         } catch (reason: unknown) {
@@ -81,15 +82,14 @@ export default function DatasetUploadModal({ dataset, accessToken, onClose, onCo
 
   return <dialog ref={dialog} className="dataset-detail-modal image-upload-modal" aria-labelledby="image-upload-title"
     onClose={onClose} onCancel={event => { if (submitting.current || readingDrop.current) event.preventDefault() }}>
-    <div className="dataset-detail-heading"><h2 id="image-upload-title">{entryLabel}{replaceExisting ? ' 수정 업로드' : ' 업로드'}</h2>
+    <div className="dataset-detail-heading"><h2 id="image-upload-title">{entryLabel} 업로드</h2>
       <button type="button" className="secondary-action" disabled={busy} onClick={() => dialog.current?.close()}>닫기</button></div>
     <p className="field-description">파일 이름을 클릭하면 설명 입력란이 열립니다. 다시 클릭하면 접히며, 입력한 내용은 유지됩니다.</p>
     <p className="field-description">폴더 선택 시 하위 폴더의 파일도 포함합니다. 선택한 폴더 이름부터의 경로를 원본 파일명으로 저장합니다. 빈 폴더는 저장하지 않습니다.</p>
     <p className="upload-target"><strong>{dataset.name}</strong><span>{dataset.workspaceName}</span><small>{dataset.datasetId}</small></p>
-    {replaceExisting && <p className="image-replace-warning" role="alert"><strong>기존 파일을 덮어씁니다.</strong><br />
-      이 데이터셋에 같은 원본 파일명이 있으면 해당 탭의 파일을 새 버전으로 교체합니다. 기존 기록과 파일은 보관하며, 같은 이름이 없으면 새로 등록합니다.</p>}
+    <p className="field-description">덮어쓰기 경고는 창을 열 때 조회된 목록을 기준으로 표시합니다. 전송 시 서버에 같은 경로가 있으면 새 파일 버전으로 교체합니다.</p>
     <p id="image-upload-help" className="field-description">{kind === 'images' ? 'PNG·JPEG·GIF·BMP 파일을 선택하세요. 썸네일은 자동 생성됩니다.' : '이미지를 포함한 모든 형식의 파일을 원본 바이너리로 저장합니다. 썸네일은 생성하지 않습니다.'} 기본 파일당 10MB이며 실제 제한은 서버 설정에 따릅니다.</p>
-    <p className="field-description">워크스페이스 운영자 또는 데이터셋 생성자에게 허용되며 {entryLabel} {replaceExisting ? '수정 권한이 필요합니다. 새 이름의 파일을 등록하려면 업로드 권한도 필요합니다.' : '업로드 권한이 필요합니다.'} 최종 권한은 서버에서 확인합니다.</p>
+    <p className="field-description">신규 등록에는 업로드 권한, 기존 파일 교체에는 수정 권한이 필요합니다. 최종 권한은 서버에서 확인합니다.</p>
     {!finished && <>
       <div className="upload-pick-actions">
         <button type="button" className="primary-action" disabled={busy} onClick={() => input.current?.click()}>파일 선택</button>
@@ -144,6 +144,7 @@ export default function DatasetUploadModal({ dataset, accessToken, onClose, onCo
           target.id === item.id ? { ...target, descriptionOpen: !target.descriptionOpen } : target))}><strong>{item.file.webkitRelativePath || item.file.name}</strong></button>
         <small>{new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 }).format(item.file.size / 1024)} KB</small></div>
       <span className={item.status === '실패' ? 'upload-failure' : ''}>{item.status}</span>
+      <span className="upload-overwrite-column">{listedPaths.has((item.file.webkitRelativePath || item.file.name).replaceAll('\\', '/')) ? '기존 파일 덮어쓰기' : ''}</span>
       {!running && !finished && <button type="button" className="secondary-action" aria-label={`${item.file.webkitRelativePath || item.file.name} 선택 제거`}
         onClick={() => setItems(current => current.filter(target => target.id !== item.id))}>제거</button>}
       <label id={`image-upload-description-${item.id}`} className="upload-file-description" hidden={!item.descriptionOpen}>설명 <small>선택 · 최대 2,000자</small>

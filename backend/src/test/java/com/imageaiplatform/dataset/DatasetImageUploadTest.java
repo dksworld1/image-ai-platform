@@ -281,8 +281,9 @@ class DatasetImageUploadTest {
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:image:upload')");
         mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("기존.png", png))
                         .header("Authorization", bearer("manager"))).andExpect(status().isForbidden());
-        mvc.perform(multipart("/api/datasets/d1/images").file(file("신규.png", png)).header("Authorization", bearer("manager")))
-                .andExpect(status().isCreated());
+        mvc.perform(multipart("/api/datasets/d1/images").param("replaceExisting", "true").file(file("신규.png", png))
+                        .header("Authorization", bearer("manager")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.versionCount").value(1));
     }
 
     @Test

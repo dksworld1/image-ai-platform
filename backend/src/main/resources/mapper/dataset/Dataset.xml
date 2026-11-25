@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="dataset">
   <sql id="deleteScope">
-    EXISTS (
+    dataset.version_working_copy = FALSE AND EXISTS (
       SELECT 1 FROM workspace space
       JOIN workspace_member member ON member.workspace_id = space.workspace_id
       WHERE space.workspace_id = dataset.workspace_id AND space.status = 'ACTIVE'
@@ -44,7 +44,7 @@
     JOIN workspace space ON space.workspace_id = dataset.workspace_id
     JOIN workspace_member member ON member.workspace_id = space.workspace_id
     LEFT JOIN auth_user creator ON creator.user_key = dataset.created_by
-    WHERE member.user_key = #{userKey} AND member.status = 'ACTIVE' AND space.status = 'ACTIVE'
+    WHERE dataset.version_working_copy = FALSE AND member.user_key = #{userKey} AND member.status = 'ACTIVE' AND space.status = 'ACTIVE'
   </sql>
   <select id="findVisibleToUser" parameterType="string" resultMap="listRow" useCache="false" flushCache="true">
     <include refid="visibleRows"/>

@@ -206,7 +206,7 @@ fileCount는 같은 dataset_id의 dataset_file 중 is_deleted=false인 현재 �
 
 ### POST /api/datasets/{datasetId}/images
 
-선택 쿼리 `replaceExisting`는 Boolean, 기본 false입니다. true는 명시적인 **이미지 수정 업로드**이며 dataset:image:update 권한과 위 쓰기 대상 조건이 필요합니다. 동일 데이터셋·원본명의 활성 이미지가 있으면 이전 행을 삭제 표시하고 새 imageId로 교체하여 versionCount를 +1 합니다. 이전 원본·썸네일과 DB 행은 지우지 않습니다. 없으면 upload 권한도 검사하여 새 파일·버전 1로 등록합니다. 성공은 양쪽 모두 201입니다. 기존 false의 중복 409 동작은 유지됩니다. 수정 모드는 반복 요청 시 버전이 추가되므로 자동 재시도하지 않습니다. [버전·이력 결정](../decisions/ADR-039-image-version-history.md)을 따릅니다.
+선택 쿼리 `replaceExisting`는 Boolean, 기본 false입니다. true는 서버의 활성 원본 경로를 기준으로 등록 또는 교체합니다. 위 쓰기 대상 조건과 경로가 존재할 때 dataset:image:update 권한이 필요합니다. 동일 데이터셋·원본명의 활성 이미지가 있으면 이전 행을 삭제 표시하고 새 imageId로 교체하여 versionCount를 +1 합니다. 이전 원본·썸네일과 DB 행은 지우지 않습니다. 없으면 dataset:image:upload 권한을 검사하여 새 파일·버전 1로 등록합니다. 성공은 양쪽 모두 201입니다. 기존 false의 중복 409 동작은 유지됩니다. 수정 모드는 반복 요청 시 버전이 추가되므로 자동 재시도하지 않습니다. [버전·이력 결정](../decisions/ADR-039-image-version-history.md)을 따릅니다.
 
 `multipart/form-data`의 `file` 필드로 이미지 한 개를 보냅니다. 일반 모드는 dataset:image:upload, 수정 모드는 dataset:image:update를 서비스 @PreAuthorize에 명시하며 이미지 대상 판정을 AND로 검사합니다. 활성 공간·ACTIVE 멤버십과 공간 OWNER·ADMIN 또는 dataset.created_by 일치 조건을 적용하고 실제 이미지 INSERT·삭제 표시 SQL에서도 범위를 확인합니다. 데이터셋 읽기·수정·삭제 기능 권한을 재사용하지 않습니다.
 
@@ -313,14 +313,14 @@ items는 필수·1건 이상이며 중복 imageId는 400입니다. imageId는 �
 | GET /api/datasets/file-targets | 접근 가능한 데이터셋·워크스페이스 선택 목록 | dataset:file:read |
 | GET /api/datasets/{datasetId}/files | 활성 파일 목록 | dataset:file:read |
 | POST /api/datasets/{datasetId}/files | multipart 단건 등록 | dataset:file:upload |
-| POST /api/datasets/{datasetId}/files?replaceExisting=true | 같은 원본명 파일 교체 | dataset:file:update |
+| POST /api/datasets/{datasetId}/files?replaceExisting=true | 활성 원본 경로에 따라 신규 등록 또는 교체 | 신규 dataset:file:upload, 교체 dataset:file:update |
 | PATCH /api/datasets/{datasetId}/files/descriptions | 설명 일괄 저장 | dataset:file:update |
 | DELETE /api/datasets/{datasetId}/files/{fileId} | 삭제 표시, 성공 204 | dataset:file:delete |
 | GET /api/datasets/{datasetId}/files/{fileId}/content | 원본 다운로드 | dataset:file:read |
 
-모든 요청은 인증이 필요합니다(미인증 401). 조회는 활성 공간의 활성 멤버, 쓰기는 추가로 공간 OWNER/ADMIN 또는 데이터셋 생성자여야 합니다. 이미지·데이터셋 권한으로 대신 허용하지 않습니다. 수정 업로드에서 원본명이 없는 신규 파일을 만들려면 upload 권한도 필요합니다. 대상 조건·권한 불충족은 403, 접근 가능한 데이터셋에서 파일 부재·삭제·다른 데이터셋 파일은 404입니다.
+모든 요청은 인증이 필요합니다(미인증 401). 조회는 활성 공간의 활성 멤버, 쓰기는 추가로 공간 OWNER/ADMIN 또는 데이터셋 생성자여야 합니다. 이미지·데이터셋 권한으로 대신 허용하지 않습니다. replaceExisting=true 요청의 권한은 서버가 확인한 활성 원본 경로의 존재 여부에 따라 결정합니다. 대상 조건·권한 불충족은 403, 접근 가능한 데이터셋에서 파일 부재·삭제·다른 데이터셋 파일은 404입니다.
 
-POST는 file과 선택 description(최대 2,000자)을 받습니다. 정상 201이며 동일 데이터셋의 활성 원본명 중복은 409입니다. 다른 데이터셋의 같은 이름은 허용합니다. 원본명은 단일 파일명 또는 선택 폴더부터의 상대 경로로, 전체 1~1,024자·요소별 최대 255자이며 빈 파일·파일별 제한 초과·잘못된 설명은 400입니다. 서버 multipart 한도 초과는 파일별 서비스 검증 전에 거부될 수 있습니다. ADR-044에 따라 이미지도 허용하며 확장자·파일 시그니처로 유형을 판별하거나 거부하지 않습니다. 모든 파일을 원본 바이너리로 보관하고 썸네일은 생성·관리하지 않습니다. 이미지 탭과 데이터 파일 탭의 원본명 중복 검사는 서로 독립적입니다.
+POST는 file과 선택 description(최대 2,000자)을 받습니다. 정상 201이며 replaceExisting=false(기본값)에서 동일 데이터셋의 활성 원본명 중복은 409입니다. 다른 데이터셋의 같은 이름은 허용합니다. 원본명은 단일 파일명 또는 선택 폴더부터의 상대 경로로, 전체 1~1,024자·요소별 최대 255자이며 빈 파일·파일별 제한 초과·잘못된 설명은 400입니다. 서버 multipart 한도 초과는 파일별 서비스 검증 전에 거부될 수 있습니다. ADR-044에 따라 이미지도 허용하며 확장자·파일 시그니처로 유형을 판별하거나 거부하지 않습니다. 모든 파일을 원본 바이너리로 보관하고 썸네일은 생성·관리하지 않습니다. 이미지 탭과 데이터 파일 탭의 원본명 중복 검사는 서로 독립적입니다.
 
 목록·등록 응답은 fileId, datasetId, originalFilename, description, mediaType, sizeBytes, createdAt, updatedAt, createdBy, updatedBy, versionCount, firstRegisteredAt, creatorUserId, creatorUsername, updaterUserId, updaterUsername입니다. 데이터 파일은 파싱하지 않는 원본 바이너리이며 mediaType은 application/octet-stream입니다. 콘텐츠는 이 형식과 UTF-8 원본명 Content-Disposition: attachment, Cache-Control: no-store로 반환합니다. 썸네일·인라인 미리보기는 제공하지 않습니다.
 
@@ -352,6 +352,7 @@ POST는 file과 선택 description(최대 2,000자)을 받습니다. 정상 201�
 | GET /api/datasets/{datasetId}/versions/{versionId} | dataset:version:read | 고정 버전 메타데이터, 200 |
 | GET /api/datasets/{datasetId}/versions/{versionId}/entries | dataset:version:read | 이미지·데이터 파일 전체 구성 배열, 200 |
 | GET /api/datasets/{datasetId}/versions/{versionId}/images/{imageId}/content | dataset:version:read | 당시 이미지 원본 바이트 |
+| GET /api/datasets/{datasetId}/versions/{versionId}/images/{imageId}/thumbnail | dataset:version:read | 해당 버전 이미지의 PNG 썸네일. 구성에 없거나 썸네일이 없으면 404 |
 | GET /api/datasets/{datasetId}/versions/{versionId}/files/{fileId}/content | dataset:version:read | 당시 데이터 파일 원본 바이트 |
 
 관리 범위는 해당 공간의 OWNER·ADMIN 또는 데이터셋 생성자입니다. 일반 활성 멤버는 read로 조회할 수 있지만 create 권한만 추가받았다고 다른 생성자의 데이터셋을 버전으로 만들 수는 없습니다. 버전 선택 목록은 dataset:item:read나 이미지·파일 read 없이도 version:read로 조회합니다.
@@ -373,11 +374,34 @@ POST는 file과 선택 description(최대 2,000자)을 받습니다. 정상 201�
 | 409 | 기존 DELETE /api/datasets/{id}에서 확정 버전 존재 시 삭제 차단 |
 | 5xx | DB·스토리지 등 서버 장애 |
 
-확정 버전 수정·삭제 API는 제공하지 않습니다. 현재 편집본을 과거 버전으로 준비하는 동작은 아래 별도 restore API로 제공합니다. 현재 파일의 교체·논리 삭제는 가능하지만 과거 구성과 바이트를 유지합니다. 버전이 있는 데이터셋은 데이터셋 삭제 권한이 있어도 삭제할 수 없습니다. FK가 버전과 원본 파일 행의 삭제 연쇄를 차단합니다.
+영구 버전의 내용은 고정됩니다. `DELETE /api/datasets/{datasetId}/versions/{versionId}`는 영구 버전에 삭제 표시를 적용합니다. `DELETE /api/datasets/{datasetId}/versions/drafts/{draftId}`는 해당 편집본을 삭제합니다. 두 요청 모두 `dataset:item:delete`와 데이터셋 관리 조건이 필요하며, 성공은 204, 접근 가능한 데이터셋에 대상이 없거나 이미 삭제되었으면 404입니다.
+
+영구 버전 삭제 후 목록·상세·다운로드에서 제외됩니다. 기존 편집본의 구성과 기준 버전 번호(`baseVersionNumber`)는 유지되며 영구 버전으로 확정할 수 있습니다. 원본 바이트와 버전 구성은 보존합니다. 버전 행이 있는 데이터셋의 삭제 보호는 유지합니다. [ADR-056](../decisions/ADR-056-dataset-version-deletion.md)
 
 버전 생성은 자동 재시도하지 않습니다. 통신 장애·새로고침 중단으로 결과를 확인하지 못한 경우 목록을 먼저 조회합니다. 별도 멱등 요청 키는 도입하지 않았으므로 사용자가 다시 생성하면 새 번호의 독립 버전이 생길 수 있습니다.
 
 ## 과거 버전으로 편집 시작 — 2026-11-23
+
+### 데이터셋 버전 편집본
+
+화면은 편집본 ID별 API를 사용합니다. `GET /api/datasets/{datasetId}/versions/drafts`는 접근 가능한 데이터셋의 편집본 목록을 반환합니다. 각 항목은 `draftId`, `workingDatasetId`, `baseVersionId`, `name`, `changeNote`, 현재 활성 파일 개수(`imageCount`, `fileCount`), 생성자 정보(`creatorUserId`, `creatorUsername`)를 포함합니다. 생성·저장 응답의 단건 편집본에도 같은 필드를 반환합니다.
+
+| 메서드·경로 | 기능 권한 | 동작 |
+|---|---|---|
+| POST /api/datasets/{datasetId}/versions/{versionId}/drafts | 버전 복원·조회 및 데이터셋 관리 | 독립 편집본 생성 201. 선택 `name` 최대 200자 |
+| PUT /api/datasets/{datasetId}/versions/drafts/{draftId} | 버전 생성 및 데이터셋 관리 | `name`, `changeNote` 저장 200 |
+| POST /api/datasets/{datasetId}/versions/drafts/{draftId}/publish | 버전 생성 및 데이터셋 관리 | 해당 편집본의 영구 스냅샷 생성 201 |
+
+편집 중 파일은 `workingDatasetId`와 기존 이미지·파일 API를 사용합니다. 아래 단일 편집본 계약은 기존 호출용입니다.
+
+복원 요청이 성공하면 같은 트랜잭션에서 기준 버전 ID를 가진 공유 편집본을 기록합니다. 다른 기준 버전으로 복원하면 공유 편집본의 파일 구성과 변경 설명을 교체합니다.
+
+| 메서드·경로 | 기능 권한 | 동작 |
+|---|---|---|
+| GET /api/datasets/{datasetId}/versions/draft | dataset:version:read 및 활성 공간 멤버십 | 편집본 메타데이터 200, 없음 204 |
+| PUT /api/datasets/{datasetId}/versions/draft | dataset:version:create 및 데이터셋 관리 조건 | 변경 설명 저장 200, 편집본 없음 404, 최대 길이 초과 400 |
+
+PUT 본문의 `changeNote`는 선택이며 최대 2,000자입니다. 두 API의 200 응답은 `datasetId`, `baseVersionId`, `changeNote`와 감사 시각·작업자를 포함합니다. 파일 구성 조회와 변경은 기존 편집본 API를 사용합니다. 영구 버전 확정 시 같은 트랜잭션에서 편집본 메타데이터를 제거합니다.
 
 ### POST /api/datasets/{datasetId}/versions/{versionId}/restore
 

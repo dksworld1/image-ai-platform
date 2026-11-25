@@ -67,7 +67,7 @@ public class DatasetImageService {
         return store(datasetId, originalFilename, contents, description, relativePath, false);
     }
 
-    @PreAuthorize("@authorizationService.hasPermission('dataset:image:update') and @datasetImageService.canUpdate(#datasetId)")
+    @PreAuthorize("@authorizationService.isActiveAccount() and @datasetImageService.canUpdate(#datasetId)")
     @Transactional("appTransactionManager")
     public DatasetImage replace(String datasetId, String originalFilename, byte[] contents, String description, String relativePath) {
         return store(datasetId, originalFilename, contents, description, relativePath, true);
@@ -81,8 +81,8 @@ public class DatasetImageService {
             throw new AccessDeniedException("Dataset is unavailable or upload is not allowed.");
         }
         var previous = imageDao.findActiveByFilename(datasetId, filename);
-        if (replaceExisting && previous == null) {
-            authorizationService.hasPermission("dataset:image:upload");
+        if (replaceExisting) {
+            authorizationService.hasPermission(previous == null ? "dataset:image:upload" : "dataset:image:update");
         }
         if (previous != null && !replaceExisting) {
             throw new DuplicateKeyException("An image with this original filename already exists in the dataset.");

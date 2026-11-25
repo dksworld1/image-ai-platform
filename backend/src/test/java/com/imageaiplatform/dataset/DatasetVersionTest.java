@@ -63,7 +63,7 @@ class DatasetVersionTest {
     String bearer(String user){return "Bearer "+tokens.issue(user).value();}
     @BeforeEach void setup() throws Exception {
         jdbc=new JdbcTemplate(source);mvc=MockMvcBuilders.webAppContextSetup(context).addFilters(security).build();
-        for(String table:new String[]{"dataset_version_image","dataset_version_file","dataset_version","dataset_image_history","dataset_image","dataset_file_history","dataset_file","dataset","workspace_member","workspace","auth_user_role","auth_role_permission","auth_role","auth_user"})jdbc.update("DELETE FROM "+table);
+        for(String table:new String[]{"dataset_version_draft","dataset_version_image","dataset_version_file","dataset_version","dataset_image_history","dataset_image","dataset_file_history","dataset_file","dataset","workspace_member","workspace","auth_user_role","auth_role_permission","auth_role","auth_user"})jdbc.update("DELETE FROM "+table);
         jdbc.update("INSERT INTO auth_role(role_code,display_name) VALUES('manager','Manager'),('file-reader','File reader')");
         for(String code:new String[]{"dataset:version:create","dataset:version:read","dataset:version:restore","dataset:image:upload","dataset:image:update","dataset:image:delete","dataset:image:read","dataset:file:upload","dataset:file:update","dataset:file:delete","dataset:file:read","dataset:item:delete"})jdbc.update("INSERT INTO auth_role_permission(role_code,permission_code) VALUES('manager',?)",code);
         jdbc.update("INSERT INTO auth_role_permission(role_code,permission_code) VALUES('file-reader','dataset:file:read')");
@@ -86,6 +86,82 @@ class DatasetVersionTest {
         return parse(mvc.perform(post("/api/datasets/{id}/versions",dataset).header("Authorization",bearer("creator")).contentType("application/json").content("{\"changeNote\":\"첫 스냅샷\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
+    @Test void keepsNamedDraftsIndependentAndPublishesOnlyTheSelectedDraft() throws Exception {
+        var token = bearer("creator");
+        var parent = upload("files", "a.csv", new byte[]{1}, false, "base").get("fileId").asText();
+        upload("images", "a.png", png, false, "base image");
+        var base = version("d").get("versionId").asText();
+        var draftsPath = "/api/datasets/d/versions/drafts";
+        String[] ids = new String[2];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = parse(mvc.perform(post("/api/datasets/d/versions/{id}/drafts", base).header("Authorization", token)
+                    .contentType("application/json").content("{}")).andExpect(status().isCreated())
+                    .andReturn().getResponse().getContentAsString()).get("draftId").asText();
+            mvc.perform(put(draftsPath + "/{id}", ids[i]).header("Authorization", token)
+                    .contentType("application/json").content("{\"name\":\"작업 " + i + "\"}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("작업 " + i));
+        }
+        mvc.perform(multipart("/api/datasets/{id}/files", ids[0])
+                .file(new MockMultipartFile("file", "a.csv", "application/octet-stream", new byte[]{2}))
+                .param("replaceExisting", "true").header("Authorization", token))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.versionCount").value(2));
+        mvc.perform(multipart("/api/datasets/{id}/files", ids[0])
+                .file(new MockMultipartFile("file", "b.csv", "application/octet-stream", new byte[]{3}))
+                .header("Authorization", token)).andExpect(status().isCreated());
+        mvc.perform(put(draftsPath + "/{id}", ids[0]).header("Authorization", token)
+                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imageCount").value(1)).andExpect(jsonPath("$.fileCount").value(2))
+                .andExpect(jsonPath("$.creatorUserId").value("login-creator")).andExpect(jsonPath("$.creatorUsername").value("이름-creator"));
+        mvc.perform(get("/api/datasets/{id}/files", ids[1]).header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].versionCount").value(1));
+        mvc.perform(get("/api/datasets/{id}/images", ids[1]).header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].description").value("base image"));
+        mvc.perform(get("/api/datasets/d/files/{id}/content", parent).header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(content().bytes(new byte[]{1}));
+        mvc.perform(get("/api/datasets/version-targets").header("Authorization", token))
+                .andExpect(jsonPath("$.length()").value(2));
+        mvc.perform(delete("/api/datasets/d/versions/{id}", base).header("Authorization", bearer("member")))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/datasets/d/versions/{id}", base).header("Authorization", token))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/datasets/d/versions/{id}", base).header("Authorization", token))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/datasets/d/versions").header("Authorization", token))
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get(draftsPath).header("Authorization", token))
+                .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].baseVersionNumber").value(1));
+        mvc.perform(post(draftsPath + "/{id}/publish", ids[0]).header("Authorization", token)
+                .contentType("application/json").content("{}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.versionNumber").value(2));
+        mvc.perform(get(draftsPath).header("Authorization", token))
+                .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].draftId").value(ids[1]))
+                .andExpect(jsonPath("$[0].imageCount").value(1)).andExpect(jsonPath("$[0].fileCount").value(1));
+        mvc.perform(get("/api/datasets/{id}/files", ids[0]).header("Authorization", token)).andExpect(status().isForbidden());
+        mvc.perform(delete(draftsPath + "/{id}", ids[1]).header("Authorization", token)).andExpect(status().isNoContent());
+        mvc.perform(get(draftsPath).header("Authorization", token)).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/datasets/d/versions").header("Authorization", token))
+                .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].versionNumber").value(2));
+    }
+    @Test void savesAndResumesDraftWithoutCreatingPermanentVersion() throws Exception {
+        var token = bearer("creator");
+        var baseVersionId = version("d").get("versionId").asText();
+        var draftPath = "/api/datasets/d/versions/draft";
+        mvc.perform(get(draftPath).header("Authorization", token)).andExpect(status().isNoContent());
+        mvc.perform(post("/api/datasets/d/versions/{id}/restore", baseVersionId).header("Authorization", token))
+                .andExpect(status().isOk());
+        var fileId = upload("files", "draft.csv", new byte[]{1}, false, "").get("fileId").asText();
+        mvc.perform(put(draftPath).header("Authorization", token)
+                .contentType("application/json").content("{\"changeNote\":\"중간 저장\"}")).andExpect(status().isOk());
+        mvc.perform(get(draftPath).header("Authorization", token)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.baseVersionId").value(baseVersionId)).andExpect(jsonPath("$.changeNote").value("중간 저장"));
+        mvc.perform(get("/api/datasets/d/files").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].fileId").value(fileId));
+        mvc.perform(get("/api/datasets/d/versions").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        assertThat(version("d").get("fileCount").asInt()).isEqualTo(1);
+        mvc.perform(get(draftPath).header("Authorization", token)).andExpect(status().isNoContent());
+    }
     @Test void preservesFullSnapshotsAndDownloadsReplacedOrDeletedFileVersions()throws Exception{
         String image=upload("images","a.png",png,false,"이전 이미지 설명").get("imageId").asText();
         byte[] oldBytes="old data".getBytes();String file=upload("files","data.csv",oldBytes,false,"이전 파일 설명").get("fileId").asText();
@@ -103,8 +179,12 @@ class DatasetVersionTest {
                 .andExpect(jsonPath("$[?(@.kind=='files')].versionCount").value(org.hamcrest.Matchers.contains(1)));
         mvc.perform(get("/api/datasets/d/images/{id}/content",image).header("Authorization",bearer("creator"))).andExpect(status().isNotFound());
         mvc.perform(get("/api/datasets/d/versions/{version}/images/{entry}/content",first,image).header("Authorization",bearer("creator"))).andExpect(content().bytes(png));
+        mvc.perform(get("/api/datasets/d/versions/{version}/images/{entry}/thumbnail",first,image).header("Authorization",bearer("creator")))
+                .andExpect(status().isOk()).andExpect(content().contentType("image/png"));
         mvc.perform(get("/api/datasets/d/versions/{version}/files/{entry}/content",first,file).header("Authorization",bearer("creator"))).andExpect(content().bytes(oldBytes)).andExpect(content().contentType("application/octet-stream"));
         String second=v2.get("versionId").asText();
+        mvc.perform(get("/api/datasets/d/versions/{version}/images/{entry}/thumbnail",second,image).header("Authorization",bearer("creator")))
+                .andExpect(status().isNotFound());
         mvc.perform(get("/api/datasets/d/versions/{version}/files/{entry}/content",second,file).header("Authorization",bearer("creator"))).andExpect(status().isNotFound());
     }
     @Test void protectsVersionedDatasetsAndSourceRowsAndDoesNotExposeVersionMutation()throws Exception{
@@ -114,7 +194,8 @@ class DatasetVersionTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_image_history",Integer.class)).isEqualTo(history);
         assertThatThrownBy(()->jdbc.update("DELETE FROM dataset_image WHERE image_id=?",image)).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM dataset WHERE dataset_id='d'")).isInstanceOf(DataIntegrityViolationException.class);
-        mvc.perform(delete("/api/datasets/d/versions/{id}",version).header("Authorization",bearer("creator"))).andExpect(status().isMethodNotAllowed());
+        mvc.perform(delete("/api/datasets/d/versions/{id}",version).header("Authorization",bearer("creator"))).andExpect(status().isNoContent());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_version_image WHERE version_id=?", Integer.class, version)).isEqualTo(1);
         mvc.perform(delete("/api/datasets/empty").header("Authorization",bearer("creator"))).andExpect(status().isNoContent());
     }
     @Test void requiresVersionPermissionsManagementScopeAndActiveMembership()throws Exception{

@@ -142,7 +142,7 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 .image-upload-files .secondary-action { padding: 6px 10px; font-size: 13px; }
 .image-upload-files li > p { flex-basis: 100%; margin: 0; }
 .upload-failure { color: #ffb4b4; }
-.image-replace-warning { padding: 14px; border: 1px solid #c9934d; border-radius: 8px; color: #f4cf9a; background: #352b20; line-height: 1.7; }
+.upload-overwrite-column { flex: 0 0 9rem; color: #f4cf9a; font-size: 13px; }
 .image-thumbnail-button { display: block; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: zoom-in; }
 .image-thumbnail-button:focus-visible { outline: 2px solid #b9c5ff; outline-offset: 4px; }
 .image-detail-modal { width: min(1100px, calc(100vw - 32px)); }
@@ -213,7 +213,11 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
 .version-description { white-space: pre-wrap; overflow-wrap: anywhere; }
 .dataset-version-selected { background: #29354b; }
 .dataset-version-panel .dataset-version-list { flex: 0 1 auto; min-height: 0; margin-top: 0; overflow: auto; }
-.dataset-version-panel .dataset-version-entries { flex: 0 1 auto; min-height: 0; margin-top: 0; overflow: auto; }
+.dataset-version-panel .dataset-file-grid > .dataset-table-scroll { max-height: none; overflow-x: auto; scrollbar-width: none; }
+.dataset-version-detail-files { display: flex; flex-direction: column; gap: 12px; }
+.dataset-version-detail-files > .dataset-file-grid > .dataset-table-scroll { margin-top: 0; }
+.dataset-file-grid-horizontal-scroll { position: sticky; bottom: 0; z-index: 2; overflow-x: scroll; overflow-y: hidden; background: #171c26; }
+.dataset-file-grid-horizontal-scroll > div { height: 1px; }
 .version-table { min-width: 940px; }
 @media (width < 1024px), (height < 800px) {
   .dataset-version-panel { flex: 0 0 auto; }
@@ -225,6 +229,6 @@ a:focus-visible { outline: 2px solid #91a6ff; outline-offset: 4px; }
   .dataset-list-layout .dataset-list > .dataset-version-panel { flex: 0 0 auto; }
 }
 
-.dataset-file-editor { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.dataset-file-editor { display: flex; flex-direction: column; }
 .dataset-file-editor > * { flex-shrink: 0; }
-.dataset-file-editor > .dataset-tab-panel { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.dataset-file-editor > .dataset-tab-panel { display: flex; flex-direction: column; }
