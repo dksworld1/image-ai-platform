@@ -49,8 +49,8 @@ import org.springframework.web.context.WebApplicationContext;
 class DatasetVersionTest {
     static final Path ROOT=Path.of("target","dataset-version-"+UUID.randomUUID()).toAbsolutePath();
     @DynamicPropertySource static void storage(DynamicPropertyRegistry registry) {
-        registry.add("app.storage.images.directory",()->ROOT.resolve("images").toString());
-        registry.add("app.storage.files.directory",()->ROOT.resolve("files").toString());
+        registry.add("app.storage.images.directory",()->ROOT.toString());
+        registry.add("app.storage.files.directory",()->ROOT.toString());
     }
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSecurityFilterChain") Filter security;
@@ -295,7 +295,7 @@ class DatasetVersionTest {
         });
         assertThat(jdbc.queryForObject("SELECT file_id FROM dataset_file WHERE dataset_id='d' AND is_deleted=FALSE",String.class)).isEqualTo(current);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_file_history",Integer.class)).isEqualTo(history);
-        Path oldPath=ROOT.resolve("files").resolve(jdbc.queryForObject("SELECT storage_path FROM dataset_file WHERE file_id=?",String.class,old));Files.delete(oldPath);
+        Path oldPath=ROOT.resolve(jdbc.queryForObject("SELECT storage_path FROM dataset_file WHERE file_id=?",String.class,old));Files.delete(oldPath);
         mvc.perform(post("/api/datasets/d/versions/{id}/restore",base).header("Authorization",bearer("creator"))).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT name FROM dataset WHERE dataset_id='d'",String.class)).isEqualTo("현재 이름");
         assertThat(jdbc.queryForObject("SELECT file_id FROM dataset_file WHERE is_deleted=FALSE",String.class)).isEqualTo(current);

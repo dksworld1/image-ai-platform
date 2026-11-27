@@ -43,6 +43,7 @@ class DatasetFileTest {
     @DynamicPropertySource
     static void storage(DynamicPropertyRegistry registry) {
         registry.add("app.storage.files.directory", () -> STORAGE.toString());
+        registry.add("app.storage.files.directory-pattern", () -> "entries-{dataset_id}/{dataset_id}/unused/../added");
         registry.add("app.storage.files.max-file-size", () -> "4KB");
     }
     @Autowired private WebApplicationContext context;
@@ -61,8 +62,8 @@ class DatasetFileTest {
             jdbc.update("DELETE FROM " + table);
         }
         Files.createDirectories(STORAGE);
-        try (var files = Files.list(STORAGE)) {
-            for (Path file : files.toList()) Files.delete(file);
+        try (var files = Files.walk(STORAGE)) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) Files.delete(file);
         }
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('uploader', 'Uploader')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:image:upload'), ('uploader', 'dataset:image:update'), ('uploader', 'dataset:image:read'), ('uploader', 'dataset:item:read'), ('uploader', 'dataset:item:delete')");
@@ -132,7 +133,7 @@ class DatasetFileTest {
             int dot = name.lastIndexOf('.');
             String extension = dot > 0 ? name.substring(dot) : "";
             String storagePath = jdbc.queryForObject("SELECT storage_path FROM dataset_file WHERE file_id=?", String.class, fileId);
-            assertThat(storagePath).isEqualTo(fileId + extension);
+            assertThat(storagePath).isEqualTo("entries-d1/d1/added/" + fileId + extension);
             mvc.perform(get("/api/datasets/d1/files/" + fileId + "/content").header("Authorization", bearer("creator")))
                     .andExpect(status().isOk()).andExpect(content().bytes(accepted.getBytes()));
         }
@@ -167,7 +168,8 @@ class DatasetFileTest {
         assertThatThrownBy(() -> jdbc.update("INSERT INTO dataset_file (file_id,dataset_id,original_filename,storage_path,media_type,size_bytes) VALUES ('duplicate','d1','자료/둘/data.csv','unused','application/octet-stream',1)"))
                 .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dataset_file_history WHERE original_filename='자료/하나/data.csv'", Integer.class)).isEqualTo(3);
-        assertThat(jdbc.queryForObject("SELECT storage_path FROM dataset_file WHERE original_filename='자료.v1/README'", String.class)).doesNotContain(".").doesNotContain("/");
+        var readme = jdbc.queryForMap("SELECT file_id, storage_path FROM dataset_file WHERE original_filename='자료.v1/README'");
+        assertThat(readme.get("STORAGE_PATH")).isEqualTo("entries-d1/d1/added/" + readme.get("FILE_ID"));
         for (String path : new String[] {"../data.csv", "/자료/data.csv", "C:/자료/data.csv", "자료//data.csv", "자료/./data.csv", "자료/", "자료/" + "a".repeat(256), "a/".repeat(512) + "x"}) {
             mvc.perform(multipart("/api/datasets/d1/files").file(file("data.csv", png)).param("relativePath", path)
                     .header("Authorization", bearer("creator"))).andExpect(status().isBadRequest());
@@ -196,5 +198,7 @@ class DatasetFileTest {
 
     private MockMultipartFile file(String name, byte[] bytes) { return new MockMultipartFile("file", name, "application/octet-stream", bytes); }
     private String bearer(String user) { return "Bearer " + tokens.issue(user).value(); }
-    private long fileCount() throws Exception { try (var files = Files.list(STORAGE)) { return files.count(); } }
+    private long fileCount() throws Exception {
+        try (var files = Files.walk(STORAGE)) { return files.filter(Files::isRegularFile).count(); }
+    }
 }

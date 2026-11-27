@@ -3,7 +3,7 @@
 - 상태: V18~22·일반/수정 업로드·활성 이미지 조회·설명 편집 구현, 실제 DB 미적용
 - 기준일: 2026-11-13
 - 데이터소스: app
-- 마이그레이션: app V18·V19·V20·V22, 공통 DML seed V21
+- 마이그레이션: app V18·V19·V20·V22·V32, 공통 DML seed V21
 - 결정: [ADR-036](../../../decisions/ADR-036-dataset-image-upload.md), [ADR-039](../../../decisions/ADR-039-image-version-history.md)
 
 ## 목적과 컬럼
@@ -16,8 +16,8 @@
 | dataset_id | VARCHAR(36) | 불가 | 없음 | 귀속 데이터셋 FK |
 | original_filename | VARCHAR(1024) | 불가 | 없음 | 선택 폴더부터의 원본 상대 경로 또는 단일 파일명 |
 | description | VARCHAR(2000) | 허용 | NULL | V22 추가, 버전별 이미지 설명. 공백만 있으면 NULL |
-| storage_path | VARCHAR(100) | 불가 | 없음 | 저장 루트 기준 상대 파일 경로, UUID.검증된확장자 |
-| thumbnail_path | VARCHAR(100) | 허용 | NULL | V19 추가, UUID-thumbnail.png 상대 경로. 기존 미생성 이미지는 NULL |
+| storage_path | VARCHAR(300) | 불가 | 없음 | 저장 루트 기준 상대 파일 경로, UUID.검증된확장자 |
+| thumbnail_path | VARCHAR(300) | 허용 | NULL | V19 추가, UUID-thumbnail.png 상대 경로. 기존 미생성 이미지는 NULL |
 | media_type | VARCHAR(100) | 불가 | 없음 | 콘텐츠로 판정한 image/png·jpeg·gif·bmp |
 | size_bytes | BIGINT | 불가 | 없음 | 원본 바이트 크기, Java Long |
 | is_deleted | BOOLEAN | 불가 | FALSE | 교체된 이전 버전의 삭제 표시 |

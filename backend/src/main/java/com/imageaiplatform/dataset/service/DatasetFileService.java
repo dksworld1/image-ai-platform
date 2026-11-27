@@ -7,6 +7,7 @@ import com.imageaiplatform.dataset.domain.DatasetFileContent;
 import com.imageaiplatform.dataset.domain.DatasetFileTarget;
 import com.imageaiplatform.auth.service.AuthorizationService;
 import com.imageaiplatform.dataset.domain.FileStorageProperties;
+import com.imageaiplatform.dataset.domain.DatasetStorageDirectory;
 import com.imageaiplatform.dataset.domain.FileDescriptionChange;
 import com.imageaiplatform.dataset.domain.UploadFilename;
 import java.util.ArrayList;
@@ -47,13 +48,14 @@ public class DatasetFileService {
     private static final Logger log = LoggerFactory.getLogger(DatasetFileService.class);
     private final DatasetFileDao fileDao;
     private final AuthorizationService authorizationService;
-    private final Path directory;
+    private final DatasetStorageDirectory storageDirectory;
     private final long maxFileSizeBytes;
 
     public DatasetFileService(DatasetFileDao fileDao, AuthorizationService authorizationService, FileStorageProperties properties) {
         this.fileDao = fileDao;
         this.authorizationService = authorizationService;
-        this.directory = properties.directory().toAbsolutePath().normalize();
+        this.storageDirectory = DatasetStorageDirectory.from(
+                properties.directory(), properties.directoryPattern(), properties.legacyDirectory());
         this.maxFileSizeBytes = properties.maxFileSize().toBytes();
     }
 
@@ -73,7 +75,8 @@ public class DatasetFileService {
         description = normalizeDescription(description);
         String filename = UploadFilename.resolve(originalFilename, relativePath);
         String actor = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (fileDao.lockDataset(datasetId, actor) == null) {
+        String storedDatasetId = fileDao.lockDataset(datasetId, actor);
+        if (storedDatasetId == null) {
             throw new AccessDeniedException("Dataset is unavailable or upload is not allowed.");
         }
         var previous = fileDao.findActiveByFilename(datasetId, filename);
@@ -91,8 +94,9 @@ public class DatasetFileService {
         String basename = filename.substring(filename.lastIndexOf('/') + 1);
         int extensionIndex = basename.lastIndexOf('.');
         String extension = extensionIndex > 0 && extensionIndex < basename.length() - 1 ? basename.substring(extensionIndex) : "";
-        String storagePath = fileId + extension;
-        writeFile(directory.resolve(storagePath), contents);
+        Path file = storageDirectory.fileForWrite(storedDatasetId, fileId + extension);
+        String storagePath = storageDirectory.relativePath(file);
+        writeFile(file, contents);
         var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
         if (previous != null) {
             var removed = previous.withDeletion(now, actor);
@@ -205,10 +209,8 @@ public class DatasetFileService {
     }
 
     private byte[] readFile(String storagePath) {
-        Path file = directory.resolve(storagePath).normalize();
-        if (!file.startsWith(directory)) throw new NoSuchElementException("Image file is unavailable.");
         try {
-            return Files.readAllBytes(file);
+            return Files.readAllBytes(storageDirectory.existingFile(storagePath));
         } catch (NoSuchFileException exception) {
             throw new NoSuchElementException("Image file is unavailable.");
         } catch (IOException exception) {
@@ -218,7 +220,7 @@ public class DatasetFileService {
 
     private void writeFile(Path file, byte[] contents) {
         try {
-            Files.createDirectories(directory);
+            Files.createDirectories(file.getParent());
             try (var output = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override

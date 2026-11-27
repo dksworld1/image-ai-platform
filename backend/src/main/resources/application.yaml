@@ -22,11 +22,15 @@ app:
         local: ./data/artifacts
       max-file-size: 10MB
     images:
-      directory: ./data/images
+      directory: ./data/dataset/
+      directory-pattern: "{dataset_id}/images"
+      legacy-directory: ./data/images
       max-file-size: 10MB
       thumbnail-max-edge: 256
     files:
-      directory: ./data/files
+      directory: ./data/dataset
+      directory-pattern: "{dataset_id}/files"
+      legacy-directory: ./data/files
       max-file-size: 10MB
   migration:
     enabled: false

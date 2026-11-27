@@ -5,6 +5,7 @@ import com.imageaiplatform.dataset.domain.DatasetImage;
 import com.imageaiplatform.dataset.domain.DatasetImageHistory;
 import com.imageaiplatform.dataset.domain.DatasetImageContent;
 import com.imageaiplatform.dataset.domain.DatasetImageTarget;
+import com.imageaiplatform.dataset.domain.DatasetStorageDirectory;
 import com.imageaiplatform.auth.service.AuthorizationService;
 import com.imageaiplatform.dataset.domain.ImageStorageProperties;
 import com.imageaiplatform.dataset.domain.ImageDescriptionChange;
@@ -49,14 +50,15 @@ public class DatasetImageService {
             "png", "image/png", "jpeg", "image/jpeg", "jpg", "image/jpeg", "gif", "image/gif", "bmp", "image/bmp");
     private final DatasetImageDao imageDao;
     private final AuthorizationService authorizationService;
-    private final Path directory;
+    private final DatasetStorageDirectory storageDirectory;
     private final long maxFileSizeBytes;
     private final Integer thumbnailMaxEdge;
 
     public DatasetImageService(DatasetImageDao imageDao, AuthorizationService authorizationService, ImageStorageProperties properties) {
         this.imageDao = imageDao;
         this.authorizationService = authorizationService;
-        this.directory = properties.directory().toAbsolutePath().normalize();
+        this.storageDirectory = DatasetStorageDirectory.from(
+                properties.directory(), properties.directoryPattern(), properties.legacyDirectory());
         this.maxFileSizeBytes = properties.maxFileSize().toBytes();
         this.thumbnailMaxEdge = properties.thumbnailMaxEdge();
     }
@@ -77,7 +79,8 @@ public class DatasetImageService {
         description = normalizeDescription(description);
         String filename = UploadFilename.resolve(originalFilename, relativePath);
         String actor = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (imageDao.lockDataset(datasetId, actor) == null) {
+        String storedDatasetId = imageDao.lockDataset(datasetId, actor);
+        if (storedDatasetId == null) {
             throw new AccessDeniedException("Dataset is unavailable or upload is not allowed.");
         }
         var previous = imageDao.findActiveByFilename(datasetId, filename);
@@ -94,10 +97,12 @@ public class DatasetImageService {
         String format = decoded.format();
         byte[] thumbnail = createThumbnail(decoded.image());
         String imageId = UUID.randomUUID().toString();
-        String storagePath = imageId + "." + (format.equals("jpeg") ? "jpg" : format);
-        String thumbnailPath = imageId + "-thumbnail.png";
-        writeFile(directory.resolve(storagePath), contents);
-        writeFile(directory.resolve(thumbnailPath), thumbnail);
+        Path imageFile = storageDirectory.fileForWrite(storedDatasetId, imageId + "." + (format.equals("jpeg") ? "jpg" : format));
+        Path thumbnailFile = storageDirectory.fileForWrite(storedDatasetId, imageId + "-thumbnail.png");
+        String storagePath = storageDirectory.relativePath(imageFile);
+        String thumbnailPath = storageDirectory.relativePath(thumbnailFile);
+        writeFile(imageFile, contents);
+        writeFile(thumbnailFile, thumbnail);
         var now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
         if (previous != null) {
             var removed = previous.withDeletion(now, actor);
@@ -218,10 +223,8 @@ public class DatasetImageService {
     }
 
     private byte[] readFile(String storagePath) {
-        Path file = directory.resolve(storagePath).normalize();
-        if (!file.startsWith(directory)) throw new NoSuchElementException("Image file is unavailable.");
         try {
-            return Files.readAllBytes(file);
+            return Files.readAllBytes(storageDirectory.existingFile(storagePath));
         } catch (NoSuchFileException exception) {
             throw new NoSuchElementException("Image file is unavailable.");
         } catch (IOException exception) {
@@ -231,7 +234,7 @@ public class DatasetImageService {
 
     private void writeFile(Path file, byte[] contents) {
         try {
-            Files.createDirectories(directory);
+            Files.createDirectories(file.getParent());
             try (var output = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override

@@ -342,11 +342,28 @@ local YAML의 app.cors.allowed-origin은 localhost와 127.0.0.1 각각의 5173·
 
 ## 데이터 파일 저장 설정 — 2026-11-13
 
-폴더 업로드(ADR-046)는 선택 폴더부터의 상대 경로를 DB 원본명에만 저장하며 서버 디스크에 사용자 폴더 구조를 생성하지 않습니다. 데이터 파일의 UUID + 확장자는 마지막 파일명에서 확장자를 추출합니다. 이미지의 UUID 원본·썸네일 저장은 유지합니다. V25가 두 유형의 원본 경로 길이를 확장하며 별도 런타임 설정은 추가하지 않습니다.
+폴더 업로드(ADR-046)는 선택 폴더부터의 상대 경로를 DB 원본명에만 저장합니다. 디스크의 폴더는 서버 저장 설정과 DB에서 조회한 데이터셋 ID로 정해집니다. 데이터 파일의 UUID + 확장자는 마지막 파일명의 확장자를 사용하며 대소문자를 유지합니다. 확장자가 없는 파일은 UUID로 저장합니다(ADR-045).
 
 2026-11-13 21:22(KST) 적용: 기존 8080 바인딩 프로세스를 종료하고 bin/start-local-backend.ps1을 숨김 창으로 재실행했습니다. local app DB에 V25 적용 및 /api/health HTTP 200, {"status":"UP"}를 확인했습니다. V24는 앞선 21:15 재시작에서 이미 적용했습니다. 브라우저 실제 폴더 선택 조작은 검증하지 않았습니다.
 
-데이터 파일은 application.yaml의 app.storage.files.directory(기본 ./data/files), app.storage.files.max-file-size(기본 10MB)로 관리합니다. 상대 루트는 백엔드 실행 작업 디렉터리를 기준으로 해석합니다. DB에는 루트 아래 UUID + 원본 확장자 상대 경로와 원본명을 기록합니다. 확장자의 대소문자는 유지하며 마지막 확장자만 사용합니다. 확장자가 없는 파일은 UUID로 저장하고 기존 UUID.bin 파일은 DB 경로로 계속 조회합니다(ADR-045). 외부 YAML이 필요하면 기존 Spring 표준 spring.config.additional-location으로 덮어쓰며 주제별 import·환경 변수는 추가하지 않습니다.
+`application.yaml`의 기본 저장 설정은 다음과 같습니다. 외부 YAML에서는 `spring.config.additional-location`으로 재정의할 수 있습니다.
+
+```yaml
+app:
+  storage:
+    images:
+      directory: ./data/dataset/
+      directory-pattern: "{dataset_id}/images"
+      legacy-directory: ./data/images
+    files:
+      directory: ./data/dataset
+      directory-pattern: "{dataset_id}/files"
+      legacy-directory: ./data/files
+```
+
+`directory`는 파일 저장 기준 경로이며, 상대 경로는 백엔드 실행 작업 디렉터리를 기준으로 해석합니다. `directory-pattern`은 상대 경로이며 포함된 모든 `{dataset_id}`를 DB에서 읽은 ID로 치환합니다. 폴더명 일부에도 쓸 수 있으며, 등록되지 않은 중괄호 토큰은 설정 오류로 처리합니다. 예를 들어 이미지 DB 경로는 `d1/images/<파일명>`이고 실제 위치는 `./data/dataset/d1/images/<파일명>`입니다. 루트 경로에는 토큰을 사용할 수 없습니다. 저장할 때 루트와 완성된 파일 경로를 캐노니컬 경로로 해석하고, 파일이 루트 안에 있으면 루트 기준 상대 경로를 DB에 저장합니다. 패턴 변경은 이후 업로드와 교체에 적용됩니다.
+
+조회할 때는 DB에 저장된 상대 경로를 현재 `directory`에서 찾습니다. 파일이 없으면 같은 상대 경로를 `legacy-directory`에서 찾습니다. 기본 이전 경로는 이미지의 `./data/images`, 데이터 파일의 `./data/files`입니다. 기존 환경에서 별도 저장 경로를 사용했다면 해당 경로를 각 `legacy-directory`에 지정합니다. app Flyway V32는 이미지와 이미지 이력의 원본·썸네일 상대 경로 컬럼을 300자로 확장합니다.
 
 현재 servlet multipart 파일 한도는 app.storage.images.max-file-size를 참조하고 요청 한도는 11MB입니다. 이미지·데이터 파일 모두 기본 10MB이며, 데이터 파일 최대값만 올려도 multipart 공통 한도가 먼저 적용됩니다. 운영에서 한도를 변경할 때 공통 multipart 파일/요청 한도와 두 유형별 한도를 함께 확인합니다. 유형별 실제 검증은 각 서비스가 수행합니다.
 

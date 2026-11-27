@@ -13,6 +13,7 @@ import com.imageaiplatform.dataset.domain.DatasetVersionEntry;
 import com.imageaiplatform.dataset.domain.DatasetListItem;
 import com.imageaiplatform.dataset.domain.ImageStorageProperties;
 import com.imageaiplatform.dataset.domain.FileStorageProperties;
+import com.imageaiplatform.dataset.domain.DatasetStorageDirectory;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -37,11 +38,14 @@ public class DatasetVersionService {
     private final DatasetDao datasets;
     private final DatasetImageDao images;
     private final DatasetFileDao files;
-    private final Path imageDirectory;
-    private final Path fileDirectory;
+    private final DatasetStorageDirectory imageDirectory;
+    private final DatasetStorageDirectory fileDirectory;
     public DatasetVersionService(DatasetVersionDao versions, DatasetDao datasets, ImageStorageProperties imageStorage, FileStorageProperties fileStorage, DatasetImageDao images, DatasetFileDao files) {
         this.versions=versions; this.datasets=datasets; this.images=images; this.files=files;
-        imageDirectory=imageStorage.directory().toAbsolutePath().normalize(); fileDirectory=fileStorage.directory().toAbsolutePath().normalize();
+        imageDirectory = DatasetStorageDirectory.from(
+                imageStorage.directory(), imageStorage.directoryPattern(), imageStorage.legacyDirectory());
+        fileDirectory = DatasetStorageDirectory.from(
+                fileStorage.directory(), fileStorage.directoryPattern(), fileStorage.legacyDirectory());
     }
     private String actor() { return SecurityContextHolder.getContext().getAuthentication().getName(); }
     private DatasetListItem accessible(String datasetId) {
@@ -211,10 +215,7 @@ public class DatasetVersionService {
         catch(IOException exception) { throw new UncheckedIOException(exception); }
     }
     private Path resolve(String kind,String storagePath) throws IOException {
-        Path root=(kind.equals("images")?imageDirectory:fileDirectory).toRealPath();
-        Path file=root.resolve(storagePath).normalize().toRealPath();
-        if(!file.startsWith(root) || !Files.isRegularFile(file)) throw new NoSuchFileException("File is unavailable.");
-        return file;
+        return (kind.equals("images") ? imageDirectory : fileDirectory).existingFile(storagePath);
     }
     @PreAuthorize("@authorizationService.hasPermission('dataset:version:restore') and @authorizationService.hasPermission('dataset:version:read') and @datasetService.canManage(#datasetId)")
     @Transactional("appTransactionManager")

@@ -40,9 +40,11 @@ import org.springframework.web.context.WebApplicationContext;
 @ActiveProfiles("test")
 class DatasetImageUploadTest {
     private static final Path STORAGE = Path.of("target", "image-upload-" + UUID.randomUUID()).toAbsolutePath();
+    private static final Path LEGACY_STORAGE = STORAGE.resolveSibling(STORAGE.getFileName() + "-legacy");
     @DynamicPropertySource
     static void storage(DynamicPropertyRegistry registry) {
         registry.add("app.storage.images.directory", () -> STORAGE.toString());
+        registry.add("app.storage.images.legacy-directory", () -> LEGACY_STORAGE.toString());
     }
     @Autowired private WebApplicationContext context;
     @Autowired @Qualifier("springSecurityFilterChain") private Filter securityFilter;
@@ -60,8 +62,8 @@ class DatasetImageUploadTest {
             jdbc.update("DELETE FROM " + table);
         }
         Files.createDirectories(STORAGE);
-        try (var files = Files.list(STORAGE)) {
-            for (Path file : files.toList()) Files.delete(file);
+        try (var files = Files.walk(STORAGE)) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) Files.delete(file);
         }
         jdbc.update("INSERT INTO auth_role (role_code, display_name) VALUES ('uploader', 'Uploader')");
         jdbc.update("INSERT INTO auth_role_permission (role_code, permission_code) VALUES ('uploader', 'dataset:image:upload'), ('uploader', 'dataset:image:update'), ('uploader', 'dataset:image:read'), ('uploader', 'dataset:item:read'), ('uploader', 'dataset:item:delete')");
@@ -92,6 +94,8 @@ class DatasetImageUploadTest {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.description").value("교체 설명"))
                 .andExpect(jsonPath("$.versionCount").value(2));
         var first = jdbc.queryForMap("SELECT * FROM dataset_image WHERE original_filename='one.png' AND is_deleted=FALSE");
+        assertThat(first.get("STORAGE_PATH")).isEqualTo("d1/images/" + first.get("IMAGE_ID") + ".png");
+        assertThat(first.get("THUMBNAIL_PATH")).isEqualTo("d1/images/" + first.get("IMAGE_ID") + "-thumbnail.png");
         String secondId = jdbc.queryForObject("SELECT image_id FROM dataset_image WHERE original_filename='two.png'", String.class);
         jdbc.update("DELETE FROM auth_role_permission WHERE role_code='uploader' AND permission_code <> 'dataset:image:update'");
         String body = "{\"items\":[{\"imageId\":\"" + first.get("IMAGE_ID") + "\",\"description\":\"편집한 설명\"},{\"imageId\":\"" + secondId + "\",\"description\":null}]}";
@@ -108,6 +112,27 @@ class DatasetImageUploadTest {
         assertThat(jdbc.queryForObject("SELECT description FROM dataset_image WHERE original_filename='keep.png'", String.class)).isEqualTo("원래 keep.png");
         assertThat(jdbc.queryForObject("SELECT description FROM dataset_image_history WHERE image_id=? AND created_by='creator' AND action='UPDATE'", String.class, first.get("IMAGE_ID"))).isEqualTo("편집한 설명");
         assertThat(fileCount()).isEqualTo(8);
+    }
+
+    @Test
+    void storesThumbnailForUuidDatasetAndReadsItFromTheLegacyDirectory() throws Exception {
+        String datasetId = UUID.randomUUID().toString();
+        jdbc.update("INSERT INTO dataset (dataset_id, name, workspace_id, created_by) VALUES (?, 'UUID dataset', 'a', 'creator')", datasetId);
+        mvc.perform(multipart("/api/datasets/" + datasetId + "/images").file(file("image.png", png))
+                        .header("Authorization", bearer("creator")))
+                .andExpect(status().isCreated());
+        var image = jdbc.queryForMap("SELECT image_id, thumbnail_path FROM dataset_image WHERE dataset_id=?", datasetId);
+        String thumbnailPath = datasetId + "/images/" + image.get("IMAGE_ID") + "-thumbnail.png";
+        assertThat(image.get("THUMBNAIL_PATH")).isEqualTo(thumbnailPath);
+        assertThat(Files.isRegularFile(STORAGE.resolve(thumbnailPath))).isTrue();
+        String legacyPath = "dataset/" + datasetId + "/added/" + image.get("IMAGE_ID") + "-thumbnail.png";
+        Path legacyThumbnail = LEGACY_STORAGE.resolve(legacyPath);
+        Files.createDirectories(legacyThumbnail.getParent());
+        Files.move(STORAGE.resolve(thumbnailPath), legacyThumbnail);
+        jdbc.update("UPDATE dataset_image SET thumbnail_path=? WHERE image_id=?", legacyPath, image.get("IMAGE_ID"));
+        mvc.perform(get("/api/datasets/" + datasetId + "/images/" + image.get("IMAGE_ID") + "/thumbnail")
+                        .header("Authorization", bearer("creator")))
+                .andExpect(status().isOk()).andExpect(content().bytes(Files.readAllBytes(legacyThumbnail)));
     }
 
     @Test
@@ -507,6 +532,6 @@ class DatasetImageUploadTest {
     private String bearer(String userKey) { return "Bearer " + tokens.issue(userKey).value(); }
 
     private long fileCount() throws Exception {
-        try (var files = Files.list(STORAGE)) { return files.count(); }
+        try (var files = Files.walk(STORAGE)) { return files.filter(Files::isRegularFile).count(); }
     }
 }

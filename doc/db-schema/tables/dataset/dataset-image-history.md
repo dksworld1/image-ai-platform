@@ -1,7 +1,7 @@
 # dataset_image_history 테이블 정의
 
 - 종류: 현재 데이터 계약
-- 상태: V20·V22 DDL·공통 V21 이관·설명 포함 서비스 이벤트 저장 구현, 실제 DB 미적용
+- 상태: V20·V22·V32 DDL·공통 V21 이관·설명 포함 서비스 이벤트 저장 구현, 실제 DB 미적용
 - 기준일: 2026-11-13
 - 데이터소스: app
 - 결정: [ADR-039](../../../decisions/ADR-039-image-version-history.md)
@@ -20,8 +20,8 @@
 | previous_image_id | VARCHAR(36) | 허용 | 교체 전 버전 ID |
 | original_filename | VARCHAR(1024) | 불가 | 원본명 스냅샷 |
 | description | VARCHAR(2000) | 허용 | V22 추가, 이벤트 시점의 설명 스냅샷. 기존 이력은 NULL |
-| storage_path | VARCHAR(100) | 불가 | 해당 버전 원본 상대 경로 |
-| thumbnail_path | VARCHAR(100) | 허용 | 해당 버전 썸네일 상대 경로 |
+| storage_path | VARCHAR(300) | 불가 | 해당 버전 원본 상대 경로 |
+| thumbnail_path | VARCHAR(300) | 허용 | 해당 버전 썸네일 상대 경로 |
 | media_type | VARCHAR(100) | 불가 | 원본 콘텐츠 형식 |
 | size_bytes | BIGINT | 불가 | 원본 크기 |
 | image_created_at·image_updated_at | TIMESTAMP(6) WITH TIME ZONE | 불가 | 이벤트 당시 이미지 행의 생성·수정 시각 |

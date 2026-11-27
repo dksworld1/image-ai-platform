@@ -5,4 +5,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.unit.DataSize;
 
 @ConfigurationProperties("app.storage.files")
-public record FileStorageProperties(Path directory, DataSize maxFileSize) {}
+public record FileStorageProperties(Path directory, String directoryPattern, Path legacyDirectory, DataSize maxFileSize) {}
